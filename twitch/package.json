@@ -1,0 +1,13 @@
+{
+  "name": "@elara-services/twitch",
+  "version": "1.0.0",
+  "description": "Twitch Helper for making requests",
+  "main": "./src/index.js",
+  "types": "index.d.ts",
+  "typings": "index.d.ts",
+  "author": "SUPERCHIEFYT (Elara-Discord-Bots, Elara-Services)",
+  "license": "MIT",
+  "dependencies": {
+    "@elara-services/fetch": "^1.0.1"
+  }
+}

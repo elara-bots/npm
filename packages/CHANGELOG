@@ -1,0 +1,51 @@
+# v5.0.0
+### BREAKING CHANGES
+- `locale` option for `SlashBuilder.context.user` and `SlashBuilder.context.message` was turned into `options` taking in more options (to support both permissions and locale)
+- `defaultPermission`/`default_permission` was removed, since it's deprecated. (if you want to use it then stay on v4.8.1)
+
+# v4.8.0/v4.8.1
+- Added: `dmPermission` (`dm_permission`) for SlashBuilder.create
+- Added: `defaultMemberPermissions` (`default_member_permissions`) for SlashBuilder.create
+- Deprecated `defaultPermission` (`default_permission`) for SlashBuilder.create
+- Updated: Typings for SlashBuilder.create
+
+# v4.7.0
+Added `locale` option for `<SlashBuilder>.create`, `<SlashBuilder>.option`, `<SlashBuilder.context.user/message>`
+
+
+# v4.0.3, v4.0.2
+Added 
+- fetch (useful with `@elara-services/fetch`)
+
+# v4.0.1
+Added 
+- Languages.find
+- Languages.langs 
+
+# v4.0.0
+__Breaking Change__
+The following functions & methods for `SlashBuilder` was moved to `static`
+> So you no longer need to do `new (require("@elara-services/packages").SlashBuilder)()`
+
+
+# v3.0.3
+Added 'types.context.user', 'types.context.message' and the typings for SlashBuilder
+
+
+# v3.0.1, v3.0.2
+
+Fixed the typings for modal and added the typings for "ButtonStyle" 
+
+
+# v3.0.0
+
+__Breaking Changes__
+Removed `UserFlags`, `Permissions` and `BitField`
+
+
+__Added__
+`Interactions`
+-> button
+-> select
+-> modal
+And the typings.

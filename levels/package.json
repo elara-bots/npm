@@ -1,0 +1,12 @@
+{
+  "name": "@elara-services/levels",
+  "version": "1.0.1",
+  "description": "",
+  "main": "./index.js",
+  "typings": "./index.d.ts",
+  "author": "SUPERCHIEFYT (Elara-Discord-Bots, Elara-Services)",
+  "license": "ISC",
+  "dependencies": {
+    "@elara-services/fetch": "^1.0.1"
+  }
+}

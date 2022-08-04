@@ -1,0 +1,15 @@
+{
+  "name": "@elara-services/automod",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "SUPERCHIEFYT (Elara-Discord-Bots, Elara-Services)",
+  "license": "MIT",
+  "devDependencies": {
+    "@elara-services/fetch": "^1.0.1",
+    "@elara-services/packages": "^4.7.0"
+  }
+}

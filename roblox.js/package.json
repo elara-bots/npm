@@ -1,0 +1,24 @@
+{
+  "name": "@elara-services/roblox.js",
+  "version": "3.1.1",
+  "description": "Fetch Roblox or Discord user's Roblox information!",
+  "main": "./src/index.js",
+  "types": "./src/index.d.ts",
+  "typings": "./src/index.d.ts",
+  "keywords": [
+    "roblox",
+    "roblox-api",
+    "roblox.js",
+    "noblox",
+    "api"
+  ],
+  "author": "SUPERCHIEFYT (Elara-Discord-Bots, Elara-Services)",
+  "license": "ISC",
+  "dependencies": {
+    "@elara-services/fetch": "1.0.1",
+    "moment": "2.29.4"
+  },
+  "links": {
+    "AVATAR": "https://www.roblox.com/headshot-thumbnail/image?userId=%USERID%&width=420&height=420&format=png"
+  }
+}
