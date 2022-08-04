@@ -1,0 +1,21 @@
+{
+  "name": "elara-services",
+  "version": "3.0.0",
+  "description": "The Official Elara Services API Wrapper.",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "typings": "index.d.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "SUPERCHIEFYT (Elara-Discord-Bots)",
+  "homepage": "https://elara.gitbook.io/services/wrapper/js",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Elara-Discord-Bots/Elara-Services.git"
+  },
+  "dependencies": {
+    "@elara-services/fetch": "1.0.1"
+  }
+}
