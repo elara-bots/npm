@@ -1,0 +1,10 @@
+{
+  "name": "@elara-services/slots",
+  "version": "1.0.0",
+  "description": "A slot machine.",
+  "main": "./src/index.js",
+  "types": "./src/index.d.ts",
+  "keywords": [],
+  "author": "SUPERCHIEFYT (Elara-Discord-Bots, Elara-Services)",
+  "license": "MIT"
+}
