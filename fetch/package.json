@@ -1,0 +1,24 @@
+{
+  "name": "@elara-services/fetch",
+  "version": "1.0.1",
+  "description": "The core lightweight HTTP client for Node",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/elara-bots/fetch.git"
+  },
+  "keywords": [
+    "http",
+    "https",
+    "request",
+    "fetch",
+    "url",
+    "lightweight"
+  ],
+  "author": "",
+  "license": "",
+  "bugs": {
+    "url": "https://github.com/elara-bots/fetch/issues"
+  },
+  "homepage": "https://github.com/elara-bots/fetch"
+}
