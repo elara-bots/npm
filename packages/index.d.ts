@@ -54,6 +54,8 @@ declare module "@elara-services/packages" {
         autocomplete?: boolean;
         min_value?: number;
         max_value?: number;
+        min_length?: number;
+        max_length?: number;
         choices?: { name: string, value: string }[];
         options?: SlashOptions[];
         locale?: {
@@ -104,7 +106,7 @@ declare module "@elara-services/packages" {
             message(name: string, options?: Omit<Slash, "options"|"type">): Slash;
         };
 
-        public static choice(name: string, value: string|number): { name: string, value: string|number };
+        public static choice(name: string, value: string|number, name_localizations?: object): { name: string, value: string|number, name_localizations: object };
         public static option(data: SlashOptions): Slash;
         public static create(name: string, description: string, options: Slash): Slash;
     }
@@ -121,6 +123,8 @@ declare module "@elara-services/packages" {
 
     export type ButtonOptions = {
         id?: Button['custom_id'];
+        title?: Button['label'];
+        label?: Button['label'];
         custom_id?: Button['custom_id'];
         type?: Button['type'];
         style?: ButtonStyles | Button['style'];

@@ -29,8 +29,8 @@ module.exports = class SlashBuilder extends null {
         }
     };
     
-    static choice(name, value) {
-        return { name, value };
+    static choice(name, value, name_localizations) {
+        return { name, value, name_localizations };
     };
 
     static option(data) {

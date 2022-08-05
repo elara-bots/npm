@@ -12,7 +12,7 @@ module.exports = class Interactions extends null {
         }
         return {
             custom_id: options?.id ?? options?.custom_id ?? "",
-            label: options?.title ?? "",
+            label: options?.title ?? options?.label ?? "",
             type: options?.type ?? 2,
             style: options?.style ? options.style : 2,
             disabled: Boolean(options.disabled),

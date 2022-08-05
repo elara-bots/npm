@@ -1,3 +1,10 @@
+# v5.1.0
+- Added `name_localizations` for `SlashBuilder.choice`
+- Added typings for `min_length` and `max_length` for `SlashBuilder.option` for STRING options.
+- Fixed typings for `Interactions.button` to have `label` and `title`
+- Fixed `Interactions.button` to allow for `title` and `label`
+
+
 # v5.0.0
 ### BREAKING CHANGES
 - `locale` option for `SlashBuilder.context.user` and `SlashBuilder.context.message` was turned into `options` taking in more options (to support both permissions and locale)
