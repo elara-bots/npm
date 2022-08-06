@@ -90,6 +90,12 @@ class Twitch {
         if (!Array.isArray(res.data) || !res.data.length) return { status: false, message: `There was no one found.` }
         return { status: true, data: res.data || [] };
     };
+
+    async fetchAll(idsOrNames) {
+        let [ users, streams ] = await Promise.all([ this.user(idsOrNames), this.stream(idsOrNames) ]);
+        if (!users.status && !streams.status) return { status: false, message: `No users or streams match ${idsOrNames}` }; 
+        return { status: true, users: users?.data ?? [], streams: streams?.data ?? [] }
+    };
 };
 
 exports.Twitch = Twitch;

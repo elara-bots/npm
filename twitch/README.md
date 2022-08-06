@@ -25,6 +25,13 @@ if (!res.status) return res.message; // When 'status' is faise message is always
 console.log(res); // Returns a 'data' field with an array of found user(s)
 ```
 
+## GET: Fetch Both
+```js
+const res = await twitch.fetchAll([ "tfue" ]); // This can be either their login_name or their user ID 
+if (!res.status) return res.message; // When 'status' is faise message is always provided.
+console.log(res); // Returns both (streams) and (users) fields with an array of found data
+```
+
 -----------
 
 # Need support?

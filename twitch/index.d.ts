@@ -41,6 +41,6 @@ declare module "@elara-services/twitch" {
         public makeRequest(url: string, method?: string): Promise<object | null>;
         public user(idsOrNames: string | string[]): Promise<{ status: boolean, message?: string, data?: UserData[] }>;
         public stream(idsOrNames: string | string[]): Promise<{ status: boolean, message?: string, data?: StreamData[] }>;
-
+        public fetchAll(idsOrNames: string | string[]): Promise<{ status: boolean, message?: string, users?: UserData[], streams?: StreamData[] }>;
     }
 }
