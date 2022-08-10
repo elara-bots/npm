@@ -1,6 +1,15 @@
-const { default: twit } = require("twitter-lite");
+const twit = require("twitter-lite");
 const { EventEmitter } = require("events");
 const Webhook = require("discord-hook");
+
+
+/**
+ * @typedef {Object} AddUserData
+ * @property {string} id - [REQUIRED]: The Twitter user's ID
+ * @property {string|number} color - [NOT_REQUIRED]: The color of the embed for posts.
+ * @property {string[]} webhooks - [REQUIRED]: An array of webhooks for the user to be announced to
+ */
+
 
 class Twitter extends EventEmitter {
     constructor({ 
@@ -10,6 +19,7 @@ class Twitter extends EventEmitter {
     } = {}){
         if(!timeout || isNaN(timeout)) throw new Error(`You didn't provide a timeout, in seconds.`);
         if (!consumer_key || !consumer_secret || !access_token_key || !access_token_secret) throw new Error(`You failed you provide one of the following, "consumer_key, consumer_secret, access_token_key, access_token_secret"`)
+        super()
         this.sendDefaultAnnouncement = sendDefaultAnnouncement;
         this.data = [];
         this.ids = []; 
@@ -23,10 +33,8 @@ class Twitter extends EventEmitter {
     };
 
     /**
-     * @param {object} options
-     * @param {string} [option.id] - [REQUIRED]: The Twitter user's ID
-     * @param {string|number} [options.color] - [NOT_REQUIRED]: The color of the embed for posts.
-     * @param {string[]} [options.webhooks] - [REQUIRED]: An array of webhooks for the user to be announced to 
+     * @param {AddUserData} options
+     * @returns {this}
      */
     addUser({ id, color, webhooks } = {}) {
         let data = {};
@@ -35,6 +43,16 @@ class Twitter extends EventEmitter {
         if (Array.isArray(webhooks) && webhooks.length) data.webhooks = webhooks;
         if (!("id" in data) && !("webhooks" in data)) return this;
         if (!this.data.find(c => c.id === id)) this.data.push(data);
+        if (!this.ids.includes(id)) this.ids.push(id);
+        return this;
+    };
+
+    /**
+     * @param {AddUserData[]} users 
+     * @returns {this}
+     */
+    addUsers(users = []) {
+        for (const user of users) this.addUser(user);
         return this;
     };
 
@@ -68,8 +86,10 @@ class Twitter extends EventEmitter {
         .on("data", d => {
             if(!d || !d.user) return Promise.resolve(null);
             if(!this.ids.includes(d.user.id_str)) return Promise.resolve(null);
-            this.emit(`stream:post`, d);
-            if (this.sendDefaultAnnouncement) this.sendDefault(d, this.data.find(c => c.id === d.user.id_str));
+            const userData = this.data.find(c => c.id === d.user.id_str);
+            if (!userData) return Promise.resolve(null);
+            this.emit(`stream:post`, d, userData);
+            if (this.sendDefaultAnnouncement) this.sendDefault(d, userData);
             return Promise.resolve();
         })
 
@@ -100,8 +120,7 @@ class Twitter extends EventEmitter {
             if (body.images.length === 1) embeds[0].image = { url: body.images[0] };
             else for (const img of body.images.slice(0, 4)) embeds.push({ url: body.url, image: { url: img } });
         }
-        if (body.webhooks.length === 1) this.send({ webhook: body.webhooks[0], username: body.username, avatar_url: body.avatar })
-        else for (const webhook of body.webhooks) this.send({ webhook, username: body.username, avatar_url: body.avatar, embeds });
+        for (const webhook of body.webhooks) this.send({ webhook, username: body.username, avatar_url: body.avatar, embeds });
         return Promise.resolve(`Sending the announcements`);
     };
 
@@ -113,7 +132,7 @@ class Twitter extends EventEmitter {
      */
     fetchData(data, find){
         if (!data) return null;
-        let text = data.text ? this.html(text) : "";
+        let text = data.text ? this.html(data.text) : "";
         if (data?.extended_tweet?.full_text) text = this.html(data.extended_tweet.full_text);
         let _data = {
             url: `https://twitter.com/${data.user.screen_name}/status/${data.id_str}`,
@@ -145,17 +164,17 @@ class Twitter extends EventEmitter {
      * @param {string} [options.username]
      * @param {string} [options.avatar_url]
      * @param {import("discord-hook")['data']['embeds']} [options.embeds]  
+     * @param {string} [options.content]
      * @param {import("discord-hook")['data']['components']} [options.components]
     */
-    async send({ webhook, username, avatar_url, embeds, components }) {
-        return new Webhook(webhook, { username, avatar_url })
-        .embeds(embeds)
-        .buttons(components)
-        .send()
+    async send({ webhook, username, avatar_url, embeds, content, components }) {
+        const sendWebhook = (hook) => new Webhook(hook, { username, avatar_url }).embeds(embeds).content(content).buttons(components).send()
         .catch(err => {
             if(!err || !err.stack) return null;
             this.emit(`webhook:error`, err);
         })
+        if (Array.isArray(webhook) && webhook.length) return await Promise.all(webhook.map(c => sendWebhook(c)));
+        return sendWebhook(webhook);
     };
 
     async restartStream() {

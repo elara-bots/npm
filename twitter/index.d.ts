@@ -3,9 +3,10 @@ declare module "@elara-services/twitter" {
     import { Stream } from "twitter-lite";
 
     export type SendData = {
-        webhook: string;
+        webhook: string | string[];
         username: string;
         avatar_url: string;
+        content: string;
         embeds: object[];
         components: object[];
     }
@@ -43,6 +44,7 @@ declare module "@elara-services/twitter" {
         public constructor(options: TwitterOptions);
         public sendDefaultAnnouncement: boolean;
         public addUser(options: UserData): this;
+        public addUsers(users: UserData[]): this;
         public html(str: string): string;
         public start(): Promise<this>;
         public sendDefault(data: object, find: UserData): Promise<string>;
@@ -64,7 +66,7 @@ declare module "@elara-services/twitter" {
         public on(event: "stream:error", listener: (error: Error | null) => void): this;
         public on(event: "stream:restart", listener: () => void): this;
         public on(event: "stream:end", listener: (response: any) => void): this;
-        public on(event: "stream:post", listener: (data: object) => void): this;
+        public on(event: "stream:post", listener: (data: object, user: UserData) => void): this;
         public on(event: "webhook:error", listener: (error: Error | null) => void): this;
     }
 }
