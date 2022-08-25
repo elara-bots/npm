@@ -13,18 +13,22 @@ const { Client } = require("discord.js"),
             prefix: "support", // This is what is used for interactions (buttons) and the start of the channel name
             encryptToken: "ASB!@#$%^&*(B", // This is to encrypt/decrypt the user IDs in the channel topic, to avoid non-staff from seeing who's ticket it is
             debug: true, // Only use if you want errors logged.
-            appeals: { // OPTIONAL
+            appeals: { // [OPTIONAL]
                 enabled: true, // If the appeals server checks should be enabled.
                 mainserver: {
                     id: "", // The main server's id 
                     checkIfBanned: true // Check if the user is banned in the main server, if not they can't open a ticket.
                 },
                 embeds: {
-                    not_banned: {} // The embeds, content and components for the not banned message. 
+                    not_banned: {
+                        content: "",
+                        embeds: [], // View https://discord.com/developers/docs/resources/channel#embed-object 
+                        components: [] // View https://discord.com/developers/docs/interactions/message-components#what-is-a-component
+                    } // The embeds, content and components for the not banned message. 
                 }
             },
 
-            modal: {
+            modal: { // [OPTIONAL]
                 enabled: true, // If this form should be enabled  / shown 
                 title: "", // The top title of the modal / form 
                 questions: [
@@ -39,22 +43,22 @@ const { Client } = require("discord.js"),
                     }
                 ]
             },
-            webhook: {
-                id: "", // 'webhookId' support will be removed in the next major version
-                token: "", // 'webhookToken' support will be removed in the next major version
-                username: "Webhook Username Here", // 'webhookUsername' support will be removed in the next major version
-                avatar: "", // 'webhookAvatar' support will be removed in the next major version
+            webhook: { // [OPTIONAL]
+                id: "", // The webhook ID for this ticket's open and closed logs. 
+                token: "", // The webhook Token for this ticket's open and closed logs.
+                username: "Webhook Username Here", // The webhook username for this ticket's logs.
+                avatar: "", // The webhook avatar for this ticket's logs.
             },
-            support: {
+            support: { // [OPTIONAL]
                 canOnlyCloseTickets: true, // If 'true' only roles and users listed below can close tickets. (OR people with 'Manage Server' permission)
-                roles: [ // 'supportRoleIds' support will be removed in the next major version
+                roles: [ // The role ids for the 'support' members
                     "123456789"
                 ],
-                users: [ // 'supportUserIds' support will be removed in the next major version
+                users: [ // The user ids for the 'support' users
                     "123456789"
                 ]
             },
-            ticket: {
+            ticket: { // [OPTIONAL]
                 closeReason: true, // This will enforce users or support staff to provide a reason for closing the ticket
                 limitOnePerUser: true, // This will block users from creating more than one ticket.
                 category: "", // When tickets get created they get created in this category, (OPTIONAL) - Default is the category ID for the starter message's channel.
