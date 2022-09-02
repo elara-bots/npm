@@ -1,0 +1,24 @@
+{
+  "name": "@elara-services/automod-dms",
+  "version": "1.0.0",
+  "description": "Sends users or members in roles DM notifications when Discord built-in AutoMod gets triggered ",
+  "main": "index.js",
+  "types": "types.d.ts",
+  "typings": "types.d.ts",
+  "keywords": [
+    "discord",
+    "discord-bot",
+    "automod",
+    "discord-automod",
+    "automoderation",
+    "moderation"
+  ],
+  "author": "SUPERCHIEFYT",
+  "license": "MIT",
+  "dependencies": {
+    "@elara-services/packages": "5.1.0"
+  },
+  "optionalDependencies": {
+    "discord.js": "*"
+  }
+}
