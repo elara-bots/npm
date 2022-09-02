@@ -111,7 +111,8 @@ module.exports = class Base {
         let member = await getMember(guild, data.user_id);
         if (!member) return;
         const action = this.options.actions.find(c => c.guild_id === data.guild_id) || { enabled: false }
-        if (!action?.enabled) return;
+        if (!action.enabled) return;
+        if (action.ignoreRules?.includes(data.rule_id)) return;
         this.handleNotifications({ action, data, member, type: "Notify" });
         this.handleNotifications({ action, data, member, type: "Notifications" });
     };
@@ -268,6 +269,7 @@ module.exports = class Base {
  * @typedef {Object} AutoModerationActions
  * @property {boolean} [enabled] If this should be enabled
  * @property {string} [guild_id] The server ID for this action
+ * @property {string[]} [ignoreRules] If the notifications shouldn't go out for these AutoMod rules
  * @property {boolean} [fetchAllMembers] If the package should fetch all members for this guild_id (so notify.role and notifications.role works property)
  * @property {NotifyOptions} [notify] 
  * @property {NotifyOptions} [notifications]

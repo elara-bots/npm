@@ -18,6 +18,9 @@ const automod = new AutoModDMNotifications({
         {
             enabled: true, // If this action should be enabled
             guild_id: "12345678", // The server ID for this action only.
+            ignoreRules: [ // To ignore a certain AutoMod rule from being sent to notify/notification users
+                "2133456", 
+            ],
             fetchAllMembers: true, // If you want the package to automatically fetch all members for the provided server ID (REQUIRES: 'GUILD_MEMBERS' intent)
             notify: { // People in this option will get the user's message content or what got filtered. 
                 enabled: true, // If the notify role/users should be notified

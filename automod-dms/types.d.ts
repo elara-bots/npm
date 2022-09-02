@@ -11,6 +11,7 @@ declare module "@elara-services/automod-dms" {
     export interface AutoModerationActions {
         enabled: boolean,
         guild_id: string;
+        ignoreRules: string[];
         notify: NotifyOptions;
         notifications: NotifyOptions
     }
