@@ -1,5 +1,5 @@
-const { warn, getMember } = require("../utils");
 const { Duration } = require("@elara-services/packages");
+const pack = require("./package.json");
 
 module.exports = class Base {
     /**
@@ -299,3 +299,14 @@ module.exports = class Base {
  * @property {string} [matched_keyword] the word or pharse configured in the rule that triggered the rule 
  * @property {string} [matched_content] the substring in content that triggered the rule
  */
+
+
+
+const warn = (...args) => console.warn(`[${pack.name}, v${pack.version}]: `, ...args);
+
+/**
+ * @param {import("discord.js").Guild} guild 
+ * @param {string} id 
+ * @returns {Promise<import("discord.js").GuildMember>}
+ */
+const getMember = async (guild, id) => guild.members.resolve(id) || await guild.members.fetch({ user: id }).catch(() => null) || null
