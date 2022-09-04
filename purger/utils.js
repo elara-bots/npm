@@ -20,7 +20,7 @@ exports.fetchMessages = async (channel, limit = 50, before, after, around) => {
 
 exports.deleteMessages = async (channel, messageIDs) => {
     if (messageIDs.length <= 0) throw new Error(`[PURGER:deleteMessages]: No messages provided!`);
-    messageIDs = messageIDs.filter(id => Date.now() - SnowflakeUtil.deconstruct(id).timestamp < 1209600000)
+    messageIDs = messageIDs.filter(id => Date.now() - SnowflakeUtil.timestampFrom(id) < 1_209_600_000)
     if (messageIDs.length <= 100) {
         await channel.bulkDelete(messageIDs, true).catch(() => new Collection());
         return messageIDs;
