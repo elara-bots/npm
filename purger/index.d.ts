@@ -33,5 +33,6 @@ declare module "@elara-services/purger" {
     export class Utils extends null {
         static fetchMessages(channel: TextBasedChannel, limit?: number, before?: string, after?: string, around?: string): Promise<Array<Message>>;
         static deleteMessages(channel: TextBasedChannel, messageIDs: string[]): Promise<string[]>
+        static chunk(array: any[], sliceAt?: number | 10): any[];
     }
 }

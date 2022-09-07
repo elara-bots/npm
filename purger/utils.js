@@ -25,7 +25,7 @@ exports.deleteMessages = async (channel, messageIDs) => {
         return messageIDs;
     }
     let [ chunks, i ] = [
-        this.chunk(messageIDs, 100),
+        exports.chunk(messageIDs, 100),
         0
     ];
     for (const chunk of chunks) {
@@ -33,4 +33,10 @@ exports.deleteMessages = async (channel, messageIDs) => {
         setTimeout(() => channel.bulkDelete(chunk, true).catch(() => new Collection()), i * 2000);
     }
     return messageIDs;
+}
+
+exports.chunk = (array = [], sliceAt = 10) => {
+    let R = [];
+    for (let i = 0; i < array.length; i += sliceAt) R.push(array.slice(i, i + sliceAt));
+    return R;
 }
