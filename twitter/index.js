@@ -138,7 +138,7 @@ class Twitter extends EventEmitter {
         let text = data.text ? this.html(data.text) : "";
         if (data?.extended_tweet?.full_text) text = this.html(data.extended_tweet.full_text);
         if (Array.isArray(find.ignoreText) && find.ignoreText.length) {
-            if (ignoreText.some(c => text.toLowerCase().includes(c.toLowerCase()))) return null;
+            if (find.ignoreText.some(c => text.toLowerCase().includes(c.toLowerCase()))) return null;
         }
         let _data = {
             url: `https://twitter.com/${data.user.screen_name}/status/${data.id_str}`,
