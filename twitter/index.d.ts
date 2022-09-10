@@ -24,6 +24,7 @@ declare module "@elara-services/twitter" {
         id: string;
         webhooks: string[];
         color?: string | number;
+        ignoreText?: string[];
     }
 
     export type FetchData = {

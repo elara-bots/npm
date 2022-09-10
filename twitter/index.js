@@ -8,6 +8,7 @@ const Webhook = require("discord-hook");
  * @property {string} id - [REQUIRED]: The Twitter user's ID
  * @property {string|number} color - [NOT_REQUIRED]: The color of the embed for posts.
  * @property {string[]} webhooks - [REQUIRED]: An array of webhooks for the user to be announced to
+ * @property {string[]} ignoreText - [NOT_REQUIRED]: Should ignore the tweet if it contains the text provided in this array.
  */
 
 
@@ -36,11 +37,12 @@ class Twitter extends EventEmitter {
      * @param {AddUserData} options
      * @returns {this}
      */
-    addUser({ id, color, webhooks } = {}) {
+    addUser({ id, color, webhooks, ignoreText } = {}) {
         let data = {};
         if (id && typeof id === "string") data.id = id;
         if (color && [ "string", "number" ].includes(typeof color)) data.color = color;
         if (Array.isArray(webhooks) && webhooks.length) data.webhooks = webhooks;
+        if (Array.isArray(ignoreText) && ignoreText.length) data.ignoreText = ignoreText;
         if (!("id" in data) && !("webhooks" in data)) return this;
         if (!this.data.find(c => c.id === id)) this.data.push(data);
         if (!this.ids.includes(id)) this.ids.push(id);
@@ -126,14 +128,18 @@ class Twitter extends EventEmitter {
 
     /**
      * @param {object} data 
-     * @param {?object} find
+     * @param {object} find
      * @param {?string|number} [find.color]
      * @param {?string[]} [find.webhooks]
+     * @param {?string[]} [find.ignoreText]
      */
     fetchData(data, find){
         if (!data) return null;
         let text = data.text ? this.html(data.text) : "";
         if (data?.extended_tweet?.full_text) text = this.html(data.extended_tweet.full_text);
+        if (Array.isArray(find.ignoreText) && find.ignoreText.length) {
+            if (ignoreText.some(c => text.toLowerCase().includes(c.toLowerCase()))) return null;
+        }
         let _data = {
             url: `https://twitter.com/${data.user.screen_name}/status/${data.id_str}`,
             text,
