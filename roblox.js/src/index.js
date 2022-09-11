@@ -48,12 +48,14 @@ module.exports = class Roblox {
 
     /**
      * @param {string} name 
+     * @param {boolean} basic
      * @returns {Promise<object|null>}
      */
-    async fetchByUsername(name) {
+    async fetchByUsername(name, basic = false) {
         // TODO: Replace this with the newer users.roblox.com API 
         let res = await this._request(`https://api.roblox.com/users/get-by-username?username=${name}`);
         if (!res || !res.Id) return null
+        if (basic) return this.fetchBasicRobloxInfo(res.Id);
         return this.fetchRoblox(res.Id);
     };
 
