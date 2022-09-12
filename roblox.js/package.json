@@ -1,6 +1,6 @@
 {
   "name": "@elara-services/roblox.js",
-  "version": "3.3.0",
+  "version": "3.3.1",
   "description": "Fetch Roblox or Discord user's Roblox information!",
   "main": "./src/index.js",
   "types": "./src/index.d.ts",

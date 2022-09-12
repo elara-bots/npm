@@ -73,7 +73,7 @@ declare module "@elara-services/roblox.js" {
         public fetch(user: string|number, basic?: boolean, guildId?: string, includeBloxLink?: boolean): Promise<RobloxStatus|object>;
         public get(user: string|number, basic?: boolean, guildId?: string, includeBloxLink?: boolean): Promise<RobloxStatus|object>;
         public fetchByUsername(name: string, basic?: boolean): Response;
-        public fetchRover(id: string, basic?: boolean, guildId?: string, includeBloxLink?: boolean): Response;
+        public fetchRoVer(id: string, basic?: boolean, guildId?: string, includeBloxLink?: boolean): Response;
         public fetchBloxlink(id: string, basic?: boolean, guildId?: string): Response;
         public fetchBasicRobloxInfo(id: string): Response | Promise<{
             status: boolean;
