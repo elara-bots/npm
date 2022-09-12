@@ -41,9 +41,32 @@ declare module "@elara-services/packages" {
         public static button(options: ButtonOptions): Button;
         public static select(options: SelectOptions): Select;
         public static modal(options: ModalOptions): Modal;
+        public static textInput(options: TextInputOptions, row?: boolean): TextInput | { type: number, components: [ TextInput ] };
     }
 
     export type ChannelTypes = 'GUILD_TEXT' | 'DM' | 'GUILD_VOICE' | 'GROUP_DM' | 'GUILD_CATEGORY' | 'GUILD_NEWS' | 'GUILD_STORE' | 'GUILD_NEWS_THREAD' | 'GUILD_PUBLIC_THREAD' | 'GUILD_PRIVATE_THREAD' | 'GUILD_STAGE_VOICE';
+
+    export type TextInputOptions = {
+        id?: string;
+        type?: number;
+        title?: string;
+        style?: number;
+        min?: number;
+        max?: number;
+        holder?: string;
+    } & TextInput;
+
+    export type TextInput = {
+        custom_id?: string;
+        type?: number;
+        label?: string;
+        style?: number;
+        min_length?: number;
+        max_length?: number;
+        placeholder?: string;
+        value?: string;
+        required?: boolean;
+    }
 
     export type SlashOptions = {
         type: number;

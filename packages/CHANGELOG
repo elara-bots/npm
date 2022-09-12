@@ -1,3 +1,7 @@
+# v5.2.0
+- Added `textInput` for `Interactions`
+- Added typings for `textInput` helper function.
+
 # v5.1.0
 - Added `name_localizations` for `SlashBuilder.choice`
 - Added typings for `min_length` and `max_length` for `SlashBuilder.option` for STRING options.

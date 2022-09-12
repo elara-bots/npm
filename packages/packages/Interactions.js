@@ -41,4 +41,35 @@ module.exports = class Interactions extends null {
             components: options.components
         };
     };
+
+    static textInput(options = {}, row = false) {
+        let data = {};
+
+        if (options.type) data.type = options.type;
+        else data.type = 4;
+
+        if (options.id) data.custom_id = options.id;
+        else if (options.custom_id) data.custom_id = options.custom_id;
+
+        if (options.label) data.label = options.label;
+        else if (options.title) data.label = options.title;
+        
+        if (options.style) data.style = options.style;
+        else data.style = 1;
+
+        if (options.min) data.min_length = options.min;
+        else if (options.min_length) data.min_length = options.min_length;
+        
+        if (options.max) data.max_length = options.max;
+        else if (options.max_length) data.max_length = options.max_length;
+
+        if (options.holder) data.placeholder = options.holder;
+        else if (options.placeholder) data.placeholder = options.placeholder;
+
+        if (typeof options.required === "boolean") data.required = options.required;
+        if (options.value) data.value = options.value;
+
+        if (row) return data;
+        return { type: 1, components: [ data ] };
+    };
 };
