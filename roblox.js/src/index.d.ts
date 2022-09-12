@@ -1,5 +1,8 @@
 declare module "@elara-services/roblox.js" {
 
+    // @ts-ignore
+    import { User } from "discord.js";
+
     export interface RobloxOptions {
         cookie?: string;
         debug?: boolean;
@@ -18,6 +21,41 @@ declare module "@elara-services/roblox.js" {
         on(event: "failed", listener: (user: string, service: string) => void): void;
     }
 
+    export type VerificationServices = 'RoVer' | 'BloxLink';
+
+    export interface Messages {
+        ERROR(str: string): string;
+        FETCH_ERROR(err: Error): string;
+        NO_ROBLOX_PROFILE: string;
+        BIO: string;
+        STATUS: string;
+        URL: string;
+        PROFILE: string;
+        AVATAR: string;
+        ID: string;
+        PRIMIARY: string;
+        RANK: string;
+        ROLE: string;
+        LINK: string;
+        OFFLINE: string;
+        UNKNOWN: string;
+        PAST_NAMES: string;
+        JOINED: string;
+        COUNTS: string;
+        FRIENDS: string;
+        FOLLOWERS: string;
+        FOLLOWING: string;
+        GROUPS: string;
+        USERNAME: string;
+        GAME_URL(url: string): string;
+        LAST_SEEN: string;
+        ACTIVITY: string;
+        NOT_VERIFIED(service: VerificationServices): string;
+        DISABLED(service: VerificationServices): string;
+        AUTHOR(user: User|string): { name: string, icon_url: string, url: string };
+        FOOTER(warn: boolean): { text: string };
+    }
+
     type Response = Promise<RobloxStatus|object|null>;
     // @ts-ignore
     export = class Roblox {
@@ -25,14 +63,14 @@ declare module "@elara-services/roblox.js" {
         public rover: boolean;
         public bloxlink: boolean;
         public debug: boolean;
-        public keys: { bloxlink?: string | null }
+        public keys: { bloxlink?: string | null, rover?: string | null }
         public options: RobloxOptions;
         public events: RobloxJSEvents;
         public isVerifed(user: string|number): Promise<boolean>;
-        public fetch(user: string|number, basic?: boolean, guildId?: string): Promise<RobloxStatus|object>;
-        public get(user: string|number, basic?: boolean, guildId?: string): Promise<RobloxStatus|object>;
+        public fetch(user: string|number, basic?: boolean, guildId?: string, includeBloxLink?: boolean): Promise<RobloxStatus|object>;
+        public get(user: string|number, basic?: boolean, guildId?: string, includeBloxLink?: boolean): Promise<RobloxStatus|object>;
         public fetchByUsername(name: string, basic?: boolean): Response;
-        public fetchRover(id: string, basic?: boolean, guildId?: string): Response;
+        public fetchRover(id: string, basic?: boolean, guildId?: string, includeBloxLink?: boolean): Response;
         public fetchBloxlink(id: string, basic?: boolean, guildId?: string): Response;
         public fetchBasicRobloxInfo(id: string): Response | Promise<{
             status: boolean;
@@ -54,7 +92,6 @@ declare module "@elara-services/roblox.js" {
             embeds: object[],
             components: object[]
         }
-
 
         // Private Methods
         private _request(url: string, headers?: object, method?: string, returnJSON?: boolean): Promise<object|string|null>;

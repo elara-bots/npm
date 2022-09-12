@@ -1,13 +1,12 @@
-const [moment, fetch, pack, formatDate, formatNum, { EventEmitter }] = [
+const [moment, fetch, pack, formatDate, formatNum, { EventEmitter }, { Messages }] = [
     require("moment"),
     require("@elara-services/fetch"),
     require(`../package.json`),
     (date, format = "f") => `<t:${Math.floor(new Date(date).getTime() / 1000)}${format ? `:${format}` : ""}>`,
     (num) => num.toLocaleString(),
-    require("events")
+    require("events"),
+    require("./messages")
 ];
-
-let emitted = false;
 
 module.exports = class Roblox {
     /**
@@ -19,29 +18,30 @@ module.exports = class Roblox {
      * @param {boolean} [options.apis.rover]
      * @param {boolean} [options.apis.bloxlink]
      * @param {object} [options.keys]
+     * @param {string} [options.keys.rover]
      * @param {string} [options.keys.bloxlink]
      */
     constructor(options) {
         this.rover = Boolean(options?.apis?.rover ?? true);
         this.bloxlink = Boolean(options?.apis?.bloxlink ?? true);
-        this.keys = options.keys ?? { bloxlink: null };
+        this.keys = options.keys ?? { bloxlink: null, rover: null };
         this.debug = Boolean(options?.debug ?? false);
         this.options = options;
         if ("avatarUrl" in options) {
-            if (!options.avatarUrl.includes("%USERID%")) throw new Error(`[ROBLOX:API:ERROR]: You forgot to include '%USERID%' in the avatarUrl field.`);
+            if (!options.avatarUrl.includes("%USERID%")) throw new Error(Messages.ERROR(`You forgot to include '%USERID%' in the avatarUrl field.`));
         }
         this.events = new EventEmitter();
-        if (!this.bloxlink && !this.rover) throw new Error(`[ROBLOX:API:ERROR]: You can't disable both RoVer or Bloxlink APIs... how else will you fetch the information?`);
+        if (!this.bloxlink && !this.rover) throw new Error(Messages.ERROR(`You can't disable both RoVer or Bloxlink APIs... how else will you fetch the information?`));
     };
     get fetch() { return this.get; };
-    async get(user, basic = false, guildId = null) {
+    async get(user, basic = false, guildId = null, includeBloxLink = true) {
         if (typeof user === "string" && user.match(/<@!?/gi)) {
-            let r = await this.fetchRoVer(user.replace(/<@!?|>/gi, ""), basic, guildId);
-            if (!r || r.status !== true) return this.status(r?.message ?? "I was unable to fetch the Roblox information for that user.");
+            let r = await this.fetchRoVer(user.replace(/<@!?|>/gi, ""), basic, guildId, includeBloxLink);
+            if (!r?.status) return this.status(r?.message ?? Messages.NO_ROBLOX_PROFILE);
             return r;
         } else {
             let s = await (isNaN(parseInt(user)) ? this.fetchByUsername(user) : this.fetchRoblox(parseInt(user)));
-            if (!s || s.status !== true) return this.status(s?.message ?? "I was unable to fetch the Roblox information for that user.");
+            if (!s?.status) return this.status(s?.message ?? Messages.NO_ROBLOX_PROFILE);
             return s;
         };
     };
@@ -65,10 +65,16 @@ module.exports = class Roblox {
      * @param {string | null} [guildId] - The guild ID for the BloxLink API v2 requests (OPTIONAL)
      * @returns {Promise<object|null>}
      */
-    async fetchRoVer(id, basic = false, guildId) {
-        if (!this.rover) return this.fetchBloxLink(id, basic, guildId);
+    async fetchRoVer(id, basic = false, guildId, includeBloxLink = true) {
+        if (!this.rover) {
+            if (!includeBloxLink) return this.status(Messages.DISABLED("RoVer"));
+            return this.fetchBloxLink(id, basic, guildId);
+        }
         let r = await this.privateGet(`https://verify.eryn.io/api/user/${id}`);
-        if (!r) return this.fetchBloxLink(id, basic, guildId);
+        if (!r) {
+            if (!includeBloxLink) return this.status(Messages.NOT_VERIFIED("RoVer"));
+            return this.fetchBloxLink(id, basic, guildId);
+        }
         this.emit("fetch", id, "rover");
         if (basic) return this.fetchBasicRobloxInfo(r.robloxId);
         return this.fetchRoblox(r.robloxId);
@@ -81,23 +87,16 @@ module.exports = class Roblox {
      * @returns {Promise<object|null>}
      */
     async fetchBloxLink(id, basic = false, guildId) {
-        if (!this.bloxlink) return this.status(`The bloxlink API is disabled by you.`);
+        if (!this.bloxlink) return this.status(Messages.DISABLED("BloxLink"));
         let r;
         if (!this.keys?.bloxlink) {
-            if (!emitted) {
-                emitted = true;
-                console.log(`[${pack.name.toUpperCase()}, v${pack.version}]: `, `The Bloxlink API v1 is deprecated, you need to set an API key using the 'keys' options`);
-            }
-            r = await this.privateGet(`https://api.blox.link/v1/user/${id}`);
-            if (!r || typeof r.primaryAccount !== "string") {
-                this.emit("failed", id, "bloxlink");
-                return this.status(`I was unable to find an account with that userID!`);
-            }
+            console.warn(Messages.ERROR(`The Bloxlink API v1 is removed, you need to set an API key using the 'keys' options to use the v3 BloxLink API!`))
+            return this.status(Messages.ERROR(`The Bloxlink API v1 is removed, you need to set an API key using the 'keys' options to use the v3 BloxLink API!`))
         } else {
             r = await this._request(`https://v3.blox.link/developer/discord/${id}${guildId ? `?guildId=${guildId}` : ""}`, { "api-key": this.keys.bloxlink }, "GET", true);
             if (!r || !r.success || typeof r.user?.primaryAccount !== "string") {
                 this.emit("failed", id, "bloxlink");
-                return this.status(`I was unable to find an account with that userID!`);
+                return this.status(Messages.NOT_VERIFIED("BloxLink"));
             }
         }
         this.emit("fetch", id, "bloxlink");
@@ -111,7 +110,7 @@ module.exports = class Roblox {
      */
     async fetchBasicRobloxInfo(id) {
         let res = await this.privateFetch(`https://users.roblox.com/v1/users/${id}`);
-        if (!res) return { status: false, message: `Unable to fetch their Roblox account.` }
+        if (!res) return this.status(Messages.NO_ROBLOX_PROFILE);
         return { status: true, ...res };
     }
 
@@ -128,7 +127,7 @@ module.exports = class Roblox {
                 // TODO: Replace this with the new API, once they fix it
                 this.privateFetch(`https://api.roblox.com/users/${id}/onlinestatus`)
             ])
-            if (!userReq) return this.status(`I was unable to find an account with that user ID!`);
+            if (!userReq) return this.status(Messages.NO_ROBLOX_PROFILE);
             if (!g) g = [];
             let [bio, joinDate, pastNames, userStatus, friends, followers, following, groups] = [
                 null, "", "", "Offline", 0, 0, 0, []
@@ -168,9 +167,9 @@ module.exports = class Roblox {
             return {
                 status: true,
                 user: {
-                    username: userReq.name ?? "Unknown",
+                    username: userReq.name ?? Messages.UNKNOWN,
                     id: userReq.id ?? 0,
-                    online: userStatus ?? "Offline",
+                    online: userStatus ?? Messages.OFFLINE,
                     url: `https://roblox.com/users/${id}/profile`,
                     avatar: (this.options.avatarUrl || pack.links.AVATAR).replace(/%userid%/gi, userReq.id),
                     bio, joined: joinDate ?? null,
@@ -180,8 +179,7 @@ module.exports = class Roblox {
                 groups, activity
             }
         } catch (err) {
-            if (err.message.toString().toLowerCase() === "cannot destructure property `body` of 'undefined' or 'null'." || err.message.toString() === "Cannot destructure property 'body' of '(intermediate value)' as it is undefined.") return this.status(`Not Found`)
-            return this.status(`Error while trying to fetch the information\n${err.message}`)
+            return this.status(Messages.FETCH_ERROR(err));
         }
     };
 
@@ -277,17 +275,17 @@ module.exports = class Roblox {
             if (res.activity.PlaceId) gameURL = `https://roblox.com/games/${res.activity.PlaceId}`;
             fields.push(
                 {
-                    name: `Activity`,
-                    value: `${emoji}Status: ${res.activity.LastLocation}${gameURL ? `\n${emoji}Game: [URL](${gameURL} "Click here to view the game!")` : ""}\n${emoji}Last Seen: ${formatDate(res.activity.LastOnline)} (${formatDate(res.activity.LastOnline, "R")})`
+                    name: Messages.ACTIVITY,
+                    value: `${emoji}${Messages.STATUS}: ${res.activity.LastLocation}${gameURL ? `\n${emoji}${Messages.GAME_URL(gameURL)}` : ""}\n${emoji}${Messages.LAST_SEEN}: ${formatDate(res.activity.LastOnline)} (${formatDate(res.activity.LastOnline, "R")})`
                 }
             )
         }
-        if (res.user.bio) fields.push({ name: `Bio`, value: res.user.bio.slice(0, 1024) });
+        if (res.user.bio) fields.push({ name: Messages.BIO, value: res.user.bio.slice(0, 1024) });
         if (res.groups.length) {
             for (const g of res.groups.sort((a, b) => b.primary - a.primary).slice(0, 4)) {
                 fields.push({
-                    name: `${g.primary ? "[Primary] " : ""}${g.name}`,
-                    value: `${emoji}ID: ${g.id}\n${emoji}Rank: ${g.rank}\n${emoji}Role: ${g.role}\n${emoji}Link: [URL](${g.url})`,
+                    name: `${g.primary ? `[${Messages.PRIMARY}] ` : ""}${g.name}`,
+                    value: `${emoji}${Messages.ID}: ${g.id}\n${emoji}${Messages.RANK}: ${g.rank}\n${emoji}${Messages.ROLE}: ${g.role}\n${emoji}${Messages.LINK}: [${Messages.URL}](${g.url})`,
                     inline: g.primary ? false : true
                 })
             }
@@ -301,25 +299,25 @@ module.exports = class Roblox {
                 fields,
                 color,
                 description: [
-                    `${emoji}Username: ${res.user.username}`,
-                    `${emoji}ID: ${res.user.id}`,
-                    `${emoji}Past Names: ${res.user.lastnames.map(g => `\`${g || "None"}\``).join(", ") || "None"}`,
-                    `${emoji}Joined: ${formatDate(res.user.joined.full, "f")} (${formatDate(res.user.joined.full, "R")})`,
-                    `${emoji}Counts:`,
-                    `${secondEmoji}Groups: ${formatNum(res.groups.length)}`,
-                    `${secondEmoji}Friends: ${formatNum(res.user.counts.friends)}`,
-                    `${secondEmoji}Followers: ${formatNum(res.user.counts.followers)}`,
-                    `${secondEmoji}Following: ${formatNum(res.user.counts.following)}`,
+                    `${emoji}${Messages.USERNAME}: ${res.user.username}`,
+                    `${emoji}${Messages.ID}: ${res.user.id}`,
+                    `${emoji}${Messages.PAST_NAMES}: ${res.user.lastnames.map(g => `\`${g || "None"}\``).join(", ") || "None"}`,
+                    `${emoji}${Messages.JOINED}: ${formatDate(res.user.joined.full, "f")} (${formatDate(res.user.joined.full, "R")})`,
+                    `${emoji}${Messages.COUNTS}:`,
+                    `${secondEmoji}${Messages.GROUPS}: ${formatNum(res.groups.length)}`,
+                    `${secondEmoji}${Messages.FRIENDS}: ${formatNum(res.user.counts.friends)}`,
+                    `${secondEmoji}${Messages.FOLLOWERS}: ${formatNum(res.user.counts.followers)}`,
+                    `${secondEmoji}${Messages.FOLLOWING}: ${formatNum(res.user.counts.following)}`,
                 ].join("\n"),
-                author: { name: `Roblox Info for ${user ? `${user.tag} (${user.id})` : `ID: ${res.user.id}`}`, icon_url: user?.displayAvatarURL?.({ dynamic: true }) ?? `https://cdn.discordapp.com/emojis/411630434040938509.png`, url: `https://services.elara.workers.dev/support` },
-                footer: { text: warning ? `This will only show up to 4 groups!` : `` }
+                author: Messages.AUTHOR(user),
+                footer: Messages.FOOTER(warning)
             }],
             components: showButtons ? [
                 {
                     type: 1,
                     components: [
-                        { type: 2, style: 5, label: "Profile", url: res.user.url, emoji: { id: "411630434040938509" } },
-                        { type: 2, style: 5, label: "Avatar", url: res.user.avatar, emoji: { id: "719431405989396530" } }
+                        { type: 2, style: 5, label: Messages.PROFILE, url: res.user.url, emoji: { id: "411630434040938509" } },
+                        { type: 2, style: 5, label: Messages.AVATAR, url: res.user.avatar, emoji: { id: "719431405989396530" } }
                     ]
                 }
             ] : []
