@@ -4,6 +4,8 @@ exports.Messages = {
     "ERROR": (str) => `[${name}, v${version}]: ${str}`,
     "FETCH_ERROR": (err) => `Error while trying to fetch the information\n${err.message}`,
 
+    "ROVER": "RoVer",
+    "BLOXLINK": "BloxLink",
     "NO_ROBLOX_PROFILE": `I was unable to fetch the Roblox information for that user.`,
     "BIO": "Bio",
     "STATUS": "Status",

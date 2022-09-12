@@ -26,6 +26,9 @@ declare module "@elara-services/roblox.js" {
     export interface Messages {
         ERROR(str: string): string;
         FETCH_ERROR(err: Error): string;
+
+        ROVER: string;
+        BLOXLINK: string;
         NO_ROBLOX_PROFILE: string;
         BIO: string;
         STATUS: string;

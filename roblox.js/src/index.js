@@ -67,12 +67,12 @@ module.exports = class Roblox {
      */
     async fetchRoVer(id, basic = false, guildId, includeBloxLink = true) {
         if (!this.rover) {
-            if (!includeBloxLink) return this.status(Messages.DISABLED("RoVer"));
+            if (!includeBloxLink) return this.status(Messages.DISABLED(Messages.ROVER));
             return this.fetchBloxLink(id, basic, guildId);
         }
         let r = await this.privateGet(`https://verify.eryn.io/api/user/${id}`);
         if (!r) {
-            if (!includeBloxLink) return this.status(Messages.NOT_VERIFIED("RoVer"));
+            if (!includeBloxLink) return this.status(Messages.NOT_VERIFIED(Messages.ROVER));
             return this.fetchBloxLink(id, basic, guildId);
         }
         this.emit("fetch", id, "rover");
@@ -87,7 +87,7 @@ module.exports = class Roblox {
      * @returns {Promise<object|null>}
      */
     async fetchBloxLink(id, basic = false, guildId) {
-        if (!this.bloxlink) return this.status(Messages.DISABLED("BloxLink"));
+        if (!this.bloxlink) return this.status(Messages.DISABLED(Messages.BLOXLINK));
         let r;
         if (!this.keys?.bloxlink) {
             console.warn(Messages.ERROR(`The Bloxlink API v1 is removed, you need to set an API key using the 'keys' options to use the v3 BloxLink API!`))
@@ -96,7 +96,7 @@ module.exports = class Roblox {
             r = await this._request(`https://v3.blox.link/developer/discord/${id}${guildId ? `?guildId=${guildId}` : ""}`, { "api-key": this.keys.bloxlink }, "GET", true);
             if (!r || !r.success || typeof r.user?.primaryAccount !== "string") {
                 this.emit("failed", id, "bloxlink");
-                return this.status(Messages.NOT_VERIFIED("BloxLink"));
+                return this.status(Messages.NOT_VERIFIED(Messages.BLOXLINK));
             }
         }
         this.emit("fetch", id, "bloxlink");
