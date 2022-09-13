@@ -20,6 +20,8 @@ const roblox = new (require("@elara-services/roblox.js"))({ apis: { rover: false
 // To disable RoVer's API.
 const roblox = new (require("@elara-services/roblox.js"))({ apis: { bloxlink: false } });
 // To disable Bloxlink's API. 
+const roblox = new (require("@elara-services/roblox.js"))({ apis: { rowifi: false } });
+// To disable RoWfi's API. 
 
 // WARNING: You can't disable both, it will give you an error if you try to do that!
 // By default both are enabled!
@@ -44,23 +46,18 @@ roblox.get("57908270").then(console.log);
 - Fetch by Discord User
 ```js
 roblox.get("<@288450828837322764>").then(console.log);
-
-// OR
-
-roblox.get("<@!288450828837322764>").then(console.log);
-// For Discord members that have a nickname.
 ```
 
 ### isVerified
 ```js
-roblox.isVerified("One of the versions above ^").then(console.log)
+roblox.isVerified("<@288450828837322764>").then(console.log)
 // returns a boolean (true/false)
 ```
 
 
 ### showDiscordMessageData
 ```js
-let res = await roblox.get("<@!288450828837322764>");
+let res = await roblox.get("<@288450828837322764>");
 return message.channel.send(roblox.showDiscordMessageData(res));
 // OR 
 return interaction.reply(roblox.showDiscordMessageData(res));

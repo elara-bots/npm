@@ -7,7 +7,7 @@ declare module "@elara-services/roblox.js" {
         cookie?: string;
         debug?: boolean;
         avatarUrl?: string;
-        apis?: { rover?: boolean; bloxlink?: boolean; };
+        apis?: { rover?: boolean; bloxlink?: boolean; rowifi?: boolean};
         keys?: { bloxlink: string; }
     }
 
@@ -21,7 +21,7 @@ declare module "@elara-services/roblox.js" {
         on(event: "failed", listener: (user: string, service: string) => void): void;
     }
 
-    export type VerificationServices = 'RoVer' | 'BloxLink';
+    export type VerificationServices = 'RoVer' | 'BloxLink' | 'RoWifi';
 
     export interface Messages {
         ERROR(str: string): string;
@@ -29,6 +29,7 @@ declare module "@elara-services/roblox.js" {
 
         ROVER: string;
         BLOXLINK: string;
+        ROWIFI: string;
         NO_ROBLOX_PROFILE: string;
         BIO: string;
         STATUS: string;
@@ -65,6 +66,7 @@ declare module "@elara-services/roblox.js" {
         public constructor(options?: RobloxOptions);
         public rover: boolean;
         public bloxlink: boolean;
+        public rowifi: boolean;
         public debug: boolean;
         public keys: { bloxlink?: string | null, rover?: string | null }
         public options: RobloxOptions;
@@ -75,6 +77,7 @@ declare module "@elara-services/roblox.js" {
         public fetchByUsername(name: string, basic?: boolean): Response;
         public fetchRoVer(id: string, basic?: boolean, guildId?: string, includeBloxLink?: boolean): Response;
         public fetchBloxLink(id: string, basic?: boolean, guildId?: string): Response;
+        public fetchRoWifi(id: string, basic?: boolean): Response;
         public fetchBasicRobloxInfo(id: string): Response | Promise<{
             status: boolean;
             description: string;

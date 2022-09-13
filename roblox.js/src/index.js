@@ -1,11 +1,12 @@
-const [moment, fetch, pack, formatDate, formatNum, { EventEmitter }, { Messages }] = [
+const [moment, fetch, pack, formatDate, formatNum, { EventEmitter }, { Messages }, bool] = [
     require("moment"),
     require("@elara-services/fetch"),
     require(`../package.json`),
     (date, format = "f") => `<t:${Math.floor(new Date(date).getTime() / 1000)}${format ? `:${format}` : ""}>`,
     (num) => num.toLocaleString(),
     require("events"),
-    require("./messages")
+    require("./messages"),
+    (s, def = true) => typeof s === "boolean" ? s : def
 ];
 
 module.exports = class Roblox {
@@ -17,14 +18,16 @@ module.exports = class Roblox {
      * @param {object} [options.apis]
      * @param {boolean} [options.apis.rover]
      * @param {boolean} [options.apis.bloxlink]
+     * @param {boolean} [options.apis.rowifi]
      * @param {object} [options.keys]
      * @param {string} [options.keys.rover]
      * @param {string} [options.keys.bloxlink]
      */
-    constructor(options) {
-        this.rover = Boolean(options?.apis?.rover ?? true);
-        this.bloxlink = Boolean(options?.apis?.bloxlink ?? true);
-        this.keys = options.keys ?? { bloxlink: null, rover: null };
+    constructor(options = {}) {
+        this.rover = bool(options?.apis?.rover);
+        this.bloxlink = bool(options?.apis?.bloxlink);
+        this.rowifi = bool(options?.apis?.rowifi);
+        this.keys = options?.keys ?? { bloxlink: null, rover: null };
         this.debug = Boolean(options?.debug ?? false);
         this.options = options;
         if ("avatarUrl" in options) {
@@ -72,6 +75,7 @@ module.exports = class Roblox {
         }
         let r = await this.privateGet(`https://verify.eryn.io/api/user/${id}`);
         if (!r) {
+            this.emit("failed", id, "rover");
             if (!includeBloxLink) return this.status(Messages.NOT_VERIFIED(Messages.ROVER));
             return this.fetchBloxLink(id, basic, guildId);
         }
@@ -87,21 +91,36 @@ module.exports = class Roblox {
      * @returns {Promise<object|null>}
      */
     async fetchBloxLink(id, basic = false, guildId) {
-        if (!this.bloxlink) return this.status(Messages.DISABLED(Messages.BLOXLINK));
-        let r;
+        if (!this.bloxlink) return this.fetchRoWifi(id, basic);
         if (!this.keys?.bloxlink) {
             console.warn(Messages.ERROR(`The Bloxlink API v1 is removed, you need to set an API key using the 'keys' options to use the v3 BloxLink API!`))
             return this.status(Messages.ERROR(`The Bloxlink API v1 is removed, you need to set an API key using the 'keys' options to use the v3 BloxLink API!`))
-        } else {
-            r = await this._request(`https://v3.blox.link/developer/discord/${id}${guildId ? `?guildId=${guildId}` : ""}`, { "api-key": this.keys.bloxlink }, "GET", true);
-            if (!r || !r.success || typeof r.user?.primaryAccount !== "string") {
-                this.emit("failed", id, "bloxlink");
-                return this.status(Messages.NOT_VERIFIED(Messages.BLOXLINK));
-            }
+        }
+
+        let r = await this._request(`https://v3.blox.link/developer/discord/${id}${guildId ? `?guildId=${guildId}` : ""}`, { "api-key": this.keys.bloxlink }, "GET", true);
+        if (!r || !r.success || typeof r.user?.primaryAccount !== "string") {
+            this.emit("failed", id, "bloxlink");
+            return this.fetchRoWifi(id, basic);
         }
         this.emit("fetch", id, "bloxlink");
         if (basic) return this.fetchBasicRobloxInfo(r.primaryAccount || r.user?.primaryAccount);
         return this.fetchRoblox(r.primaryAccount || r.user?.primaryAccount)
+    };
+
+    /**
+     * @param {string} id 
+     * @param {boolean} [basic=false] - If the basic information should be returned.
+     */
+    async fetchRoWifi(id, basic = false) {
+        if (!this.rowifi) return this.status(Messages.DISABLED("RoWifi"));
+        let r = await this._request(`https://api.rowifi.link/v1/users/${id}`);
+        if (!r?.success) {
+            this.emit("failed", id, "rowifi");
+            return this.status(Messages.NOT_VERIFIED(Messages.ROWIFI));
+        }
+        this.emit("fetch", id, "rowifi");
+        if (basic) return this.fetchBasicRobloxInfo(r.roblox_id);
+        return this.fetchRoblox(r.roblox_id);
     };
 
     /**
@@ -120,7 +139,7 @@ module.exports = class Roblox {
      */
     async fetchRoblox(id) {
         try {
-            let [ newProfile, userReq, g, activity ] = await Promise.all([
+            let [newProfile, userReq, g, activity] = await Promise.all([
                 this.privateFetch(`https://www.roblox.com/users/profile/profileheader-json?userId=${id}`),
                 this.privateFetch(`https://users.roblox.com/v1/users/${id}`),
                 this.privateFetch(`https://groups.roblox.com/v1/users/${id}/groups/roles`),
