@@ -1,14 +1,13 @@
 {
-  "name": "elara-google-search",
-  "version": "1.0.9",
+  "name": "@elara-services/google-search",
+  "version": "1.0.0",
   "description": "Returns the google search results, requires an api key & cx ID",
   "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "author": "SUPERCHIEFYT (Elara-Discord-Bots)",
+  "typings": "index.d.ts",
+  "types": "index.d.ts",
+  "author": "SUPERCHIEFYT (Elara-Discord-Bots, Elara-Services)",
   "license": "MIT",
   "dependencies": {
-    "superagent": "^5.1.2"
+    "@elara-services/fetch": "^1.0.1"
   }
 }

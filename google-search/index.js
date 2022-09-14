@@ -1,31 +1,36 @@
-const sendError = (msg) => {return {status: false, message: msg}};
-module.exports = class Google{
-  constructor(key, cx){ 
-  this.key = key;
-  this.cx = cx;
+const status = (message) => ({ status: false, message });
+const fetch = require("@elara-services/fetch");
+module.exports = class Google {
+  constructor(key, cx) {
+    this.key = key;
+    this.cx = cx;
   };
-  async search(search, safeMode = false){
-    try{
-    if(!search) return sendError(`You didn't provide anything to search for!`);
-    if(!this.key) return sendError(`You didn't provide an api key!`);
-    if(!this.cx) return sendError(`You didn't provide an CX ID!`);
-    if(typeof safeMode !== "boolean") safeMode = false;
-    let {get} = require('superagent');
-    let res = await get(`https://www.googleapis.com/customsearch/v1?key=${this.key}&q=${encodeURIComponent(search)}&cx=${this.cx}&safe=${safeMode ? "off": "active"}`);
-    if(res.status === 200){
-      if(!res.body) return sendError(`I was unable to fetch the information.`);
-      let links = [];
-      if(!Array.isArray(res.body.items)) return sendError(`Nothing for that... :(`);
-      if(res.body.items.length === 0) return sendError(`Nothing for that. :(`)
-      for await (const i of res.body.items){
-        links.push(i.link);
-      };
-      return {status: true, res: res.body, links: links};
-    }else{
-      return sendError(`I was unable to find a search for that.`);
+  async search(search, safeMode = false) {
+    try {
+      if (!search) return status(`You didn't provide any thing to search for.`);
+      if (!this.key) return status(`YOu didn't provide an API key.`);
+      if (!this.cx) return status(`YOu didn't provide a CX ID.`);
+      if (typeof safeMode !== "boolean") safeMode = false;
+      let r = await fetch(`https://www.googleapis.com/customsearch/v1`)
+        .query({
+          key: this.key,
+          cx: this.cx,
+          q: encodeURIComponent(search),
+          safe: safeMode ? "off" : "on"
+        })
+        .send()
+        .catch(() => ({ statusCode: 500 }));
+      
+      if (r.statusCode !== 200) return status(`I was unable to find a search for that.`);
+      let json = r.json();
+      if (!Array.isArray(json?.items) || !json.items.length) return status(`Nothing found for that.`);
+      return {
+        status: true,
+        res: json,
+        links: json.items.map(c => c.link)
+      }
+    } catch (err) {
+      return status(err.message);
     }
-  }catch(err){
-    return sendError(err.message);
-  }
   }
 };
