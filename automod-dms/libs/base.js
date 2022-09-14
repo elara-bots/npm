@@ -1,4 +1,4 @@
-const { Duration } = require("@elara-services/packages");
+const { Duration, Interactions: { textInput, select } } = require("@elara-services/packages");
 const pack = require("./package.json");
 
 module.exports = class Base {
@@ -124,22 +124,15 @@ module.exports = class Base {
      */
     getSelect(mod, member) {
         if (!mod || !member) return null;
-        let options = []
+        let [ options, str ] = [ [], `:${member.guild.id}:${member.id}` ];
         if (member) {
             if (member.permissions.any(1099780063238n)) return null; 
-            if (mod.permissions.has(1099511627776n) && member.moderatable && !member.isCommunicationDisabled()) options.push({ label: "Mute", value: `mute:${member.guild.id}:${member.id}`, emoji: { name: "🤫" } })
-            if (mod.permissions.has(2n) && member.kickable) options.push({ label: "Kick", value: `kick:${member.guild.id}:${member.id}`, emoji: { name: "👢" } }); 
-            if (mod.permissions.has(4n) && member.bannable) options.push({ label: "Ban", value: `ban:${member.guild.id}:${member.id}`, emoji: { name: "🔨" } });
+            if (mod.permissions.has(1099511627776n) && member.moderatable && !member.isCommunicationDisabled()) options.push({ label: "Mute", value: `mute${str}`, emoji: { name: "🤫" } })
+            if (mod.permissions.has(2n) && member.kickable) options.push({ label: "Kick", value: `kick${str}`, emoji: { name: "👢" } }); 
+            if (mod.permissions.has(4n) && member.bannable) options.push({ label: "Ban", value: `ban${str}`, emoji: { name: "🔨" } });
         }
         if (!options.length) return null;
-        return {
-            custom_id: 'actions',
-            placeholder: 'Moderation Actions',
-            min_values: 1,
-            max_values: 1,
-            options,
-            type: 3
-          }
+        return select({ id: "actions", holder: "Moderation Actions", min: 1, max: 1, options });
     };
 
     /**
@@ -149,36 +142,26 @@ module.exports = class Base {
      */
     getModal(member, type) {
         const modal = { custom_id: ``, title: ``, components: [] }
-        const reason = { custom_id: "reason", label: "Reason", style: 2, type: 4, required: true, min_length: 1, max_length: 512 };
+        const reason = textInput({ id: "reason", label: "Reason", style: 2, required: true, min: 1, max: 512 });
         if (type === "mute") {
             modal.custom_id = `mute:${member.guild.id}:${member.id}`;
             modal.title = `Mute: ${member.user.tag}`;
             modal.components = [
-                {
-                    type: 1,
-                    components: [
-                        { type: 4, style: 1, value: "10m", required: true, min_length: 2, max_length: 20, label: "Time", custom_id: "time" }
-                    ]
-                },
-                { type: 1, components: [ reason ] }
+                textInput({ style: 1, value: "10m", id: "time", label: "Time", min: 2, max: 20, required: false }),
+                reason
             ];
             return modal;
         } else if (type === "kick") {
             modal.custom_id = `kick:${member.guild.id}:${member.id}`;
             modal.title = `Kick: ${member.user.tag}`;
-            modal.components = [ { type: 1, components: [ reason ] } ]
+            modal.components = [ reason ];
             return modal;
         } else if (type === "ban") {
             modal.custom_id = `ban:${member.guild.id}:${member.id}`;
             modal.title = `Ban: ${member.user.tag}`;
             modal.components = [
-                {
-                    type: 1,
-                    components: [
-                        { type: 4, style: 1, custom_id: "save", label: "Save Messages?", required: false, min_length: 1, max_length: 3, placeholder: "Yes/y to save messages, No/n to delete messages" },
-                    ]
-                },
-                { type: 1, components: [ reason ] }
+                textInput({ id: "save", label: "Save Messages?", required: false, min: 1, max: 3, holder: "Yes/y to save messages, No/n to delete messages" }),
+                reason
             ]
             return modal
         }
@@ -237,6 +220,7 @@ module.exports = class Base {
                     .then(() => reply(`✅ Member ${member.user.tag} (${member.id}) is now muted!`))
                     .catch(e => reply(`❌ Unable to mute ${member.user.tag} (${member.id}) in ${guild.name}\n__Error__\n\`\`\`js\n${e?.message ?? e}\`\`\``));
                 };
+                
                 case "kick": {
                     if (!mod.permissions.has(2n)) return reply(`❌ You don't have "Kick Members" permission in ${guild.name}`);
                     if (!member.kickable) return reply(`❌ I can't kick ${member.user.tag} (${member.id}) most likely due to them being above me or a permission issue in ${guild.name}`);
