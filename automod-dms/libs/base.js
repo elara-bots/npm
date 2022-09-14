@@ -147,7 +147,7 @@ module.exports = class Base {
             modal.custom_id = `mute:${member.guild.id}:${member.id}`;
             modal.title = `Mute: ${member.user.tag}`;
             modal.components = [
-                textInput({ style: 1, value: "10m", id: "time", label: "Time", min: 2, max: 20, required: false }),
+                textInput({ value: "10m", id: "time", label: "Time", min: 2, max: 20, required: false }),
                 reason
             ];
             return modal;
