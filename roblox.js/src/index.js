@@ -70,13 +70,19 @@ module.exports = class Roblox {
      */
     async fetchRoVer(id, basic = false, guildId, includeBloxLink = true) {
         if (!this.rover) {
-            if (!includeBloxLink) return this.status(Messages.DISABLED(Messages.ROVER));
+            if (!includeBloxLink) {
+                if (this.rowifi) return this.fetchRoWifi(id, basic);
+                return this.status(Messages.DISABLED(Messages.ROVER));
+            }
             return this.fetchBloxLink(id, basic, guildId);
         }
         let r = await this.privateGet(`https://verify.eryn.io/api/user/${id}`);
         if (!r) {
             this.emit("failed", id, "rover");
-            if (!includeBloxLink) return this.status(Messages.NOT_VERIFIED(Messages.ROVER));
+            if (!includeBloxLink) {
+                if (this.rowifi) return this.fetchRoWifi(id, basic);
+                return this.status(Messages.DISABLED(Messages.ROVER));
+            }
             return this.fetchBloxLink(id, basic, guildId);
         }
         this.emit("fetch", id, "rover");
