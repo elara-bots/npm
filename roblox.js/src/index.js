@@ -86,8 +86,8 @@ module.exports = class Roblox {
             return this.fetchBloxLink(id, basic, guildId);
         }
         this.emit("fetch", id, "rover");
-        if (basic) return this.fetchBasicRobloxInfo(r.robloxId, "RoVer");
-        return this.fetchRoblox(r.robloxId, "RoVer");
+        if (basic) return this.fetchBasicRobloxInfo(r.robloxId, Messages.ROVER);
+        return this.fetchRoblox(r.robloxId, Messages.ROVER);
     };
 
     /**
@@ -109,8 +109,8 @@ module.exports = class Roblox {
             return this.fetchRoWifi(id, basic);
         }
         this.emit("fetch", id, "bloxlink");
-        if (basic) return this.fetchBasicRobloxInfo(r.primaryAccount || r.user?.primaryAccount, "BloxLink");
-        return this.fetchRoblox(r.primaryAccount || r.user?.primaryAccount, "BloxLink")
+        if (basic) return this.fetchBasicRobloxInfo(r.primaryAccount || r.user?.primaryAccount, Messages.BLOXLINK);
+        return this.fetchRoblox(r.primaryAccount || r.user?.primaryAccount, Messages.BLOXLINK)
     };
 
     /**
@@ -125,8 +125,8 @@ module.exports = class Roblox {
             return this.status(Messages.NOT_VERIFIED(Messages.ROWIFI));
         }
         this.emit("fetch", id, "rowifi");
-        if (basic) return this.fetchBasicRobloxInfo(r.roblox_id, "RoWifi");
-        return this.fetchRoblox(r.roblox_id, "RoWifi");
+        if (basic) return this.fetchBasicRobloxInfo(r.roblox_id, Messages.ROWIFI);
+        return this.fetchRoblox(r.roblox_id, Messages.ROWIFI);
     };
 
     /**
@@ -136,7 +136,7 @@ module.exports = class Roblox {
     async fetchBasicRobloxInfo(id, service = "Unknown") {
         let res = await this.privateFetch(`https://users.roblox.com/v1/users/${id}`);
         if (!res) return this.status(Messages.NO_ROBLOX_PROFILE);
-        return { status: true, ...res, service };
+        return { status: true, service, ...res };
     }
 
     /**
