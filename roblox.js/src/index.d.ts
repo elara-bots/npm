@@ -78,8 +78,9 @@ declare module "@elara-services/roblox.js" {
         public fetchRoVer(id: string, basic?: boolean, guildId?: string, includeBloxLink?: boolean): Response;
         public fetchBloxLink(id: string, basic?: boolean, guildId?: string): Response;
         public fetchRoWifi(id: string, basic?: boolean): Response;
-        public fetchBasicRobloxInfo(id: string): Response | Promise<{
+        public fetchBasicRobloxInfo(id: string, service?: VerificationServices | string): Response | Promise<{
             status: boolean;
+            service: VerificationServices | string;
             description: string;
             created: string;
             isBanned: boolean;
@@ -88,7 +89,7 @@ declare module "@elara-services/roblox.js" {
             name: string;
             displayName: string
         }>;
-        public fetchRoblox(id: string|number): Response;
+        public fetchRoblox(id: string|number, service?: VerificationServices | string): Response;
         public showDiscordMessageData(res: object, user?: object, options?: {
             showButtons?: boolean,
             color?: number,

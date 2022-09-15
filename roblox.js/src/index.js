@@ -86,8 +86,8 @@ module.exports = class Roblox {
             return this.fetchBloxLink(id, basic, guildId);
         }
         this.emit("fetch", id, "rover");
-        if (basic) return this.fetchBasicRobloxInfo(r.robloxId);
-        return this.fetchRoblox(r.robloxId);
+        if (basic) return this.fetchBasicRobloxInfo(r.robloxId, "RoVer");
+        return this.fetchRoblox(r.robloxId, "RoVer");
     };
 
     /**
@@ -109,8 +109,8 @@ module.exports = class Roblox {
             return this.fetchRoWifi(id, basic);
         }
         this.emit("fetch", id, "bloxlink");
-        if (basic) return this.fetchBasicRobloxInfo(r.primaryAccount || r.user?.primaryAccount);
-        return this.fetchRoblox(r.primaryAccount || r.user?.primaryAccount)
+        if (basic) return this.fetchBasicRobloxInfo(r.primaryAccount || r.user?.primaryAccount, "BloxLink");
+        return this.fetchRoblox(r.primaryAccount || r.user?.primaryAccount, "BloxLink")
     };
 
     /**
@@ -125,25 +125,25 @@ module.exports = class Roblox {
             return this.status(Messages.NOT_VERIFIED(Messages.ROWIFI));
         }
         this.emit("fetch", id, "rowifi");
-        if (basic) return this.fetchBasicRobloxInfo(r.roblox_id);
-        return this.fetchRoblox(r.roblox_id);
+        if (basic) return this.fetchBasicRobloxInfo(r.roblox_id, "RoWifi");
+        return this.fetchRoblox(r.roblox_id, "RoWifi");
     };
 
     /**
      * @param {string} id 
      * @returns {Promise<object>}
      */
-    async fetchBasicRobloxInfo(id) {
+    async fetchBasicRobloxInfo(id, service = "Unknown") {
         let res = await this.privateFetch(`https://users.roblox.com/v1/users/${id}`);
         if (!res) return this.status(Messages.NO_ROBLOX_PROFILE);
-        return { status: true, ...res };
+        return { status: true, ...res, service };
     }
 
     /**
      * @param {string|number} id 
      * @returns {Promise<object|null>}
      */
-    async fetchRoblox(id) {
+    async fetchRoblox(id, service = "Unknown") {
         try {
             let [newProfile, userReq, g, activity] = await Promise.all([
                 this.privateFetch(`https://www.roblox.com/users/profile/profileheader-json?userId=${id}`),
@@ -191,6 +191,7 @@ module.exports = class Roblox {
             };
             return {
                 status: true,
+                service,
                 user: {
                     username: userReq.name ?? Messages.UNKNOWN,
                     id: userReq.id ?? 0,
