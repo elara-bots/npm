@@ -49,7 +49,7 @@ module.exports = class Roblox {
 
     async get(user, basic = false, guildId = null, include) {
         if (typeof user === "string" && user.match(/<@!?/gi)) {
-            let r = await this.services.get(user.replace(/<@!?|>/gi, ""), basic, guildId, include)
+            let r = await this.services.get(user.replace(/<@!?|>/gi, ""), basic, guildId, include);
             if (!r?.status) return status(r?.message ?? Messages.NO_ROBLOX_PROFILE);
             return r;
         } else {
@@ -316,10 +316,10 @@ module.exports = class Roblox {
 
             get: async (id, basic = false, guildId, include = {}) => {
                 let defs = this.services.getDefaults(include);
-                if (!defs.rocord) return this.services.rocord(id, basic);
-                if (!defs.rover) return this.services.rover(id, basic);
-                if (!defs.rowifi) return this.services.rowifi(id, basic);
-                if (!defs.bloxlink) return this.services.bloxlink(id, basic, guildId);
+                if (defs.rocord) return this.services.rocord(id, basic);
+                if (defs.rover) return this.services.rover(id, basic);
+                if (defs.rowifi) return this.services.rowifi(id, basic);
+                if (defs.bloxlink) return this.services.bloxlink(id, basic, guildId);
                 return status(Messages.NO_ROBLOX_PROFILE);
             }
         }
