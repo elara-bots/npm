@@ -22,12 +22,12 @@ const roblox = new (require("@elara-services/roblox.js"))({ apis: { bloxlink: fa
 // To disable Bloxlink's API. 
 const roblox = new (require("@elara-services/roblox.js"))({ apis: { rowifi: false } });
 // To disable RoWfi's API. 
+const roblox = new (require("@elara-services/roblox.js"))({ apis: { rocord: false } });
+// To disable RoCord's API. 
 
 // WARNING: You can't disable both, it will give you an error if you try to do that!
 // By default both are enabled!
 ```
-
-> Note: You can use `.get` or `.fetch`
 
 - Fetch by username
 ```js

@@ -1,4 +1,4 @@
-const [moment, fetch, pack, formatDate, formatNum, { EventEmitter }, { Messages }, bool] = [
+const [moment, fetch, pack, formatDate, formatNum, { EventEmitter }, { Messages }, bool, status] = [
     require("moment"),
     require("@elara-services/fetch"),
     require(`../package.json`),
@@ -6,8 +6,10 @@ const [moment, fetch, pack, formatDate, formatNum, { EventEmitter }, { Messages 
     (num) => num.toLocaleString(),
     require("events"),
     require("./messages"),
-    (s, def = true) => typeof s === "boolean" ? s : def
+    (s, def = true) => typeof s === "boolean" ? s : def,
+    (message, status = false) => ({ status, message })
 ];
+
 
 module.exports = class Roblox {
     /**
@@ -19,32 +21,40 @@ module.exports = class Roblox {
      * @param {boolean} [options.apis.rover]
      * @param {boolean} [options.apis.bloxlink]
      * @param {boolean} [options.apis.rowifi]
+     * @param {boolean} [options.apis.rocord]
      * @param {object} [options.keys]
      * @param {string} [options.keys.rover]
      * @param {string} [options.keys.bloxlink]
+     * @param {string} [options.keys.rocord]
      */
     constructor(options = {}) {
         this.rover = bool(options?.apis?.rover);
         this.bloxlink = bool(options?.apis?.bloxlink);
         this.rowifi = bool(options?.apis?.rowifi);
-        this.keys = options?.keys ?? { bloxlink: null, rover: null };
+        this.rocord = bool(options?.apis?.rocord);
+        this.keys = options?.keys ?? { bloxlink: null, rover: null, rocord: null };
         this.debug = Boolean(options?.debug ?? false);
         this.options = options;
         if ("avatarUrl" in options) {
             if (!options.avatarUrl.includes("%USERID%")) throw new Error(Messages.ERROR(`You forgot to include '%USERID%' in the avatarUrl field.`));
         }
         this.events = new EventEmitter();
-        if (!this.bloxlink && !this.rover) throw new Error(Messages.ERROR(`You can't disable both RoVer or Bloxlink APIs... how else will you fetch the information?`));
     };
-    get fetch() { return this.get; };
-    async get(user, basic = false, guildId = null, includeBloxLink = true) {
+    emit(event, ...args) { return this.events.emit(event, ...args); };
+
+    fetch() { throw new Error(`The 'fetch' function has been replaced by: 'get'`) }
+    fetchRoVer() { throw new Error(`The 'fetchRoVer' function has been replaced by: 'services.rover'`); };
+    fetchBloxLink() { throw new Error(`The 'fetchBloxLink' function has been replaced by: 'services.bloxlink'`); };
+    fetchRoWifi() { throw new Error(`The 'fetchRoWifi' function has been replaced by: 'services.rowifi'`); };
+
+    async get(user, basic = false, guildId = null, include) {
         if (typeof user === "string" && user.match(/<@!?/gi)) {
-            let r = await this.fetchRoVer(user.replace(/<@!?|>/gi, ""), basic, guildId, includeBloxLink);
-            if (!r?.status) return this.status(r?.message ?? Messages.NO_ROBLOX_PROFILE);
+            let r = await this.services.get(user.replace(/<@!?|>/gi, ""), basic, guildId, include)
+            if (!r?.status) return status(r?.message ?? Messages.NO_ROBLOX_PROFILE);
             return r;
         } else {
             let s = await (isNaN(parseInt(user)) ? this.fetchByUsername(user) : this.fetchRoblox(parseInt(user)));
-            if (!s?.status) return this.status(s?.message ?? Messages.NO_ROBLOX_PROFILE);
+            if (!s?.status) return status(s?.message ?? Messages.NO_ROBLOX_PROFILE);
             return s;
         };
     };
@@ -55,7 +65,6 @@ module.exports = class Roblox {
      * @returns {Promise<object|null>}
      */
     async fetchByUsername(name, basic = false) {
-        // TODO: Replace this with the newer users.roblox.com API 
         let res = await this._request(`https://api.roblox.com/users/get-by-username?username=${name}`);
         if (!res || !res.Id) return null
         if (basic) return this.fetchBasicRobloxInfo(res.Id);
@@ -64,78 +73,11 @@ module.exports = class Roblox {
 
     /**
      * @param {string} id 
-     * @param {boolean} [basic=false] - If the basic information should be returned.
-     * @param {string | null} [guildId] - The guild ID for the BloxLink API v2 requests (OPTIONAL)
-     * @returns {Promise<object|null>}
-     */
-    async fetchRoVer(id, basic = false, guildId, includeBloxLink = true) {
-        if (!this.rover) {
-            if (!includeBloxLink) {
-                if (this.rowifi) return this.fetchRoWifi(id, basic);
-                return this.status(Messages.DISABLED(Messages.ROVER));
-            }
-            return this.fetchBloxLink(id, basic, guildId);
-        }
-        let r = await this.privateGet(`https://verify.eryn.io/api/user/${id}`);
-        if (!r) {
-            this.emit("failed", id, "rover");
-            if (!includeBloxLink) {
-                if (this.rowifi) return this.fetchRoWifi(id, basic);
-                return this.status(Messages.DISABLED(Messages.ROVER));
-            }
-            return this.fetchBloxLink(id, basic, guildId);
-        }
-        this.emit("fetch", id, "rover");
-        if (basic) return this.fetchBasicRobloxInfo(r.robloxId, Messages.ROVER);
-        return this.fetchRoblox(r.robloxId, Messages.ROVER);
-    };
-
-    /**
-     * @param {string} id 
-     * @param {boolean} [basic=false] - If the basic information should be returned.
-     * @param {string | null} [guildId] - The guild ID for the BloxLink API v2 requests (OPTIONAL)
-     * @returns {Promise<object|null>}
-     */
-    async fetchBloxLink(id, basic = false, guildId) {
-        if (!this.bloxlink) return this.fetchRoWifi(id, basic);
-        if (!this.keys?.bloxlink) {
-            console.warn(Messages.ERROR(`The Bloxlink API v1 is removed, you need to set an API key using the 'keys' options to use the v3 BloxLink API!`))
-            return this.status(Messages.ERROR(`The Bloxlink API v1 is removed, you need to set an API key using the 'keys' options to use the v3 BloxLink API!`))
-        }
-
-        let r = await this._request(`https://v3.blox.link/developer/discord/${id}${guildId ? `?guildId=${guildId}` : ""}`, { "api-key": this.keys.bloxlink }, "GET", true);
-        if (!r || !r.success || typeof r.user?.primaryAccount !== "string") {
-            this.emit("failed", id, "bloxlink");
-            return this.fetchRoWifi(id, basic);
-        }
-        this.emit("fetch", id, "bloxlink");
-        if (basic) return this.fetchBasicRobloxInfo(r.primaryAccount || r.user?.primaryAccount, Messages.BLOXLINK);
-        return this.fetchRoblox(r.primaryAccount || r.user?.primaryAccount, Messages.BLOXLINK)
-    };
-
-    /**
-     * @param {string} id 
-     * @param {boolean} [basic=false] - If the basic information should be returned.
-     */
-    async fetchRoWifi(id, basic = false) {
-        if (!this.rowifi) return this.status(Messages.DISABLED("RoWifi"));
-        let r = await this._request(`https://api.rowifi.link/v1/users/${id}`);
-        if (!r?.success) {
-            this.emit("failed", id, "rowifi");
-            return this.status(Messages.NOT_VERIFIED(Messages.ROWIFI));
-        }
-        this.emit("fetch", id, "rowifi");
-        if (basic) return this.fetchBasicRobloxInfo(r.roblox_id, Messages.ROWIFI);
-        return this.fetchRoblox(r.roblox_id, Messages.ROWIFI);
-    };
-
-    /**
-     * @param {string} id 
      * @returns {Promise<object>}
      */
     async fetchBasicRobloxInfo(id, service = "Unknown") {
         let res = await this.privateFetch(`https://users.roblox.com/v1/users/${id}`);
-        if (!res) return this.status(Messages.NO_ROBLOX_PROFILE);
+        if (!res) return status(Messages.NO_ROBLOX_PROFILE);
         return { status: true, service, ...res };
     }
 
@@ -152,39 +94,40 @@ module.exports = class Roblox {
                 // TODO: Replace this with the new API, once they fix it
                 this.privateFetch(`https://api.roblox.com/users/${id}/onlinestatus`)
             ])
-            if (!userReq) return this.status(Messages.NO_ROBLOX_PROFILE);
+            if (!userReq) return status(Messages.NO_ROBLOX_PROFILE);
             if (!g) g = [];
             let [bio, joinDate, pastNames, userStatus, friends, followers, following, groups] = [
                 null, "", "", "Offline", 0, 0, 0, []
             ]
             if (newProfile) {
-                bio = userReq ? userReq.description : "";
+                bio = userReq?.description ?? "";
                 friends = newProfile.FriendsCount ?? 0;
                 followers = newProfile.FollowersCount ?? 0;
                 following = newProfile.FollowingsCount ?? 0;
                 pastNames = (newProfile.PreviousUserNames.split("\r\n") ?? []).join(", ");
                 joinDate = {
-                    full: userReq ? userReq.created : "",
-                    format: userReq ? moment(userReq.created).format("L") : ""
+                    full: userReq?.created ?? "",
+                    format: userReq?.created && moment(userReq.created).format("L") || ""
                 };
                 userStatus = newProfile.LastLocation ?? "Offline";
             }
 
             if (g?.data?.length) {
                 for (const c of g.data) {
+                    if (!c?.group) continue;
                     groups.push({
-                        name: c?.group?.name ?? "",
-                        id: c?.group?.id ?? 0,
-                        role_id: c?.role?.id,
-                        rank: c?.role?.rank,
-                        role: c?.role?.name,
-                        members: c?.group?.memberCount ?? 0,
-                        url: `https://roblox.com/groups/${c?.group?.id ?? 0}`,
-                        primary: c?.isPrimaryGroup ?? false,
+                        name: c.group.name ?? "",
+                        id: c.group.id ?? 0,
+                        role_id: c.role?.id,
+                        rank: c.role?.rank,
+                        role: c.role?.name,
+                        members: c.group.memberCount ?? 0,
+                        url: `https://roblox.com/groups/${c.group.id ?? 0}`,
+                        primary: c.isPrimaryGroup ?? false,
                         inclan: false,
                         emblem: { id: 0, url: "" },
-                        owner: c?.group?.owner ?? null,
-                        shout: c?.group?.shout ?? null,
+                        owner: c.group.owner ?? null,
+                        shout: c.group.shout ?? null,
                         raw: c
                     })
                 }
@@ -205,7 +148,7 @@ module.exports = class Roblox {
                 groups, activity
             }
         } catch (err) {
-            return this.status(Messages.FETCH_ERROR(err));
+            return status(Messages.FETCH_ERROR(err));
         }
     };
 
@@ -215,7 +158,7 @@ module.exports = class Roblox {
      */
     async isVerified(user) {
         let r = await this.get(user, true);
-        if (!r || r.status !== true) return Promise.resolve(false);
+        if (r?.status !== true) return Promise.resolve(false);
         return Promise.resolve(true);
     };
 
@@ -231,8 +174,7 @@ module.exports = class Roblox {
         try {
             let body = fetch(url, method)
             if (headers) body.header(headers)
-            let res = await body.send()
-                .catch(() => ({ statusCode: 500 }));
+            let res = await body.send().catch(() => ({ statusCode: 500 }));
             this._debug(`Requesting (${method}, ${url}) and got ${res.statusCode}`);
             if (res.statusCode !== 200) return null;
             return res[returnJSON ? "json" : "text"]();
@@ -255,35 +197,7 @@ module.exports = class Roblox {
      * @param {string} [url]
      * @returns {Promise<object|void>}
      */
-    async privateFetch(url = "") {
-        return this._request(url, this.options.cookie ? { "Cookie": this.options.cookie.replace(/%TIME_REPLACE%/gi, new Date().toLocaleString()) } : undefined);
-    };
-    /**
-     * @private
-     * @param {string} message 
-     * @param {boolean} status 
-     * @returns {object}
-     */
-    status(message, status = false) { return { status, message } };
-
-    /**
-     * @private
-     * @param {string} url 
-     * @returns {Promise<object|void>}
-     */
-    async privateGet(url) {
-        try {
-            let res = await this._request(url)
-            if (!res || res.status !== "ok") return null;
-            return res;
-        } catch {
-            return null;
-        }
-    };
-
-    emit(event, ...args) {
-        return this.events.emit(event, ...args);
-    }
+    async privateFetch(url = "") { return this._request(url, this.options.cookie ? { "Cookie": this.options.cookie.replace(/%TIME_REPLACE%/gi, new Date().toLocaleString()) } : undefined); };
 
     /**
      * @param {object} res - Information from the Roblox.js response
@@ -295,17 +209,9 @@ module.exports = class Roblox {
      * @param {number} [options.color=11701759] - The embed color
      */
     showDiscordMessageData(res, user = null, { showButtons = true, emoji = "▫", secondEmoji = "◽", color = 11701759 } = {}) {
-        let [fields, warning, gameURL] = [[], false, ""];
+        let fields = [];
 
-        if (res.activity) {
-            if (res.activity.PlaceId) gameURL = `https://roblox.com/games/${res.activity.PlaceId}`;
-            fields.push(
-                {
-                    name: Messages.ACTIVITY,
-                    value: `${emoji}${Messages.STATUS}: ${res.activity.LastLocation}${gameURL ? `\n${emoji}${Messages.GAME_URL(gameURL)}` : ""}\n${emoji}${Messages.LAST_SEEN}: ${formatDate(res.activity.LastOnline)} (${formatDate(res.activity.LastOnline, "R")})`
-                }
-            )
-        }
+        if (res.activity) fields.push( { name: Messages.ACTIVITY, value: `${emoji}${Messages.STATUS}: ${res.activity.LastLocation}${res.activity.PlaceId ? `\n${emoji}${Messages.GAME_URL(`https://roblox.com/games/${res.activity.PlaceId}`)}` : ""}\n${emoji}${Messages.LAST_SEEN}: ${formatDate(res.activity.LastOnline)} (${formatDate(res.activity.LastOnline, "R")})` } )
         if (res.user.bio) fields.push({ name: Messages.BIO, value: res.user.bio.slice(0, 1024) });
         if (res.groups.length) {
             for (const g of res.groups.sort((a, b) => b.primary - a.primary).slice(0, 4)) {
@@ -315,15 +221,11 @@ module.exports = class Roblox {
                     inline: g.primary ? false : true
                 })
             }
-            if (res.groups.length > 4) warning = true;
         }
 
         return {
             embeds: [{
-                thumbnail: { url: res.user.avatar },
-                timestamp: new Date(),
-                fields,
-                color,
+                thumbnail: { url: res.user.avatar }, timestamp: new Date(), fields, color,
                 description: [
                     `${emoji}${Messages.USERNAME}: ${res.user.username}`,
                     `${emoji}${Messages.ID}: ${res.user.id}`,
@@ -336,17 +238,90 @@ module.exports = class Roblox {
                     `${secondEmoji}${Messages.FOLLOWING}: ${formatNum(res.user.counts.following)}`,
                 ].join("\n"),
                 author: Messages.AUTHOR(user),
-                footer: Messages.FOOTER(warning)
+                footer: Messages.FOOTER(res.groups.length > 4)
             }],
-            components: showButtons ? [
-                {
-                    type: 1,
-                    components: [
-                        { type: 2, style: 5, label: Messages.PROFILE, url: res.user.url, emoji: { id: "411630434040938509" } },
-                        { type: 2, style: 5, label: Messages.AVATAR, url: res.user.avatar, emoji: { id: "719431405989396530" } }
-                    ]
+            components: showButtons && [
+                { type: 1, components: [
+                    { type: 2, style: 5, label: Messages.PROFILE, url: res.user.url, emoji: { id: "411630434040938509" } },
+                    { type: 2, style: 5, label: Messages.AVATAR, url: res.user.avatar, emoji: { id: "719431405989396530" } }
+                ]}
+            ]
+        }
+    };
+
+    get services() {
+        return {
+            getDefaults: (include = {}) => {
+                let def = {
+                    rover: true,
+                    bloxlink: true,
+                    rowifi: true,
+                    rocord: true
+                };
+                if (!this.rocord || !this.keys.rocord || include?.rocord) def.rocord = false;
+                if (!this.rover || include?.rover) def.rover = false;
+                if (!this.bloxlink || !this.keys.bloxlink || include?.bloxlink) def.bloxlink = false;
+                if (!this.rowifi || include?.rowifi) def.rowifi = false;
+                return def;
+            },
+            
+            rocord: async (id, basic = false) => {
+                if (!this.rocord && !this.keys.rocord) return status(Messages.DISABLED(Messages.ROCORD));
+                let r = await this._request(`https://rocord.elara.services/api/users/${id}`, { authorization: this.keys.rocord });
+                if (!r) {
+                    this.emit("failed", id, "rocord");
+                    return status(Messages.DISABLED(Messages.ROCORD));
                 }
-            ] : []
+                this.emit("fetch", id, "rocord");
+                if (basic) return this.fetchBasicRobloxInfo(r.id, Messages.ROCORD);
+                return this.fetchRoblox(r.id, Messages.ROCORD);
+            },
+
+            rover: async (id, basic = false) => {
+                if (!this.rover) return status(Messages.DISABLED(Messages.ROVER));
+                let r = await this._request(`https://verify.eryn.io/api/user/${id}`);
+                if (r?.status !== "ok") {
+                    this.emit("failed", id, "rover");
+                    return status(Messages.DISABLED(Messages.ROVER));
+                }
+                this.emit("fetch", id, "rover");
+                if (basic) return this.fetchBasicRobloxInfo(r.robloxId, Messages.ROVER);
+                return this.fetchRoblox(r.robloxId, Messages.ROVER);
+            },
+
+            rowifi: async (id, basic = false) => {
+                if (!this.rowifi) return status(Messages.DISABLED(Messages.ROWIFI));
+                let r = await this._request(`https://api.rowifi.link/v1/users/${id}`);
+                if (!r?.success) {
+                    this.emit("failed", id, "rowifi");
+                    return status(Messages.NOT_VERIFIED(Messages.ROWIFI));
+                }
+                this.emit("fetch", id, "rowifi");
+                if (basic) return this.fetchBasicRobloxInfo(r.roblox_id, Messages.ROWIFI);
+                return this.fetchRoblox(r.roblox_id, Messages.ROWIFI);
+            },
+
+            bloxlink: async (id, basic = false, guildId) => {
+                if (!this.bloxlink && !this.keys.bloxlink) return status(Messages.DISABLED(Messages.BLOXLINK));
+        
+                let r = await this._request(`https://v3.blox.link/developer/discord/${id}${guildId ? `?guildId=${guildId}` : ""}`, { "api-key": this.keys.bloxlink });
+                if (!r?.success || typeof r.user?.primaryAccount !== "string") {
+                    this.emit("failed", id, "bloxlink");
+                    return status(Messages.DISABLED(Messages.BLOXLINK));
+                }
+                this.emit("fetch", id, "bloxlink");
+                if (basic) return this.fetchBasicRobloxInfo(r.primaryAccount || r.user?.primaryAccount, Messages.BLOXLINK);
+                return this.fetchRoblox(r.primaryAccount || r.user?.primaryAccount, Messages.BLOXLINK)
+            },
+
+            get: async (id, basic = false, guildId, include = {}) => {
+                let defs = this.services.getDefaults(include);
+                if (!defs.rocord) return this.services.rocord(id, basic);
+                if (!defs.rover) return this.services.rover(id, basic);
+                if (!defs.rowifi) return this.services.rowifi(id, basic);
+                if (!defs.bloxlink) return this.services.bloxlink(id, basic, guildId);
+                return status(Messages.NO_ROBLOX_PROFILE);
+            }
         }
     }
 };

@@ -3,12 +3,62 @@ declare module "@elara-services/roblox.js" {
     // @ts-ignore
     import { User } from "discord.js";
 
+    export interface IncludeServices {
+        rocord?: boolean;
+        rover?: boolean;
+        rowifi?: boolean;
+        bloxlink?: boolean;
+    }
+
+    export interface FetchRobloxResponse {
+        status: true,
+        service?: string;
+        user: {
+            username: string;
+            id: number;
+            online: string;
+            url: string;
+            avatar: string,
+            bio: string;
+            joined: {
+                full: string;
+                format: string;
+            } | null,
+            lastnames: string[];
+            counts: {
+                friends: number;
+                followers: number;
+                following: number;
+            }
+        };
+
+        groups: {
+            name: string;
+            id: number;
+            role_id: string;
+            rank: string;
+            role: string;
+            members: number;
+            url: string;
+            primary: boolean;
+            /** @deprecated this was removed from the groups/role API and will always return false */
+            inclan: false;
+            /** @deprecated this was removed from the groups/role API and will always return id: 0, url: "" */
+            emblem: { id: 0, url: "" };
+            owner: object | null;
+            shout: object | null;
+            raw: object
+        }[];
+        
+        activity: object | null;
+    }
+
     export interface RobloxOptions {
         cookie?: string;
         debug?: boolean;
         avatarUrl?: string;
-        apis?: { rover?: boolean; bloxlink?: boolean; rowifi?: boolean};
-        keys?: { bloxlink: string; }
+        apis?: { rover?: boolean; bloxlink?: boolean; rowifi?: boolean; rocord?: boolean; };
+        keys?: { bloxlink?: string; rocord?: boolean;  }
     }
 
     export interface RobloxStatus {
@@ -17,16 +67,17 @@ declare module "@elara-services/roblox.js" {
     }
 
     export interface RobloxJSEvents {
-        on(event: "fetch", listener: (user: string, service: string) => void): void;
-        on(event: "failed", listener: (user: string, service: string) => void): void;
+        on(event: "fetch", listener: (user: string, service: VerificationServices) => void): void;
+        on(event: "failed", listener: (user: string, service: VerificationServices) => void): void;
     }
 
-    export type VerificationServices = 'RoVer' | 'BloxLink' | 'RoWifi';
+    export type VerificationServices = 'RoVer' | 'BloxLink' | 'RoWifi' | 'RoCord';
 
     export interface Messages {
         ERROR(str: string): string;
         FETCH_ERROR(err: Error): string;
 
+        ROCORD: string;
         ROVER: string;
         BLOXLINK: string;
         ROWIFI: string;
@@ -59,25 +110,38 @@ declare module "@elara-services/roblox.js" {
         AUTHOR(user: User|string): { name: string, icon_url: string, url: string };
         FOOTER(warn: boolean): { text: string };
     }
-
-    type Response = Promise<RobloxStatus|object|null>;
+    type Response = Promise<RobloxStatus|FetchRobloxResponse|object|null>;
     // @ts-ignore
     export = class Roblox {
         public constructor(options?: RobloxOptions);
         public rover: boolean;
         public bloxlink: boolean;
         public rowifi: boolean;
+        public rocord: boolean;
         public debug: boolean;
-        public keys: { bloxlink?: string | null, rover?: string | null }
+        public keys: { bloxlink?: string | null, rover?: string | null, rocord?: string | null }
         public options: RobloxOptions;
         public events: RobloxJSEvents;
         public isVerifed(user: string|number): Promise<boolean>;
-        public fetch(user: string|number, basic?: boolean, guildId?: string, includeBloxLink?: boolean): Promise<RobloxStatus|object>;
-        public get(user: string|number, basic?: boolean, guildId?: string, includeBloxLink?: boolean): Promise<RobloxStatus|object>;
+        /** @deprecated Use 'get' instead!*/
+        public fetch(): Error;
+        /** @deprecated Use 'services.rover' instead! */
+        public fetchRoVer(): Error;
+        /** @deprecated Use 'services.bloxlink' instead! */
+        public fetchBloxLink(): Error;
+        /** @deprecated Use 'services.rowifi' instead! */
+        public fetchRoWifi(): Error;
+
+        public services: {
+            rocord: (id: string, basic?: boolean) => Promise<Response>;
+            rover: (id: string, basic?: boolean) => Promise<Response>;
+            rowifi: (id: string, basic?: boolean) => Promise<Response>;
+            bloxlink: (id: string, basic?: boolean, guildId?: string, include?: IncludeServices) => Promise<Response>;
+            get: (id: string, basic?: boolean, guildId?: string, include?: IncludeServices) => Promise<Response>;
+        }
+
+        public get(user: string|number, basic?: boolean, guildId?: string, include?: IncludeServices): Promise<Response>;
         public fetchByUsername(name: string, basic?: boolean): Response;
-        public fetchRoVer(id: string, basic?: boolean, guildId?: string, includeBloxLink?: boolean): Response;
-        public fetchBloxLink(id: string, basic?: boolean, guildId?: string): Response;
-        public fetchRoWifi(id: string, basic?: boolean): Response;
         public fetchBasicRobloxInfo(id: string, service?: VerificationServices | string): Response | Promise<{
             status: boolean;
             service: VerificationServices | string;
@@ -104,7 +168,6 @@ declare module "@elara-services/roblox.js" {
         private _request(url: string, headers?: object, method?: string, returnJSON?: boolean): Promise<object|string|null>;
         private _debug(...args: any): void;
         private privateFetch(url: string): Promise<object|null>;
-        private privateGet(url: string): Promise<object|null>;
         private emit(event: string, ...args: any[]): void;
 
     }

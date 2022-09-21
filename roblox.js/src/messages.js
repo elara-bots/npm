@@ -4,6 +4,7 @@ exports.Messages = {
     "ERROR": (str) => `[${name}, v${version}]: ${str}`,
     "FETCH_ERROR": (err) => `Error while trying to fetch the information\n${err.message}`,
 
+    "ROCORD": "RoCord",
     "ROVER": "RoVer",
     "BLOXLINK": "BloxLink",
     "ROWIFI": "RoWifi",
