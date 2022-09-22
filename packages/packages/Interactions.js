@@ -30,6 +30,7 @@ module.exports = class Interactions extends null {
             max_values: options?.max ?? 1,
             options: options?.options,
             type: options?.type ?? 3,
+            disabled: typeof options?.disabled === "boolean" ? options.disabled : false
         }
     }
 

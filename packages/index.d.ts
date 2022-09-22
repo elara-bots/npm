@@ -164,6 +164,7 @@ declare module "@elara-services/packages" {
         min_values: number;
         max_values: number;
         type: number;
+        disabled: boolean;
         options: {
             label: string;
             value: string;
@@ -180,7 +181,8 @@ declare module "@elara-services/packages" {
         min?: Select['min_values'];
         max?: Select['max_values'];
         type?: Select['type'];
-        options: Select['options']
+        options: Select['options'];
+        disabled?: Select['disabled'];
     }
 
     export type Modal = {
