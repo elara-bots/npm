@@ -103,9 +103,9 @@ class Twitter extends EventEmitter {
      * @param {string[]} find 
      */
     async sendDefault(data, find){
-        if(!data || !find || !find.webhooks?.length) return Promise.reject(`No data or find given.`);
+        if(!data || !find || !find.webhooks?.length) return Promise.resolve(`No data or find given.`);
         let body = this.fetchData(data, find);
-        if (!body) return Promise.reject(`No data returned.`);
+        if (!body) return Promise.resolve(`No data returned.`);
         let embeds = [
             {
                 url: body.url,
@@ -184,7 +184,7 @@ class Twitter extends EventEmitter {
     };
 
     async restartStream() {
-        if (!this.stream) return Promise.reject(`No stream to restart?`);
+        if (!this.stream) return Promise.resolve(`No stream to restart?`);
         Promise.resolve(`I've restarted the stream.`);
         process.nextTick(async () => {
             await Promise.all([
