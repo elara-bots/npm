@@ -36,15 +36,15 @@ exports.handlePromise = async (code) => {
 
 /**
  * @param {string} code 
- * @param {string[]} sensors - An array of strings to sensor 
+ * @param {string[]} censors - An array of strings to sensor 
  * @returns {Promise<string>}
  */
-exports.clean = async (code, sensors = []) => {
-    if (!code || !sensors?.length) return "";
+exports.clean = async (code, censors = []) => {
+    if (!code || !censors?.length) return "";
     let cleaned = inspect((await exports.handlePromise(code)), { depth: 0 });
     function clean() {
         let c = cleaned;
-        for (const s of sensors) c = c.replace(new RegExp(s, "g"), "[X]")
+        for (const s of censors) c = c.replace(new RegExp(s, "g"), "[X]")
         return c
     };
     return clean();

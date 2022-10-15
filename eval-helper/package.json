@@ -1,6 +1,6 @@
 {
   "name": "@elara-services/eval-helper",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Provides easy way to add an eval command for a Discord bot that supports async responses",
   "main": "./src/index.js",
   "types": "./index.d.ts",

@@ -9,5 +9,5 @@ declare module "@elara-services/eval-helper" {
     }
     export function getCode(options: EvalOptions): Promise<any>;
     export function handlePromise(code: Promise | object): Promise<any>;
-    export function clean(code: string | any, sensors: string[]): Promise<any>;
+    export function clean(code: string | any, censors: string[]): Promise<any>;
 }
