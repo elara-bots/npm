@@ -6,20 +6,13 @@ const { inspect } = require("node:util");
  * @param {any} [options.code] - The code to run (this or the attachment is required) 
  * @param {string[]} [options.attachment] - An attachment to run code from (supports: js, txt)
  * @param {boolean} [options.async] - Force async to be enabled.
- * @param {string[]} [options.sensor] - An array of strings to sensor 
  */
-exports.handle = async (options = {}) => {
-    let { code, attachment, sensor } = options ?? { attachment: "", code: "", sensor: [] };
+exports.getCode = async (options = {}) => {
+    let { code, attachment } = options ?? { attachment: "", code: "" };
     if (!code && !attachment) throw new Error(`You failed to provide 'code' or 'attachment'`);
     if (typeof code === "undefined" || code === null) code = ""; 
     let shouldBeAsync = false;
     if (options.async) shouldBeAsync = true;
-    function clean(code) {
-        let c = code;
-        if (!sensor?.length) return c;
-        for (const s of sensor) c = c.replace(new RegExp(s, "g"), "[X]")
-        return c;
-    };
     if (attachment && [
         ".js",
         ".txt"
@@ -32,7 +25,27 @@ exports.handle = async (options = {}) => {
     };
     if ([ "return", "await" ].some(c => code.includes(c))) shouldBeAsync = true;
     if (code.startsWith('```js') && code.endsWith('```')) code = code.replace('```js', '').replace('```', '');
-    let ev = eval(shouldBeAsync ? `(async () => {\n${code}\n})();` : code);
-    if (ev instanceof Promise || typeof ev === "object") ev = await ev;
-    return clean(inspect(ev, { depth: 0 }));
+    if (shouldBeAsync) return `(async () => {\n${code}\n})();`
+    return code
+};
+
+exports.handlePromise = async (code) => {
+    if (code instanceof Promise || typeof code === "object") code = await code;
+    return code;
+};
+
+/**
+ * @param {string} code 
+ * @param {string[]} sensors - An array of strings to sensor 
+ * @returns {Promise<string>}
+ */
+exports.clean = async (code, sensors = []) => {
+    if (!code || !sensors?.length) return "";
+    let cleaned = inspect((await exports.handlePromise(code)), { depth: 0 });
+    function clean() {
+        let c = cleaned;
+        for (const s of sensors) c = c.replace(new RegExp(s, "g"), "[X]")
+        return c
+    };
+    return clean();
 }

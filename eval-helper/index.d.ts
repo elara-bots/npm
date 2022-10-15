@@ -6,8 +6,8 @@ declare module "@elara-services/eval-helper" {
         attachment?: string;
         /** If the response should handle async */
         async?: boolean;
-        /** If the response has any strings listed it will be changed to `[X]` */
-        sensor?: string[];
     }
-    export function handle(options: EvalOptions): Promise<any>;
+    export function getCode(options: EvalOptions): Promise<any>;
+    export function handlePromise(code: Promise | object): Promise<any>;
+    export function clean(code: string | any, sensors: string[]): Promise<any>;
 }
