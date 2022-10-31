@@ -1,5 +1,8 @@
 # Getting Started
-> The run time for new posts is every 5 minutes, this can be customized with `.setSearch(4, "users")` or `.setSearch(4, "subs")`
+> The default run times for searching is: 
+> Users: 1 minute
+> Subreddits: 2 minutes
+> To change the run time use: `.setSearch(<number>, 'users')` or `.setSearch(<number>, 'subs')`
 
 ```js
 const { Reddit } = require("@elara-services/reddit"),
