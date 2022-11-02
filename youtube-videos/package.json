@@ -1,0 +1,29 @@
+{
+  "name": "@elara-services/youtube-videos",
+  "version": "1.0.0",
+  "description": "Listen for YouTube videos for creators",
+  "main": "index.js",
+  "types": "typings.d.ts",
+  "typings": "typings.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/elara-bots/npm.git#youtube-videos"
+  },
+  "keywords": [
+    "youtube",
+    "youtube-videos",
+    "videos"
+  ],
+  "author": "SUPERCHIEFYT (Elara-Discord-Bots, Elara-Services)",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/elara-bots/npm/issues"
+  },
+  "homepage": "https://github.com/elara-bots/npm/tree/youtube-videos#readme",
+  "dependencies": {
+    "@elara-services/fetch": "^1.0.1",
+    "moment": "2.29.4",
+    "moment-duration-format": "2.3.2",
+    "rss-parser": "3.12.0"
+  }
+}
