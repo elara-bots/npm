@@ -9,13 +9,13 @@ declare module "@elara-services/youtube-videos" {
         public data: Set<string>;
         private interval: number;
         public setSearch(minutes: number): this;
-        public listen(event: 'video', listener: (channelId: string, videos: Feed[]) => void): this;
-        public listen(event: 'searching', listener: (channels: string[]) => void): this;
+        public listen(event: 'video', listener: (channelId: string, videos: Feed['videos']) => void): YouTubeVideos;
+        public listen(event: 'searching', listener: (channels: string[]) => void): YouTubeVideos;
         public creators: {
-            add(channelId: string): this;
-            remove(channelId: string): this;
+            add(channelId: string): YouTubeVideos;
+            remove(channelId: string): YouTubeVideos;
             list(): string[];
-            bulk(channels: string[]): this;
+            bulk(channels: string[]): YouTubeVideos;
         };
 
         public run(): Promise<void>;

@@ -1,6 +1,6 @@
 {
   "name": "@elara-services/youtube-videos",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Listen for YouTube videos for creators",
   "main": "index.js",
   "types": "typings.d.ts",
