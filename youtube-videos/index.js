@@ -53,7 +53,7 @@ exports.YouTubeVideos = class YouTubeVideos {
         const timer = () => setTimeout(() => this.run(), this.interval * 60000);
         if (!this.data.size) return timer();
         this.emiiter.emit("searching", this.creators.list());
-        for await (const id of this.creators.list()) {
+        for (const id of this.creators.list()) {
             const creator = await exports.util.fetchFeed(id);
             if (!creator) continue;
             const videos = creator.videos.filter(c => exports.util.isNew(c, this.interval));
