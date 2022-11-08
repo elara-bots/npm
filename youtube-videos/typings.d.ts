@@ -8,6 +8,7 @@ declare module "@elara-services/youtube-videos" {
         private emitter: EventEmitter;
         public data: Set<string>;
         private interval: number;
+        private announced: Set<string>;
         public setSearch(minutes: number): this;
         public listen(event: 'video', listener: (channelId: string, videos: Feed['videos']) => void): YouTubeVideos;
         public listen(event: 'searching', listener: (channels: string[]) => void): YouTubeVideos;

@@ -5,6 +5,7 @@ exports.YouTubeVideos = class YouTubeVideos {
     constructor() {
         this.emiiter = new EventEmitter();
         this.data = new Set();
+        this.announced = new Set();
         this.interval = 2;
     };
 
@@ -56,9 +57,10 @@ exports.YouTubeVideos = class YouTubeVideos {
         for (const id of this.creators.list()) {
             const creator = await exports.util.fetchFeed(id);
             if (!creator) continue;
-            const videos = creator.videos.filter(c => exports.util.isNew(c, this.interval));
+            const videos = creator.videos.filter(c => exports.util.isNew(c, this.interval) && !this.announced.has(c.id));
             if (!videos?.length) continue;
             this.emiiter.emit("video", id, videos);
+            for (const v of videos) this.announced.add(v.id);
         };
         return timer();
     };
