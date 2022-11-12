@@ -1,11 +1,11 @@
 {
   "name": "@elara-services/bridge",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Easily manage your Discord channels followed, by having a 'feeds' server",
   "main": "index.js",
   "repository": {
     "type": "git",
-    "url": "https://github.com/elara-bots/npm/main/tree/bridge"
+    "url": "https://github.com/elara-bots/npm/tree/main/bridge"
   },
   "keywords": [
     "DiscordNews",
