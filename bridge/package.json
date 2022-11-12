@@ -1,7 +1,7 @@
 {
   "name": "@elara-services/bridge",
-  "version": "1.0.2",
-  "description": "Easily manage your Discord channels followed, by having a 'feeds' server",
+  "version": "1.0.3",
+  "description": "Easily bridge between chats and get the messages sent to the webhooks provided. (READ THE README FOR MORE INFO!)",
   "main": "index.js",
   "repository": {
     "type": "git",

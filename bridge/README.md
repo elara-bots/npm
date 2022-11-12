@@ -26,7 +26,7 @@ const bridge = new Bridge(client, [ // You can have multiple bridge channels
         // By default this will only allow crossposted messages to be announced.
         showMemberProfile: false, // OPTIONAL: THe 'showMemberProfile' boolean will make the username and avatarURL for the member's info (if any) (DEFAULT: FALSE)
         channelId: "12345678", // OPTIONAL/REQUIRED: The 'channelId' is the channel it will be listening to messages in (This channel ID is only required if there is no Category ID provided)
-        categoryId?: "12345678" // OPTIONAL/REQUIRED: The 'categoryId' is the category it will be listening to messages in (This is only required if there is no channelId provided!)
+        categoryId: "12345678" // OPTIONAL/REQUIRED: The 'categoryId' is the category it will be listening to messages in (This is only required if there is no channelId provided!)
     }
 ])
 ```
