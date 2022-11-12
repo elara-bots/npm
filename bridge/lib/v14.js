@@ -1,10 +1,10 @@
 const Base = require("./base");
-const { IntentsBitField } = require("discord.js");
+const { IntentsBitField, Client } = require("discord.js");
 
 module.exports = class V14 extends Base {
     /**
-     * @param {import("discord.js").CLient} client
-     * @param {import("./base").BridgeOptions} options 
+     * @param {Client} client
+     * @param {import("@elara-services/bridge").BridgeOptions} options 
      */
     constructor(client, options) {
         super(client, options);
