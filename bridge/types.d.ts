@@ -21,6 +21,6 @@ declare module "@elara-services/bridge" {
         public run(): Promise<void>;
         private handleRun(Intents: any): Promise<void>;
         private handleMessageCreate(m: Message): Promise<void>;
-        private send(urls: string[], message: Message): Promise<void>;
+        private send(option: BridgeOptions, message: Message): Promise<void>;
     }
 }
