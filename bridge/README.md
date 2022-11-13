@@ -47,4 +47,4 @@ bridge.run()
 
 
 ## Example bot
-See: 
+See: https://github.com/elara-bots/npm/tree/main/bridge/examples/bot on how to get a small bot running with this package!
