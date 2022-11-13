@@ -71,7 +71,7 @@ twitter.on("stream:restart", () => console.log(`The twitter stream restarted!`))
 twitter.on("stream:end", (response) => console.log(`The twitter stream ended!`, response));
 
 // Stream Error
-twitter.on("stream:end", (error) => console.warn(`The twitter stream had an error!`, error));
+twitter.on("stream:error", (error) => console.warn(`The twitter stream had an error!`, error));
 
 // Stream Post
 twitter.on("stream:post", (body, user) => console.log(`New tweet!`, body, user));
