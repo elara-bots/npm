@@ -15,9 +15,9 @@ declare module "@elara-services/bridge" {
     }
 
     export class Bridge {
-        public constructor(client: Client, options: BridgeOptions);
+        public constructor(client: Client, options: BridgeOptions[]);
         public client: Client<true>;
-        public options: BridgeOptions;
+        public options: BridgeOptions[];
         public run(): Promise<void>;
         private handleMessageCreate(m: Message): Promise<void>;
         private send(option: BridgeOptions, message: Message): Promise<void>;
