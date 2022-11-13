@@ -1,0 +1,13 @@
+{
+    "name": "bridge-example-bot",
+    "version": "1.0.0",
+    "description": "An example bot for the bridge package!",
+    "main": "index.js",
+    "author": "Your Username here",
+    "license": "ISC",
+    "dependencies": {
+        "@elara-services/bridge": "^1.0.8",
+        "discord.js": "^14.6.0"
+    }
+  }
+  

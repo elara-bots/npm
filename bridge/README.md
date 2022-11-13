@@ -43,3 +43,8 @@ bridge.run()
 - `{author.id}` - Shows the user's ID (ex: `288450828837322764`)
 - `{member.nickname}` - Shows the member's nickname/display_name (ex: `Beep Boop`)
 - `{member.tag}` - Shows the member's nickname/display_name and tag (ex: `Beep Boop#0001`)
+
+
+
+## Example bot
+See: 
