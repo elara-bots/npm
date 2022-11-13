@@ -1,6 +1,6 @@
 {
   "name": "@elara-services/bridge",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Easily bridge between chats and get the messages sent to the webhooks provided. (READ THE README FOR MORE INFO!)",
   "main": "index.js",
   "repository": {

@@ -1,7 +1,7 @@
 exports.Bridge = class Bridge {
     /**
      * @param {Client} client 
-     * @param {import("@elara-services/bridge").BridgeOptions[]} options 
+     * @param {BridgeOptions[]} options 
      */
     constructor(client, options = []) {
         this.client = client;
@@ -28,7 +28,7 @@ exports.Bridge = class Bridge {
     };
 
     /**
-     * @param {import("@elara-services/bridge").BridgeOptions} option
+     * @param {BridgeOptions} option
      * @param {import("discord.js").Message} message
      */
     async send(option = {}, message) {
@@ -65,3 +65,16 @@ exports.Bridge = class Bridge {
         for (const url of option.webhooks) send(url);
     }
 };
+
+
+/**
+ * @typedef {Object} BridgeOptions
+ * @property {boolean} enabled
+ * @property {string[]} webhooks
+ * @property {string} [username]
+ * @property {string} [avatarURL]
+ * @property {boolean} [includeAllMessages]
+ * @property {boolean} [showMemberProfile]
+ * @property {string} [channelId]
+ * @property {string} [categoryId]
+ */
