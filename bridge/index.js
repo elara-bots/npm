@@ -1,3 +1,5 @@
+const { WebhookClient } = require("discord.js");
+
 exports.Bridge = class Bridge {
     /**
      * @param {Client} client 
