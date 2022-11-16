@@ -59,8 +59,7 @@ exports.Bridge = class Bridge {
                     content: message.content || undefined,
                     files: message.attachments.map(c => ({ name: c.name, attachment: c.attachment })),
                     allowedMentions: { parse: [] },
-                    username, avatarURL,
-                    threadId: Url.searchParams.get("thread_id") || undefined
+                    username, avatarURL
                 })
                 .catch(console.warn)
         }
