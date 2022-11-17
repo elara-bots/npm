@@ -42,7 +42,8 @@ exports.fetchVideos = async (ids = [], key) => {
             "snippet",
             "statistics",
             "status",
-            "liveStreamingDetails"
+            "liveStreamingDetails",
+            "contentDetails"
         ]) url.query("part", p);
         return url.send()
         .then(r => {
