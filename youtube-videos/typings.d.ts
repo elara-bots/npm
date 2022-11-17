@@ -83,6 +83,20 @@ declare module "@elara-services/youtube-videos" {
             favoriteCount: string;
             commentCount: string;
         };
+        contentDetails: {
+            duration: string;
+            dimension: string;
+            definition: string;
+            caption: 'true' | 'false';
+            licensedContent: boolean;
+            regionRestriction?: {
+                allowed?: string[];
+                blocked?: string[];
+            };
+            contentRating?: object;
+            projection: '360' | 'rectangular';
+            hasCustomThumbnail: boolean;
+        }
     }
 
     export class util extends null {
