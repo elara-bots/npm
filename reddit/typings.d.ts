@@ -5,6 +5,7 @@ declare module "@elara-services/reddit" {
     export class Reddit {
         public constructor(); 
         private emitter: EventEmitter;
+        public announced: Set<string>;
         public data: { users: Set<string>, subs: Set<string> };
         public searchTime: { users: number, subs: number };
         public enabled: { users: boolean, subs: boolean };

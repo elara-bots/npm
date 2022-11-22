@@ -1,6 +1,6 @@
 {
   "name": "@elara-services/reddit",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Package to listen for new posts to a subreddit or user ",
   "main": "index.js",
   "types": "typings.d.ts",
@@ -21,7 +21,7 @@
   "bugs": {
     "url": "https://github.com/elara-bots/npm/issues"
   },
-  "homepage": "https://github.com/elara-bots/npm/tree/reddit#readme",
+  "homepage": "https://github.com/elara-bots/npm/tree/main/reddit#readme",
   "dependencies": {
     "@elara-services/fetch": "1.0.1",
     "@elara-services/packages": "5.3.0",

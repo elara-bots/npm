@@ -4,6 +4,7 @@ const { fetchPosts, isValid, time } = require("./util");
 exports.Reddit = class Reddit {
     constructor() {
         this.emiiter = new EventEmitter();
+        this.announced = new Set();
         this.data = { users: new Set(), subs: new Set() };
         this.searchTime = { users: 1, subs: 2 };
         this.enabled = { users: true, subs: true };
@@ -129,8 +130,10 @@ exports.Reddit = class Reddit {
                 if (res.length) {
                     for (const r of res) {
                         if (time(r.created_utc) > this.searchTime[data]) continue;
+                        if (this.announced.has(r.permalink)) continue;
                         r.created_format = time(r.created_utc, "d[d], h[h], m[m], s[s]", false);
                         r.postURL = `https://www.reddit.com${r.permalink}`;
+                        this.announced.add(r.permalink);
                         this.emiiter.emit(event, type === "r" ? r.subreddit : r.author, r);
                     }
                 }
