@@ -53,13 +53,14 @@ exports.Bridge = class Bridge {
                     .replace(/{member.tag}/gi, `${message.member?.displayName || message.author.username}#${message.author.discriminator}`)
             }
             if (option.avatarURL?.length && option.avatarURL.startsWith("https://")) avatarURL = option.avatarURL;
-            new WebhookClient({ url })
+            new WebhookClient({ url: `${Url.origin}${Url.pathname}` })
                 .send({
                     embeds: message.embeds || undefined,
                     content: message.content || undefined,
                     files: message.attachments.map(c => ({ name: c.name, attachment: c.attachment })),
                     allowedMentions: { parse: [] },
-                    username, avatarURL
+                    username, avatarURL,
+                    threadId: Url.searchParams.get("thread_id") || undefined
                 })
                 .catch(console.warn)
         }
