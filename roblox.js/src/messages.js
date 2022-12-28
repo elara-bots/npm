@@ -34,6 +34,6 @@ exports.Messages = {
     "ACTIVITY": "Activity",
     "NOT_VERIFIED": (service) => `The user provided isn't verified with: ${service}`,
     "DISABLED": (service) => `The (${service}) service isn't enabled.`,
-    "AUTHOR": (user) => ({ name: `Roblox Info for ${user ? `${user.tag} (${user.id})` : `ID: ${res.user.id}`}`, icon_url: user?.displayAvatarURL?.({ dynamic: true }) ?? `https://cdn.discordapp.com/emojis/411630434040938509.png`, url: `https://services.elara.workers.dev/support` }),
+    "AUTHOR": (user, res) => ({ name: `Roblox Info for ${user ? `${user.tag} (${user.id})` : `ID: ${res.user.id}`}`, icon_url: user?.displayAvatarURL?.({ dynamic: true }) ?? `https://cdn.discordapp.com/emojis/411630434040938509.png`, url: `https://services.elara.workers.dev/support` }),
     "FOOTER": (warn) => ({ text: warn ? `This will only show up to 4 groups!` : `` })
 }

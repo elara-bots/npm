@@ -107,7 +107,7 @@ declare module "@elara-services/roblox.js" {
         ACTIVITY: string;
         NOT_VERIFIED(service: VerificationServices): string;
         DISABLED(service: VerificationServices): string;
-        AUTHOR(user: User|string): { name: string, icon_url: string, url: string };
+        AUTHOR(user: User|string, res: object|null): { name: string, icon_url: string, url: string };
         FOOTER(warn: boolean): { text: string };
     }
     type Response = Promise<RobloxStatus|FetchRobloxResponse|object|null>;

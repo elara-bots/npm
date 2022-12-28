@@ -237,7 +237,7 @@ module.exports = class Roblox {
                     `${secondEmoji}${Messages.FOLLOWERS}: ${formatNum(res.user.counts.followers)}`,
                     `${secondEmoji}${Messages.FOLLOWING}: ${formatNum(res.user.counts.following)}`,
                 ].join("\n"),
-                author: Messages.AUTHOR(user),
+                author: Messages.AUTHOR(user, res),
                 footer: Messages.FOOTER(res.groups.length > 4)
             }],
             components: showButtons && [
