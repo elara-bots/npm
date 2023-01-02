@@ -22,17 +22,20 @@ module.exports = class Roblox {
      * @param {boolean} [options.apis.bloxlink]
      * @param {boolean} [options.apis.rowifi]
      * @param {boolean} [options.apis.rocord]
+     * @param {boolean} [options.apis.rolinkapp]
      * @param {object} [options.keys]
      * @param {string} [options.keys.rover]
      * @param {string} [options.keys.bloxlink]
      * @param {string} [options.keys.rocord]
+     * @param {string} [options.keys.rolinkapp]
      */
     constructor(options = {}) {
         this.rover = bool(options?.apis?.rover);
         this.bloxlink = bool(options?.apis?.bloxlink);
         this.rowifi = bool(options?.apis?.rowifi);
         this.rocord = bool(options?.apis?.rocord);
-        this.keys = options?.keys ?? { bloxlink: null, rover: null, rocord: null };
+        this.rolinkapp = bool(options?.apis?.rolinkapp);
+        this.keys = options?.keys ?? { bloxlink: null, rover: null, rocord: null, rolinkapp: null };
         this.debug = Boolean(options?.debug ?? false);
         this.options = options;
         if ("avatarUrl" in options) {
@@ -41,11 +44,6 @@ module.exports = class Roblox {
         this.events = new EventEmitter();
     };
     emit(event, ...args) { return this.events.emit(event, ...args); };
-
-    fetch() { throw new Error(`The 'fetch' function has been replaced by: 'get'`) }
-    fetchRoVer() { throw new Error(`The 'fetchRoVer' function has been replaced by: 'services.rover'`); };
-    fetchBloxLink() { throw new Error(`The 'fetchBloxLink' function has been replaced by: 'services.bloxlink'`); };
-    fetchRoWifi() { throw new Error(`The 'fetchRoWifi' function has been replaced by: 'services.rowifi'`); };
 
     async get(user, basic = false, guildId = null, include) {
         if (typeof user === "string" && user.match(/<@!?/gi)) {
@@ -256,12 +254,14 @@ module.exports = class Roblox {
                     rover: true,
                     bloxlink: true,
                     rowifi: true,
-                    rocord: true
+                    rocord: true,
+                    rolinkapp: true,
                 };
                 if (!this.rocord || !this.keys.rocord || include?.rocord) def.rocord = false;
                 if (!this.rover || include?.rover) def.rover = false;
                 if (!this.bloxlink || !this.keys.bloxlink || include?.bloxlink) def.bloxlink = false;
                 if (!this.rowifi || include?.rowifi) def.rowifi = false;
+                if (!this.rolinkapp || !this.keys.rolinkapp || include?.rolinkapp) def.rolinkapp = false;
                 return def;
             },
             
@@ -314,12 +314,28 @@ module.exports = class Roblox {
                 return this.fetchRoblox(r.primaryAccount || r.user?.primaryAccount, Messages.BLOXLINK)
             },
 
+            rolinkapp: async (id, basic = false) => {
+                if (!this.rolinkapp && !this.keys.rolinkapp) return status(Messages.DISABLED(Messages.ROLINKAPP));
+
+                let r = await this._request(`https://rolink.app/api/roblox/${id}`, {
+                    "Authorization": this.keys.rolinkapp
+                });
+                if (r.statusCode !== 200 || r.error || !r.data?.roblox?.accounts?.[0]?.robloxId) {
+                    this.emit("failed", id, "rolinkapp");
+                    return status(Messages.NOT_VERIFIED(Messages.ROLINKAPP));
+                };
+                this.emit("fetch", id, "rolinkapp");
+                if (basic) return this.fetchBasicRobloxInfo(r.data.roblox.accounts[0].robloxId, Messages.ROLINKAPP);
+                return this.fetchRoblox(r.data.roblox.accounts[0].robloxId, Messages.ROLINKAPP);
+            },
+
             get: async (id, basic = false, guildId, include = {}) => {
                 let defs = this.services.getDefaults(include);
                 if (defs.rocord) return this.services.rocord(id, basic);
                 if (defs.rover) return this.services.rover(id, basic);
                 if (defs.rowifi) return this.services.rowifi(id, basic);
                 if (defs.bloxlink) return this.services.bloxlink(id, basic, guildId);
+                if (defs.rolinkapp) return this.services.rolinkapp(id, basic);
                 return status(Messages.NO_ROBLOX_PROFILE);
             }
         }

@@ -57,8 +57,8 @@ declare module "@elara-services/roblox.js" {
         cookie?: string;
         debug?: boolean;
         avatarUrl?: string;
-        apis?: { rover?: boolean; bloxlink?: boolean; rowifi?: boolean; rocord?: boolean; };
-        keys?: { bloxlink?: string; rocord?: boolean;  }
+        apis?: { rover?: boolean; bloxlink?: boolean; rowifi?: boolean; rocord?: boolean; rolinkapp?: boolean };
+        keys?: { bloxlink?: string; rocord?: string; rolinkapp?: string  }
     }
 
     export interface RobloxStatus {
@@ -71,7 +71,7 @@ declare module "@elara-services/roblox.js" {
         on(event: "failed", listener: (user: string, service: VerificationServices) => void): void;
     }
 
-    export type VerificationServices = 'RoVer' | 'BloxLink' | 'RoWifi' | 'RoCord';
+    export type VerificationServices = 'RoVer' | 'BloxLink' | 'RoWifi' | 'RoCord' | 'RoLinkApp';
 
     export interface Messages {
         ERROR(str: string): string;
@@ -81,6 +81,7 @@ declare module "@elara-services/roblox.js" {
         ROVER: string;
         BLOXLINK: string;
         ROWIFI: string;
+        ROLINKAPP: string;
         NO_ROBLOX_PROFILE: string;
         BIO: string;
         STATUS: string;
@@ -118,25 +119,18 @@ declare module "@elara-services/roblox.js" {
         public bloxlink: boolean;
         public rowifi: boolean;
         public rocord: boolean;
+        public rolinkapp: boolean;
         public debug: boolean;
-        public keys: { bloxlink?: string | null, rover?: string | null, rocord?: string | null }
+        public keys: { bloxlink?: string | null, rover?: string | null, rocord?: string | null, rolinkapp?: string | null }
         public options: RobloxOptions;
         public events: RobloxJSEvents;
         public isVerifed(user: string|number): Promise<boolean>;
-        /** @deprecated Use 'get' instead!*/
-        public fetch(): Error;
-        /** @deprecated Use 'services.rover' instead! */
-        public fetchRoVer(): Error;
-        /** @deprecated Use 'services.bloxlink' instead! */
-        public fetchBloxLink(): Error;
-        /** @deprecated Use 'services.rowifi' instead! */
-        public fetchRoWifi(): Error;
-
         public services: {
             rocord: (id: string, basic?: boolean) => Promise<Response>;
             rover: (id: string, basic?: boolean) => Promise<Response>;
             rowifi: (id: string, basic?: boolean) => Promise<Response>;
             bloxlink: (id: string, basic?: boolean, guildId?: string, include?: IncludeServices) => Promise<Response>;
+            rolinkapp: (id: string, basic?: boolean) => Promise<Response>;
             get: (id: string, basic?: boolean, guildId?: string, include?: IncludeServices) => Promise<Response>;
         }
 

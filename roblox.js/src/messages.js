@@ -8,6 +8,7 @@ exports.Messages = {
     "ROVER": "RoVer",
     "BLOXLINK": "BloxLink",
     "ROWIFI": "RoWifi",
+    "ROLINKAPP": "RoLinkApp",
     "NO_ROBLOX_PROFILE": `I was unable to fetch the Roblox information for that user.`,
     "BIO": "Bio",
     "STATUS": "Status",

@@ -1,10 +1,10 @@
 {
   "name": "@elara-services/roblox.js",
-  "version": "4.0.2",
+  "version": "4.1.0",
   "description": "Fetch Roblox or Discord user's Roblox information!",
   "main": "./src/index.js",
-  "types": "./src/index.d.ts",
-  "typings": "./src/index.d.ts",
+  "types": "typings.d.ts",
+  "typings": "typings.d.ts",
   "keywords": [
     "roblox",
     "roblox-api",
