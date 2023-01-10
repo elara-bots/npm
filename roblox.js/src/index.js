@@ -266,11 +266,11 @@ module.exports = class Roblox {
             },
             
             rocord: async (id, basic = false) => {
-                if (!this.rocord && !this.keys.rocord) return status(Messages.DISABLED(Messages.ROCORD));
+                if (!this.rocord || !this.keys.rocord) return status(Messages.DISABLED(Messages.ROCORD));
                 let r = await this._request(`https://rocord.elara.services/api/users/${id}`, { authorization: this.keys.rocord });
                 if (!r) {
                     this.emit("failed", id, "rocord");
-                    return status(Messages.DISABLED(Messages.ROCORD));
+                    return status(Messages.NOT_VERIFIED(Messages.ROCORD));
                 }
                 this.emit("fetch", id, "rocord");
                 if (basic) return this.fetchBasicRobloxInfo(r.id, Messages.ROCORD);
@@ -282,7 +282,7 @@ module.exports = class Roblox {
                 let r = await this._request(`https://verify.eryn.io/api/user/${id}`);
                 if (r?.status !== "ok") {
                     this.emit("failed", id, "rover");
-                    return status(Messages.DISABLED(Messages.ROVER));
+                    return status(Messages.NOT_VERIFIED(Messages.ROVER));
                 }
                 this.emit("fetch", id, "rover");
                 if (basic) return this.fetchBasicRobloxInfo(r.robloxId, Messages.ROVER);
@@ -302,12 +302,12 @@ module.exports = class Roblox {
             },
 
             bloxlink: async (id, basic = false, guildId) => {
-                if (!this.bloxlink && !this.keys.bloxlink) return status(Messages.DISABLED(Messages.BLOXLINK));
+                if (!this.bloxlink || !this.keys.bloxlink) return status(Messages.DISABLED(Messages.BLOXLINK));
         
                 let r = await this._request(`https://v3.blox.link/developer/discord/${id}${guildId ? `?guildId=${guildId}` : ""}`, { "api-key": this.keys.bloxlink });
                 if (!r?.success || typeof r.user?.primaryAccount !== "string") {
                     this.emit("failed", id, "bloxlink");
-                    return status(Messages.DISABLED(Messages.BLOXLINK));
+                    return status(Messages.NOT_VERIFIED(Messages.BLOXLINK));
                 }
                 this.emit("fetch", id, "bloxlink");
                 if (basic) return this.fetchBasicRobloxInfo(r.primaryAccount || r.user?.primaryAccount, Messages.BLOXLINK);
@@ -315,7 +315,7 @@ module.exports = class Roblox {
             },
 
             rolinkapp: async (id, basic = false) => {
-                if (!this.rolinkapp && !this.keys.rolinkapp) return status(Messages.DISABLED(Messages.ROLINKAPP));
+                if (!this.rolinkapp || !this.keys.rolinkapp) return status(Messages.DISABLED(Messages.ROLINKAPP));
 
                 let r = await this._request(`https://rolink.app/api/roblox/${id}`, {
                     "Authorization": this.keys.rolinkapp
