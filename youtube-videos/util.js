@@ -72,7 +72,8 @@ exports.findVideo = (data, id) => {
  */
 exports.isNew = (video, minutes) => {
   if (!video || typeof minutes !== "number" || typeof video.uploadDateMinutes !== "number") return false;
-  if ((video.uploadDateMinutes - 15) <= minutes) return true;
+  const min = (video.uploadDateMinutes - 15);
+  if (min <= 0 || min <= minutes) return true;
   return false;
 }
 
