@@ -18,17 +18,14 @@ exports.Bridge = class Bridge {
      * @param {import("discord.js").Message} m 
      */
     async handleMessageCreate(m) {
-        if (!this.options.length) return console.log(`No options?`);
+        if (!this.options.length) return;
         for (const option of this.options) {
             if (!option.includeAllMessages) {
                 if (!m.webhookId) {
                     if (!m.flags.has(1 << 1)) continue;
                 }
             }
-            if (!option.enabled || !option.webhooks.length) {
-                console.log(`Enabled: ${options.enabled} | Webhooks: `, option.webhooks);
-                continue;
-            }
+            if (!option.enabled || !option.webhooks.length) continue;
             if (m.channel?.parentId === option.categoryId) this.send(option, m);
             else if (m.channelId === option.channelId) this.send(option, m);
         }
@@ -39,10 +36,10 @@ exports.Bridge = class Bridge {
      * @param {import("discord.js").Message} message
      */
     async send(option = {}, message) {
-        if (!option?.webhooks?.length) return console.log(`[SEND]: No webhooks?`, option.webhooks);
+        if (!option?.webhooks?.length) return;
         const send = (url) => {
             const Url = new URL(url);
-            if (Url.pathname.includes(message.webhookId)) return console.log(`[SEND:PATHNAME]: URL includes the webhookId`);
+            if (Url.pathname.includes(message.webhookId)) return;
             let username = message.author.discriminator === "0000" ? message.author.username : message.author.tag,
                 avatarURL = message.author.displayAvatarURL({ format: "png", extension: "png" });
             if (option?.showMemberProfile && message.member && message.member.displayName !== message.author.username) {
