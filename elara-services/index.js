@@ -54,6 +54,7 @@ module.exports = class Services {
                     if (!content) return this.send(`You didn't provide any content!`)
                     let res = await fetch(`${url}/documents`, "POST")
                         .header("User-Agent", userAgent)
+                        .header("Content-Type", "text/plain")
                         .body(content)
                         .send()
                         .catch(() => ({ statusCode: 500 }));
