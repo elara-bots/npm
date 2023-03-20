@@ -16,12 +16,10 @@ This announces / tells you when someone posts.
 ```js
 const { Twitter } = require("@elara-services/twitter");
 const twitter = new Twitter({
-    consumer_key: "Your key from the twitter developer page", 
-    consumer_secret: "Your key from the twitter developer page", 
-    access_token_key: "Your key from the twitter developer page", 
-    access_token_secret: "Your key from the twitter developer page",
-    timeout: 60, // The timeout for the twitter-lite package (use seconds)
-    sendDefaultAnnouncement: true // For the default announcement embeds (if set to false then it won't announce anything, you'll have to listen to the 'stream:post' event to create and announce with your own custom content / embeds)
+    BearerToken: "Your bearer_token from the Twitter developer page.",
+    defaultAnnouncements: true, // For the default announcement embeds (if set to false then it won't announce anything, you'll have to listen to the 'stream:post' event to create and announce with your own custom content / embeds)
+
+    updateRulesOnStart: true, // For the package to automatically update the Twitter Stream-V2 rules 
 })
 ```
 
@@ -30,7 +28,7 @@ const twitter = new Twitter({
 ```js
 
 twitter.addUser({ 
-    id: "The Twitter user's ID", // [REQUIRED]: You can get this from either https://tweeterid.com/ or the 'twitter.fetchUser()' function
+    name: "The Twitter user's username", // [REQUIRED]: The Twitter user's full username (NOT DISPLAY NAME)
     color: 0xFF0000, // [NOT_REQUIRED]: The embed's color
     webhooks: [ // [REQUIRED]: The webhook urls to announce the tweets in for the creator
         "https://discord.com/api/webhooks/..."
@@ -40,7 +38,7 @@ twitter.addUser({
 
 twitter.addUsers([
     { 
-        id: "The Twitter user's ID", // [REQUIRED]: You can get this from either https://tweeterid.com/ or the 'twitter.fetchUser()' function
+        name: "The Twitter user's username", // [REQUIRED]: The Twitter user's full username (NOT DISPLAY NAME)
         color: 0xFF0000, // [NOT_REQUIRED]: The embed's color
         webhooks: [ // [REQUIRED]: The webhook urls to announce the tweets in for the creator
             "https://discord.com/api/webhooks/..."
@@ -64,9 +62,6 @@ await twitter.start()
 // Stream Start
 twitter.on("stream:start", () => console.log(`The twitter stream started!`));
 
-// Stream Restart
-twitter.on("stream:restart", () => console.log(`The twitter stream restarted!`));
-
 // Stream End
 twitter.on("stream:end", (response) => console.log(`The twitter stream ended!`, response));
 
@@ -79,13 +74,6 @@ twitter.on("stream:post", (body, user) => console.log(`New tweet!`, body, user))
 
 // Webhook Errors
 twitter.on("webhook:error", (error) => console.log(`We've hit an error while sending to the webhook!`, error));
-```
-
-### Restarting the Twitter Stream
-```js
-let res = await twitter.restartStream();
-// Returns a string
-console.log(res);
 ```
 
 ### Formatting the Twitter Post Data
