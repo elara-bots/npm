@@ -7,8 +7,8 @@ This announces / tells you when someone posts.
 
 # Getting Started
 
-> **Note:** For this package you need 4 strings from the Twitter developer page for your API keys
-> **consumer_key, consumer_secret, access_token_key, access_token_secret** is all required for this package to work properly.
+> **Note:** For this package you need 1 string from the Twitter developer page.
+> **bearer_token** is required for this package to work properly.
 
 
 ### Creating the Twitter client 
@@ -18,7 +18,6 @@ const { Twitter } = require("@elara-services/twitter");
 const twitter = new Twitter({
     BearerToken: "Your bearer_token from the Twitter developer page.",
     defaultAnnouncements: true, // For the default announcement embeds (if set to false then it won't announce anything, you'll have to listen to the 'stream:post' event to create and announce with your own custom content / embeds)
-
     updateRulesOnStart: true, // For the package to automatically update the Twitter Stream-V2 rules 
 })
 ```
@@ -60,10 +59,10 @@ await twitter.start()
 ```js
 
 // Stream Start
-twitter.on("stream:start", () => console.log(`The twitter stream started!`));
+twitter.on("stream:start", ({ start }) => console.log(`The twitter stream started!`, start));
 
 // Stream End
-twitter.on("stream:end", (response) => console.log(`The twitter stream ended!`, response));
+twitter.on("stream:disconnect", (response) => console.log(`The twitter stream disconnect!`, response));
 
 // Stream Error
 twitter.on("stream:error", (error) => console.warn(`The twitter stream had an error!`, error));
@@ -92,8 +91,10 @@ console.log(user);
 
 ### Customizing the Twitter announcements
 ```js
-twitter.on("stream:post", async (post, user) => {
-    let data = twitter.fetchData(post, user);
+twitter.on("stream:post", async (post) => {
+    const user = post.includes.users.find(c => c.id === post.data.author_id);
+    if (!user) return;
+    let data = twitter.fetchData(post, twitter.data.find(c => c.name === user.name));
     if (!data) return;
     return twitter.send({
         webhook: data.webhooks,

@@ -1,6 +1,6 @@
 {
   "name": "@elara-services/twitter",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Package to help you get twitter posts in your Discord servers easier!",
   "main": "index.js",
   "types": "typings.d.ts",
@@ -15,6 +15,6 @@
   "license": "MIT",
   "dependencies": {
     "discord-hook": "3.0.2",
-    "twitter-api-v2": "^1.14.2"
+    "twitter-api-v2": "1.14.2"
   }
 }

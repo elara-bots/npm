@@ -103,7 +103,10 @@ exports.Twitter = class Twitter extends EventEmitter {
             const images = getImages(body.images)
             if (isArray(images)) {
                 if (images.length === 1) embeds.push({ ...embed, image: { url: images[0] } });
-                else for (const img of images) embeds.push({ url: body.url, image: { url: img } });
+                else {
+                    embeds.push(embed);
+                    for (const img of images) embeds.push({ url: body.url, image: { url: img } });
+                }
             };
         }
         if (!embeds.find(c => c.author?.name === "Twitter")) embeds.push(embed);
