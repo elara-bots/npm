@@ -154,7 +154,7 @@ exports.Twitter = class Twitter extends EventEmitter {
         if (isArray(data.data.entities?.mentions)) for (const user of data.data.entities.mentions) _data.formatedText = _data.formatedText.replace(new RegExp(`@${user.username}`, `g`), `[@${user.username}](https://twitter.com/${user.username})`);
         if (data.data.text.includes("https://t.co/") && isArray(data.data.entities?.urls || [])) {
             const find = data.data.entities.urls.filter(c => data.data.text.includes(c.url) && ([ `${_data.url}/photo/1`, _data.url, tt ].includes(c.expanded_url) || c.expanded_url.includes(data.data.referenced_tweets?.[0]?.id)));
-            if (find) for (const f of find) _data.formatedText = _data.formatedText.replace(f.url, "");
+            if (isArray(find)) for (const f of find) _data.formatedText = _data.formatedText.replace(f.url, "");
         }
         if (!_data.formatedText?.length) _data.formatedText = ""; 
         return _data;
