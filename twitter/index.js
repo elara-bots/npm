@@ -104,8 +104,8 @@ exports.Twitter = class Twitter extends EventEmitter {
             if (isArray(images)) {
                 if (images.length === 1) embeds.push({ ...embed, image: { url: images[0] } });
                 else {
-                    embeds.push(embed);
-                    for (const img of images) embeds.push({ url: body.url, image: { url: img } });
+                    embeds.push({ ...embed, image: { url: images[0] } });
+                    for (const img of images.slice(1, 4)) embeds.push({ url: body.url, image: { url: img } });
                 }
             };
         }
@@ -126,10 +126,8 @@ exports.Twitter = class Twitter extends EventEmitter {
         /** @type {import("twitter-api-v2").UserV2} */
         const user = data.includes?.users?.find?.(c => c.id === data.data.author_id);
         if (!user) return null;
-        let text = this.html(data.data.text);
-        if (isArray(find.ignoreText)) {
-            if (find.ignoreText.some(c => text.toLowerCase().includes(c.toLowerCase()))) return null;
-        }
+        let [ text, tt ] = [ this.html(data.data.text), "" ];
+        if (isArray(find.ignoreText) && find.ignoreText.some(c => text.toLowerCase().includes(c.toLowerCase()))) return null;
         let _data = {
             url: `https://twitter.com/${user.username}/status/${data.data.id}`,
             text, formatedText: text, color: find?.color ?? 0x1DA1F2,
@@ -139,20 +137,24 @@ exports.Twitter = class Twitter extends EventEmitter {
             verified_type: user.verified && user.verified_type === "none" ? "Legacy" : user.verified_type, images: [],
             webhooks: find?.webhooks ?? [], repliedTweet: null, retweetedTweet: null, quotedTweet: null
         };
+        if (includeRaw) _data['raw'] = data;
         if (isArray(data.data.referenced_tweets) && isArray(data.includes?.tweets)) {
             for (const ref of data.data.referenced_tweets) {
                 if (!ref) continue;
                 let found = data.includes.tweets.find(c => c.id === ref.id);
-                if (found && Refs[ref.type]) _data[Refs[ref.type]] = this.fetchData({ ...data, data: found }, { webhooks: [], color: undefined, ignoreText: [] });
+                if (found && Refs[ref.type]) {
+                    const u = data.includes.users?.find(c => c.id === found.author_id);
+                    if (u) tt = `https://twitter.com/${u.name}/status/${found.id}`;
+                    _data[Refs[ref.type]] = this.fetchData({ ...data, data: found }, { webhooks: [], color: undefined, ignoreText: [] });
+                }
             }
         }
-        if (includeRaw) _data['raw'] = data;
         if (isArray(data.includes?.media)) _data.images.push(...data.includes.media.map(c => c.url));
         if (isArray(data.data.entities?.hashtags)) for (const tag of data.data.entities.hashtags) _data.formatedText = _data.formatedText.replace(new RegExp(`#${tag.tag}`, `g`), `[#${tag.tag}](https://twitter.com/hashtag/${tag.tag})`);
         if (isArray(data.data.entities?.mentions)) for (const user of data.data.entities.mentions) _data.formatedText = _data.formatedText.replace(new RegExp(`@${user.username}`, `g`), `[@${user.username}](https://twitter.com/${user.username})`);
         if (data.data.text.includes("https://t.co/") && isArray(data.data.entities?.urls || [])) {
-            const find = data.data.entities.urls.find(c => data.data.text.includes(c.url) && ([ `${_data.url}/photo/1`, _data.url ].includes(c.expanded_url) || c.expanded_url.includes(data.data.referenced_tweets?.[0]?.id)));
-            if (find) _data.formatedText = _data.formatedText.replace(find.url, "");
+            const find = data.data.entities.urls.filter(c => data.data.text.includes(c.url) && ([ `${_data.url}/photo/1`, _data.url, tt ].includes(c.expanded_url) || c.expanded_url.includes(data.data.referenced_tweets?.[0]?.id)));
+            if (find) for (const f of find) _data.formatedText = _data.formatedText.replace(f.url, "");
         }
         if (!_data.formatedText?.length) _data.formatedText = ""; 
         return _data;
