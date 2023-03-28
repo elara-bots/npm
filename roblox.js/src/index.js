@@ -63,10 +63,12 @@ module.exports = class Roblox {
      * @returns {Promise<object|null>}
      */
     async fetchByUsername(name, basic = false) {
-        let res = await this._request(`https://api.roblox.com/users/get-by-username?username=${name}`);
-        if (!res || !res.Id) return null
-        if (basic) return this.fetchBasicRobloxInfo(res.Id);
-        return this.fetchRoblox(res.Id);
+        let res = await this._request(`https://users.roblox.com/v1/users/search?keyword=${encodeURIComponent(name)}&limit=10`);
+        if (!res?.data?.length) return null;
+        const find = res.data.find(c => c.name.toLowerCase() === name.toLowerCase());
+        if (!find) return null;
+        if (basic) return this.fetchBasicRobloxInfo(find.id);
+        return this.fetchRoblox(find.id);
     };
 
     /**
@@ -89,8 +91,7 @@ module.exports = class Roblox {
                 this.privateFetch(`https://www.roblox.com/users/profile/profileheader-json?userId=${id}`),
                 this.privateFetch(`https://users.roblox.com/v1/users/${id}`),
                 this.privateFetch(`https://groups.roblox.com/v1/users/${id}/groups/roles`),
-                // TODO: Replace this with the new API, once they fix it
-                this.privateFetch(`https://api.roblox.com/users/${id}/onlinestatus`)
+                this.getPresences([ id ]),
             ])
             if (!userReq) return status(Messages.NO_ROBLOX_PROFILE);
             if (!g) g = [];
@@ -168,10 +169,11 @@ module.exports = class Roblox {
      * @param {boolean} returnJSON 
      * @returns {Promise<object|null|any>}
      */
-    async _request(url, headers = undefined, method = "GET", returnJSON = true) {
+    async _request(url, headers = undefined, method = "GET", returnJSON = true, data = undefined) {
         try {
             let body = fetch(url, method)
             if (headers) body.header(headers)
+            if (typeof data === 'object') body.body(data);
             let res = await body.send().catch(() => ({ statusCode: 500 }));
             this._debug(`Requesting (${method}, ${url}) and got ${res.statusCode}`);
             if (res.statusCode !== 200) return null;
@@ -180,6 +182,19 @@ module.exports = class Roblox {
             this._debug(`ERROR while making a request to (${method}, ${url}) `, err);
             return null;
         }
+    };
+
+
+    /**
+     * @param {(string | number)[]} userIds 
+     * @returns {import("@elara-services/roblox.js").getPresenceResponse} 
+     */
+    async getPresences(userIds = []) {
+        let res = await this._request(`https://presence.roblox.com/v1/presence/users`, this.cookieHeader, "POST", true, { userIds });
+        if (!res?.userPresences?.length) return null;
+        const found = res.userPresences.filter(c => userIds.includes(c.userId));
+        if (!found.length) return null;
+        return found.length === 1 ? found[0] : found;
     };
 
     /**
@@ -195,7 +210,7 @@ module.exports = class Roblox {
      * @param {string} [url]
      * @returns {Promise<object|void>}
      */
-    async privateFetch(url = "") { return this._request(url, this.options.cookie ? { "Cookie": this.options.cookie.replace(/%TIME_REPLACE%/gi, new Date().toLocaleString()) } : undefined); };
+    async privateFetch(url = "") { return this._request(url, this.cookieHeader); };
 
     /**
      * @param {object} res - Information from the Roblox.js response
@@ -209,7 +224,7 @@ module.exports = class Roblox {
     showDiscordMessageData(res, user = null, { showButtons = true, emoji = "▫", secondEmoji = "◽", color = 11701759 } = {}) {
         let fields = [];
 
-        if (res.activity) fields.push( { name: Messages.ACTIVITY, value: `${emoji}${Messages.STATUS}: ${res.activity.LastLocation}${res.activity.PlaceId ? `\n${emoji}${Messages.GAME_URL(`https://roblox.com/games/${res.activity.PlaceId}`)}` : ""}\n${emoji}${Messages.LAST_SEEN}: ${formatDate(res.activity.LastOnline)} (${formatDate(res.activity.LastOnline, "R")})` } )
+        if (res.activity) fields.push( { name: Messages.ACTIVITY, value: `${emoji}${Messages.STATUS}: ${res.activity.LastLocation}${res.activity.placeId ? `\n${emoji}${Messages.GAME_URL(`https://roblox.com/games/${res.activity.placeId}`)}` : ""}\n${emoji}${Messages.LAST_SEEN}: ${formatDate(res.activity.lastOnline)} (${formatDate(res.activity.lastOnline, "R")})` } )
         if (res.user.bio) fields.push({ name: Messages.BIO, value: res.user.bio.slice(0, 1024) });
         if (res.groups.length) {
             for (const g of res.groups.sort((a, b) => b.primary - a.primary).slice(0, 4)) {
@@ -340,4 +355,7 @@ module.exports = class Roblox {
             }
         }
     }
+
+
+    get cookieHeader() { return this.options.cookie ? { "Cookie": this.options.cookie.replace(/%TIME_REPLACE%/gi, new Date().toLocaleString()) } : undefined; };
 };

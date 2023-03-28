@@ -48,6 +48,12 @@ roblox.get("57908270").then(console.log);
 roblox.get("<@288450828837322764>").then(console.log);
 ```
 
+### Get User Presence(s)
+```js
+roblox.getPresences([ 1, 2, 57908270 ]).then(console.log);
+```
+
+
 ### isVerified
 ```js
 roblox.isVerified("<@288450828837322764>").then(console.log)

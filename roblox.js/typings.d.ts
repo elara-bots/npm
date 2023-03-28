@@ -61,6 +61,19 @@ declare module "@elara-services/roblox.js" {
         keys?: { bloxlink?: string; rocord?: string; rolinkapp?: string  }
     }
 
+    export type getPresenceResponse = Promise<Presence | Presence[] | null>
+
+    export type Presence = {
+        userPresenceType: number;
+        lastLocation: string;
+        placeId: string | null;
+        rootPlaceId: string | null;
+        gameId: string | null;
+        universeId: string | null;
+        userId: number;
+        lastOnline: string | null
+    }
+
     export interface RobloxStatus {
         status: boolean;
         message?: string;
@@ -111,7 +124,7 @@ declare module "@elara-services/roblox.js" {
         AUTHOR(user: User|string, res: object|null): { name: string, icon_url: string, url: string };
         FOOTER(warn: boolean): { text: string };
     }
-    type Response = Promise<RobloxStatus|FetchRobloxResponse|object|null>;
+    export type Response = Promise<RobloxStatus|FetchRobloxResponse|object|null>;
     // @ts-ignore
     export = class Roblox {
         public constructor(options?: RobloxOptions);
@@ -157,6 +170,7 @@ declare module "@elara-services/roblox.js" {
             embeds: object[],
             components: object[]
         }
+        public getPresences(userIds: (string | number)[]): getPresenceResponse;
 
         // Private Methods
         private _request(url: string, headers?: object, method?: string, returnJSON?: boolean): Promise<object|string|null>;
