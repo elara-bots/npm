@@ -9,7 +9,7 @@ const moment = require("moment");
  * @returns {Promise<Array<object>>}
  */
 exports.fetchPosts = async (endpoint, limit = 30, sort = "new") => {
-    const res = await fetch(`https://www.reddit.com/${endpoint}/new.json?limit=${limit}&sort=${sort}`);
+    const res = await fetch(`https://www.reddit.com/${endpoint}/.json?limit=${limit}&sort=${sort}`);
     if (!res?.data?.children?.length) return [];
     return res.data.children.map(c => c.data);
 }

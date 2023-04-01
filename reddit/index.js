@@ -121,19 +121,18 @@ exports.Reddit = class Reddit {
          */
         const handle = async (data, type = "r", event) => {
             const timer = () => setTimeout(() => handle(data, type, event), this.searchTime[data] * 60000)
-            if (data === "users" && !this.enabled.users) return timer();
-            if (data === "subs" && !this.enabled.subs) return timer();
+            if (!this.enabled[data]) return timer();
             const list = [ ...this.data[data].values() ];
             this.emiiter.emit("searching", list, event);
             for (const d of list) {
                 const res = await fetchPosts(`${type}/${d}`);
                 if (res.length) {
                     for (const r of res) {
-                        if (time(r.created_utc) > this.searchTime[data]) continue;
-                        if (this.announced.has(r.permalink)) continue;
+                        if ((time(r.created_utc) - (this.searchTime[data] - 1)) > this.searchTime[data]) continue;
+                        if (this.announced.has(r.id)) continue;
                         r.created_format = time(r.created_utc, "d[d], h[h], m[m], s[s]", false);
                         r.postURL = `https://www.reddit.com${r.permalink}`;
-                        this.announced.add(r.permalink);
+                        this.announced.add(r.id);
                         this.emiiter.emit(event, type === "r" ? r.subreddit : r.author, r);
                     }
                 }

@@ -1,6 +1,6 @@
 {
   "name": "@elara-services/reddit",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Package to listen for new posts to a subreddit or user ",
   "main": "index.js",
   "types": "typings.d.ts",
