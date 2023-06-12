@@ -1,0 +1,16 @@
+{
+  "name": "@elara-services/utils",
+  "version": "1.0.0",
+  "description": "Random utilities for stuff ",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc && npx typedoc src/index.ts"
+  },
+  "author": "SUPERCHIEFYT (Elara-Discord-Bots, Elara-Services)",
+  "license": "MIT",
+  "devDependencies": {
+    "ts-node": "^10.9.1",
+    "typedoc": "^0.24.8",
+    "typescript": "^5.1.3"
+  }
+}
