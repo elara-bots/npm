@@ -1,6 +1,6 @@
 {
   "name": "@elara-services/utils",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Random utilities for stuff ",
   "main": "./dist/index.js",
   "scripts": {
@@ -18,5 +18,8 @@
   },
   "dependencies": {
     "@discordjs/collection": "^1.5.1"
+  },
+  "optionalDependencies": {
+    "discord.js": "^14.11.0"
   }
 }
