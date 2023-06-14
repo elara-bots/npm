@@ -3,6 +3,12 @@ export function commands(content: string, prefix: string) {
     const name = str[0].slice(prefix.length).toLowerCase();
     return {
         name, args: str.slice(1),
+        hasPrefix() {
+            if (content.toLowerCase().startsWith(prefix)) {
+                return true;
+            }
+            return false;
+        },
         isCommand(commandName: string){
             if (commandName === name) {
                 return true;

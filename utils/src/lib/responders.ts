@@ -10,12 +10,12 @@ import {
     Message,
 } from "discord.js";
 
-type TextBasedChannelSendOption =
+export type TextBasedChannelSendOption =
     | string
     | MessagePayload
     | MessageCreateOptions;
 
-type CommonInteractionEditReplyOptions =
+export type CommonInteractionEditReplyOptions =
     | string
     | MessagePayload
     | InteractionEditReplyOptions;
