@@ -1,10 +1,11 @@
 {
   "name": "@elara-services/utils",
-  "version": "1.0.6",
+  "version": "1.0.8",
   "description": "Random utilities for stuff ",
   "main": "./dist/index.js",
   "scripts": {
-    "build": "tsc && npx typedoc src/index.ts"
+    "build": "tsc && npx typedoc src/index.ts",
+    "pub": "npm run build && npm publish"
   },
   "files": [
     "dist"
