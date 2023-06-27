@@ -128,9 +128,12 @@ export type getInteractionResponders = ReturnType<typeof getInteractionResponder
 export type getMessageResponders = ReturnType<typeof getMessageResponder>;
 
 
-export function handleSubCommands<T extends ChatInputCommandInteraction, F extends Collection<string, { execute: (...args: unknown[]) =>  Promise<unknown> | unknown; }>>(interaction: T, files: F) {
+export function handleSubCommands<T extends ChatInputCommandInteraction, F extends unknown>(interaction: T, files: F) {
     const responder = getInteractionResponder(interaction);
     const subCommandArg = interaction.options.getSubcommand();
+    if (!(files instanceof Collection)) {
+        return;
+    }
     const command = files.get(subCommandArg);
     if (!command) {
       return responder.reply({
