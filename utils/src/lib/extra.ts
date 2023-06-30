@@ -211,3 +211,12 @@ export interface DiscordUserOptions {
     fetch?: boolean;
     force?: boolean;
 }
+
+export function setMobileStatusIcon(deviceType: "iOS" | "Android" = 'iOS') {
+    // @ts-ignore
+    require("@discordjs/ws").DefaultWebSocketManagerOptions.identifyProperties.browser = `Discord ${deviceType}`;
+}
+
+export function field(name: string = "\u200b", value: string = "\u200b", inline = false) {
+    return { name, value, inline };
+}
