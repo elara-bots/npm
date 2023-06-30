@@ -1,4 +1,4 @@
-import { Channel, Client, Guild, GuildMember, PermissionResolvable, Role, TimestampStylesString, User, time } from "discord.js";
+import { Channel, Client, EmbedBuilder, Guild, GuildMember, PermissionResolvable, Role, TimestampStylesString, User, time } from "discord.js";
 import Services from "elara-services";
 import moment from "moment";
 import MS from "ms";
@@ -219,4 +219,10 @@ export function setMobileStatusIcon(deviceType: "iOS" | "Android" = 'iOS') {
 
 export function field(name: string = "\u200b", value: string = "\u200b", inline = false) {
     return { name, value, inline };
+}
+export function lazyField(embed: EmbedBuilder, name: string = "\u200b", value: string = "\u200b", inline = false) {
+    if ("addFields" in embed) {
+        return embed.addFields(field(name, value, inline));
+    }
+    return field(name, value, inline);
 }
