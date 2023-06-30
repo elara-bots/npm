@@ -226,3 +226,7 @@ export function lazyField(embed: EmbedBuilder, name: string = "\u200b", value: s
     }
     return field(name, value, inline);
 }
+
+export function getClientIdFromToken(token: string) {
+    return Buffer.from(token.split(".")[0], "base64").toString();
+}
