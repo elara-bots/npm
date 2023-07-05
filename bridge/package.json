@@ -1,8 +1,7 @@
 {
   "name": "@elara-services/bridge",
-  "version": "1.1.2",
+  "version": "1.1.3",
   "description": "Easily bridge between chats and get the messages sent to the webhooks provided. (READ THE README FOR MORE INFO!)",
-  "main": "index.js",
   "repository": {
     "type": "git",
     "url": "https://github.com/elara-bots/npm/tree/main/bridge"
@@ -24,5 +23,18 @@
   "license": "ISC",
   "optionalDependencies": {
     "discord.js": "*"
-  }
+  },
+  "devDependencies": {
+    "ts-node": "10.9.1",
+    "typedoc": "0.24.8",
+    "typescript": "5.1.3"
+  },
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc && npx typedoc src/index.ts",
+    "pub": "npm run build && npm publish"
+  },
+  "files": [
+    "dist"
+  ]
 }

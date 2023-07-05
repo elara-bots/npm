@@ -1,0 +1,33 @@
+{
+  "name": "@elara-services/rest",
+  "version": "1.0.0",
+  "description": "A custom rest client for the Discord API",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc && npx typedoc src/index.ts",
+    "pub": "npm run build && npm publish",
+    "lint": "eslint .",
+    "prettier:format": "prettier --write src/**/*.ts",
+    "prettier:check": "prettier --check src/**/*.ts"
+  },
+  "files": [
+    "dist"
+  ],
+  "author": "SUPERCHIEFYT (Elara-Discord-Bots, Elara-Services)",
+  "license": "MIT",
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^5.60.1",
+    "eslint": "^8.43.0",
+    "prettier": "^2.8.8",
+    "ts-node": "10.9.1",
+    "typedoc": "0.24.8",
+    "typescript": "5.1.3"
+  },
+  "optionalDependencies": {
+    "discord.js": "*"
+  },
+  "dependencies": {
+    "@discordjs/rest": "^1.7.1",
+    "discord-api-types": "^0.37.47"
+  }
+}

@@ -1,23 +1,18 @@
-const { WebhookClient } = require("discord.js");
+import { WebhookClient, type Client, type Message } from "discord.js";
 
-exports.Bridge = class Bridge {
-    /**
-     * @param {Client} client 
-     * @param {BridgeOptions[]} options 
-     */
-    constructor(client, options = []) {
+export class Bridge {
+    private client: Client;
+    private options: BridgeOptions[];
+    public constructor(client: Client, options: BridgeOptions[]) {
         this.client = client;
         this.options = options;
     };
 
-    async run() {
-        this.client.on("messageCreate", (m) => this.handleMessageCreate(m));
-    };
+    public run() {
+        this.client.on("messageCreate", this.handleMessageCreate);
+    }
 
-    /**
-     * @param {import("discord.js").Message} m 
-     */
-    async handleMessageCreate(m) {
+    public handleMessageCreate(m: Message) {
         if (!this.options.length) return;
         for (const option of this.options) {
             if (!option.includeAllMessages) {
@@ -26,25 +21,23 @@ exports.Bridge = class Bridge {
                 }
             }
             if (!option.enabled || !option.webhooks.length) continue;
-            if (m.channel?.parentId === option.categoryId) this.send(option, m);
+            if ("parentId" in m.channel && m.channel?.parentId === option.categoryId) this.send(option, m);
             else if (m.channelId === option.channelId) this.send(option, m);
         }
-    };
+    }
 
-    /**
-     * @param {BridgeOptions} option
-     * @param {import("discord.js").Message} message
-     */
-    async send(option = {}, message) {
+    public send(option: BridgeOptions, message: Message) {
         if (!option?.webhooks?.length) return;
-        const send = (url) => {
+        const send = (url: string) => {
             const Url = new URL(url);
-            if (Url.pathname.includes(message.webhookId)) return;
+            if (Url.pathname.includes(message.webhookId || "")) return;
+
             let username = message.author.discriminator === "0000" ? message.author.username : message.author.tag,
-                avatarURL = message.author.displayAvatarURL({ format: "png", extension: "png" });
+                avatarURL = message.author.displayAvatarURL();
+
             if (option?.showMemberProfile && message.member && message.member.displayName !== message.author.username) {
                 username = `${message.member.displayName} (${username})`;
-                avatarURL = message.member.displayAvatarURL({ format: "png", extension: "png" })
+                avatarURL = message.member.displayAvatarURL()
             };
             if (option.username?.length) {
                 username = option.username
@@ -59,6 +52,7 @@ exports.Bridge = class Bridge {
                 .send({
                     embeds: message.embeds || undefined,
                     content: message.content || undefined,
+                    // @ts-ignore
                     files: message.attachments.map(c => ({ name: c.name, attachment: c.attachment })),
                     allowedMentions: { parse: [] },
                     username, avatarURL,
@@ -66,19 +60,20 @@ exports.Bridge = class Bridge {
                 })
                 .catch(console.warn)
         }
-        for (const url of option.webhooks) send(url);
+        for (const url of option.webhooks) {
+            send(url);
+        }
     }
-};
+}
 
 
-/**
- * @typedef {Object} BridgeOptions
- * @property {boolean} enabled
- * @property {string[]} webhooks
- * @property {string} [username]
- * @property {string} [avatarURL]
- * @property {boolean} [includeAllMessages]
- * @property {boolean} [showMemberProfile]
- * @property {string} [channelId]
- * @property {string} [categoryId]
- */
+export interface BridgeOptions {
+    enabled: boolean;
+    webhooks: string[];
+    username: string;
+    avatarURL: string;
+    includeAllMessages: boolean;
+    showMemberProfile: boolean;
+    channelId: string;
+    categoryId: string;
+} 
