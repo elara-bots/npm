@@ -5,6 +5,7 @@ import {
     type RESTGetAPIChannelWebhooksResult,
 } from "discord-api-types/v10";
 import {
+    _debug,
     addToQueue,
     bannedUsernames,
     channels,
@@ -16,7 +17,7 @@ import {
     webhooks,
     type CachedChannel,
     type sendOptions
-} from ".";
+} from "..";
 
 export let defaultWebhookOptions = {
     username: "Webhook",
@@ -73,16 +74,16 @@ export class Webhook {
         return data;
     }
 
-    async send(channelId: string, opt: sendOptions, queue: boolean = true) {
+    async send(channelId: string, opt: sendOptions, queue: boolean = true, shouldTransformComponents: boolean = true) {
         if (!channelId) {
-            return;
+            return _debug(`No channelId provided`, channelId);
         }
         const channel = await this.fetchChannel(channelId);
         if (!channel) {
-            return;
+            return _debug(`No 'channel' found`, channelId);
         }
         if (channel.guildId && disabledLogging.includes(channel.guildId)) {
-            return;
+            return _debug(`'channel.guildId' (${channel.guildId}) is ignored`, disabledLogging.includes(channel.guildId));
         }
         let finalChannelId = channelId;
         let { content, embeds, username, avatar_url: avatarURL, files, components } = {
@@ -101,7 +102,7 @@ export class Webhook {
             avatarURL = "";
         }
         if (!content && !embeds.length) {
-            return;
+            return _debug(`No content (${content?.length || 0}) or no embeds (${embeds.length || 0})`);
         }
         let threadId;
         if (channel.parentId) {
@@ -110,7 +111,7 @@ export class Webhook {
         }
         const hook = await this.fetch(finalChannelId);
         if (!hook) {
-            return;
+            return _debug(`No 'hook' found`, hook);
         }
         if (queue === true) {
             return addToQueue(finalChannelId, `${hook.id}/${hook.token}`, {
@@ -123,20 +124,23 @@ export class Webhook {
             threadId,
             username,
             avatarURL,
-        });
+            channelId,
+        }, shouldTransformComponents);
     }
 
     private async fetchChannel(channelId: string): Promise<CachedChannel | null> {
         const channel = channels.get(channelId);
         if (channel) {
             if (channel.invalid) {
+                _debug(`'fetchChannel' the 'channel' is invalid, ignoring`);
                 return null;
             }
             return channel;
         }
-        const res = await rest.get(Routes.channel(channelId)).catch((e) => e) as APIChannel | Error;
+        const res = await rest.get(Routes.channel(channelId)).catch((e: unknown) => e) as APIChannel | Error;
         if (!res || res instanceof Error) {
             channels.set(channelId, { id: channelId, invalid: true, type: 0 });
+            _debug(`ChannelId (${channelId}) had an error while fetching`, res);
             return null;
         }
         let data: CachedChannel = {

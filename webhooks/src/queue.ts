@@ -3,21 +3,24 @@ import { makeURLSearchParams, type RawFile } from "@discordjs/rest";
 import { chunk } from "@elara-services/utils";
 import { Routes, type APIMessage } from "discord-api-types/v10";
 import { ActionRowBuilder, EmbedBuilder } from "discord.js";
-import { rest, throwError, webhooks } from "./";
+import { _debug, getComponents, rest, throwError, webhooks } from ".";
 export const queue: QueueOptions[] = [];
 export const disabled: string[] = [];
 export let queueInterval: NodeJS.Timer | null = null;
 
 export let handlers = {
     afterWebhookSent: (message: APIMessage) => {
+        _debug(`[WEBHOOK:MESSAGE:SENT]: `, message);
         return;
     },
     errorWebhookSend: (...args: unknown[]) => {
+        _debug(`[WEBHOOK:MESSAGE:ERROR]: `, ...args);
         return;
     }
 }
 
 export function addToQueue(channelId: string, webhook: string, opts: QueueOptions['opts'], threadId: string | undefined) {
+    _debug(`Added (${channelId}) to the queue with webhook (${webhook}${threadId ? `?thread_id=${threadId}` : ""})`, opts);
     queue.push({
         channelId,
         webhook,
@@ -28,7 +31,8 @@ export function addToQueue(channelId: string, webhook: string, opts: QueueOption
 
 export async function run() {
     if (!queue.length) {
-        return 'No queue';
+        _debug(`No queue (${queue.length}), ignoring.`)
+        return;
     }
     let channels: Record<string, {
         embeds: EmbedBuilder[];
@@ -40,10 +44,10 @@ export async function run() {
         icon?: string | undefined;
         threadId: string | undefined;
     }> = {};
-    let q = queue.filter(c => !disabled.includes(c.channelId));
-    for (const que of q) {
+    for (const que of queue.filter(c => !disabled.includes(c.channelId))) {
         let { channelId, webhook, threadId, opts: { embeds, components, webhook: wb, files } } = que;
         if (!webhook) {
+            _debug(`No 'webhook' url found, ignoring.`);
             continue;
         }
         if (!Array.isArray(embeds)) {
@@ -56,6 +60,7 @@ export async function run() {
             files = []
         }
         if (!embeds.length) {
+            _debug(`No embeds found, ignoring.`);
             continue;
         }
         const cName = `${que.webhook}${que.threadId ? `?thread_id=${que.threadId}` : ""}`
@@ -71,25 +76,28 @@ export async function run() {
         let ch = channels[channel],
             [id, token] = ch.webhook.split("/");
         if (!webhooks.has(ch.channelId) || !ch.embeds.length) { 
+            _debug(`channelId was found in the ignored webhooks collection (${webhooks.has(ch.channelId)}) or there is no embeds (${ch.embeds.length})`);
             delete channels[channel]; 
             continue; 
         }
         delete channels[channel];
         let chunks = chunk(ch.embeds, 10);
         if (!chunks.length) {
+            _debug(`No 'chunks' found, ignoring.`);
             continue;
         }
-
         for (const send of chunks) {
             let res = await new Promise(async (resolve) => {
-                let length = send.map(embed => embedLength(embed.toJSON())).reduce((a, b) => a + b, 0);
+                const toJSON = (e: any) => "toJSON" in e ? e.toJSON() : e;
+                let length = send.map(embed => embedLength(toJSON(embed))).reduce((a, b) => a + b, 0);
                 const sendQ = (embeds: EmbedBuilder | EmbedBuilder[]) => sendQueue(id, token, {
-                    embeds: Array.isArray(embeds) ? embeds.map(c => c.toJSON()) : [ embeds.toJSON() ],
+                    embeds: Array.isArray(embeds) ? embeds.map(c => toJSON(c)) : [ toJSON(embeds) ],
                     avatarURL: ch.icon,
                     username: ch.name,
                     files: ch.files,
-                    components: Array.isArray(ch.components) ? ch.components.map(c => c.toJSON()) : ch.components,
-                    threadId: ch.threadId
+                    components: Array.isArray(ch.components) ? ch.components.map(c => toJSON(c)) : ch.components,
+                    threadId: ch.threadId,
+                    channelId: ch.channelId
                 })
                 if (length >= 6000) {
                     for (const embed of send) {
@@ -101,6 +109,7 @@ export async function run() {
                 }
             });
             if (!res) {
+                _debug(`'queue.run.res' is false, stopping the entire queue.`)
                 return false
             }
             continue;
@@ -109,7 +118,7 @@ export async function run() {
 }
 
 
-export async function sendQueue(id: string, token: string, { embeds, username, avatarURL, threadId, components, files }: QueueSendOptions) {
+export async function sendQueue(id: string, token: string, { embeds, username, avatarURL, threadId, components, files, channelId }: QueueSendOptions, shouldTransformComponents = true) {
     await rest.post(
         Routes.webhook(id, token),
         {
@@ -119,7 +128,7 @@ export async function sendQueue(id: string, token: string, { embeds, username, a
             }),
             body: {
                 username, avatar_url: avatarURL,
-                components,
+                components: shouldTransformComponents ? getComponents(components || []) : components || undefined,
                 embeds
             },
             auth: false,
@@ -127,7 +136,13 @@ export async function sendQueue(id: string, token: string, { embeds, username, a
         }
     )
     .then((m) => handlers.afterWebhookSent(m as APIMessage))
-    .catch(handlers.errorWebhookSend);
+    .catch((e: unknown) => {
+        if (channelId) {
+            _debug(`[WEBHOOK:CACHE:DELETED]: for channelId (${channelId})`);
+            webhooks.delete(channelId);
+        }
+        handlers.errorWebhookSend(e);
+    });
 }
 
 export function startQueue(interval: number = 6000) {
@@ -148,6 +163,7 @@ export interface QueueSendOptions {
     username?: string | undefined;
     avatarURL?: string | undefined;
     threadId: string | undefined;
+    channelId: string | undefined;
 }
 
 export interface QueueOptions {

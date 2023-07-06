@@ -1,4 +1,3 @@
-export * from "./guildWebhooks";
 export * from "./interfaces";
 export * from "./queue";
 export * from "./shared";

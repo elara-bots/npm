@@ -1,9 +1,9 @@
-import {
-    type ActionRowBuilder,
-    type AnyComponentBuilder,
-    type EmbedBuilder,
+import type {
+    ActionRowBuilder,
+    AnyComponentBuilder,
+    EmbedBuilder,
 } from "@discordjs/builders";
-import { type RawFile } from "@discordjs/rest";
+import type { RawFile } from "@discordjs/rest";
 
 export interface sendOptions {
     content?: string | null;

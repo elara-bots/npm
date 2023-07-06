@@ -1,10 +1,10 @@
 {
     "name": "@elara-services/webhooks",
-    "version": "2.0.3",
+    "version": "2.1.6",
     "description": "To send/create webhooks",
     "main": "./dist/src/index.js",
     "scripts": {
-        "build": "tsc && npx typedoc src/index.ts",
+        "build": "rm -rf dist && tsc && npx typedoc src/index.ts",
         "pub": "npm run build && npm publish"
     },
     "files": [
@@ -21,7 +21,7 @@
     "dependencies": {
         "@elara-services/utils": "^1.1.9"
     },
-    "optionalDependencies": {
+    "peerDependencies": {
         "discord.js": "*"
     }
 }
