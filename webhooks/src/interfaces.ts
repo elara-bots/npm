@@ -4,6 +4,8 @@ import type {
     EmbedBuilder,
 } from "@discordjs/builders";
 import type { RawFile } from "@discordjs/rest";
+import type { APIActionRowComponent, APIMessageActionRowComponent } from "discord-api-types/v10";
+import { APIEmbed } from "discord.js";
 
 export interface sendOptions {
     content?: string | null;
@@ -28,4 +30,19 @@ export interface CachedChannel {
 export interface CachedWebhook {
     id: string;
     token: string;
+}
+
+export interface DiscordWebhookOptions {
+    username?: string;
+    avatar_url?: string;
+    threadId?: string;
+}
+
+export interface DiscordWebhookData {
+    username: string | undefined;
+    avatar_url: string | undefined;
+    content: string | undefined;
+    embeds: APIEmbed[];
+    components: APIActionRowComponent<APIMessageActionRowComponent>[];
+    thread_id: string | undefined;
 }

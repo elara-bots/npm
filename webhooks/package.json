@@ -1,6 +1,6 @@
 {
     "name": "@elara-services/webhooks",
-    "version": "2.1.6",
+    "version": "2.1.7",
     "description": "To send/create webhooks",
     "main": "./dist/src/index.js",
     "scripts": {
@@ -14,12 +14,15 @@
     "author": "SUPERCHIEFYT (Elara-Discord-Bots, Elara-Services)",
     "license": "MIT",
     "devDependencies": {
-        "ts-node": "^10.9.1",
-        "typedoc": "^0.24.8",
-        "typescript": "^5.1.3"
+        "ts-node": "10.9.1",
+        "typedoc": "0.24.8",
+        "typescript": "5.1.3"
     },
     "dependencies": {
-        "@elara-services/utils": "^1.1.9"
+        "@discordjs/builders": "*",
+        "@discordjs/rest": "*",
+        "@elara-services/utils": "*",
+        "discord-api-types": "*"
     },
     "peerDependencies": {
         "discord.js": "*"

@@ -13,8 +13,8 @@ export let handlers = {
         _debug(`[WEBHOOK:MESSAGE:SENT]: `, message);
         return;
     },
-    errorWebhookSend: (...args: unknown[]) => {
-        _debug(`[WEBHOOK:MESSAGE:ERROR]: `, ...args);
+    errorWebhookSend: (error: unknown, data: QueueSendOptions) => {
+        _debug(`[WEBHOOK:MESSAGE:ERROR]: `, error, data);
         return;
     }
 }
@@ -141,7 +141,15 @@ export async function sendQueue(id: string, token: string, { embeds, username, a
             _debug(`[WEBHOOK:CACHE:DELETED]: for channelId (${channelId})`);
             webhooks.delete(channelId);
         }
-        handlers.errorWebhookSend(e);
+        handlers.errorWebhookSend(e, {
+            username,
+            avatarURL,
+            threadId,
+            channelId,
+            embeds,
+            components,
+            files,
+        });
     });
 }
 
