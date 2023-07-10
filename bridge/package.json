@@ -35,6 +35,7 @@
     "pub": "npm run build && npm publish"
   },
   "files": [
-    "dist"
+    "dist",
+    "docs"
   ]
 }
