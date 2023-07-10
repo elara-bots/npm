@@ -1,5 +1,6 @@
 const { tweets, user, chunk, isArray, bool, WSEvents, isEqual } = require("./util");
 const { ETwitterStreamEvent, TwitterApi } = require("twitter-api-v2");
+const { DiscordWebhook } = require("@elara-services/webhooks");
 const { EventEmitter } = require("events");
 const Refs = {
     replied_to: "repliedTweet",
@@ -175,12 +176,12 @@ exports.Twitter = class Twitter extends EventEmitter {
      * @param {string} [options.webhook]
      * @param {string} [options.username]
      * @param {string} [options.avatar_url]
-     * @param {import("discord-hook")['data']['embeds']} [options.embeds]  
+     * @param {import("@elara-services/webhooks").DiscordWebhookData['embeds']} [options.embeds]  
      * @param {string} [options.content]
-     * @param {import("discord-hook")['data']['components']} [options.components]
+     * @param {import("@elara-services/webhooks").DiscordWebhookData['components']} [options.components]
     */
     async send({ webhook, username, avatar_url, embeds, content, components }) {
-        const sendWebhook = (hook) => new (require("discord-hook"))(hook, { username, avatar_url }).embeds(embeds).content(content).buttons(components).send()
+        const sendWebhook = (hook) => new DiscordWebhook(hook, { username, avatar_url }).embeds(embeds).content(content).buttons(components).send()
         .catch(err => {
             if(!err || !err.stack) return null;
             this.emit(`webhook:error`, err);

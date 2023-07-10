@@ -1,6 +1,6 @@
 {
   "name": "@elara-services/twitter",
-  "version": "2.0.3",
+  "version": "2.0.4",
   "description": "Package to help you get twitter posts in your Discord servers easier!",
   "main": "index.js",
   "types": "typings.d.ts",
@@ -14,7 +14,7 @@
   "author": "SUPERCHIEFYT (Elara-Discord-Bots, Elara-Services)",
   "license": "MIT",
   "dependencies": {
-    "discord-hook": "3.0.2",
+    "@elara-services/webhooks": "^2.1.7",
     "twitter-api-v2": "1.14.2"
   }
 }

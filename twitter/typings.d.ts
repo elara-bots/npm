@@ -2,7 +2,7 @@
 declare module "@elara-services/twitter" {
     import { EventEmitter } from "events";
     import { TwitterApi, TweetStream, UserV2Result, UsersV2Params, TweetV2SingleStreamResult } from "twitter-api-v2";
-    import Webhook from "discord-hook";
+    import { DiscordWebhookData } from "@elara-services/webhooks";
 
     export type UserData = {
         name: string;
@@ -40,8 +40,8 @@ declare module "@elara-services/twitter" {
         username?: string;
         avatar_url?: string;
         content?: string;
-        embeds?: Webhook['data']['embeds'];
-        components?: Webhook['data']['components'];            
+        embeds?: DiscordWebhookData['embeds'];
+        components?: DiscordWebhookData['components'];            
     }
 
     export class Twitter extends EventEmitter {
