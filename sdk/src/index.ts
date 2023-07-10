@@ -53,6 +53,7 @@ function catchStatus(err: unknown) {
 export class SDK {
     private key: string;
     private baseURL: string;
+
     public constructor(key?: string, baseURL?: string) {
         if (key) {
             if (typeof key !== "string") {
