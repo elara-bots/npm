@@ -1,7 +1,10 @@
-import type {
-    getInteractionResponders,
-    getMessageResponders,
-    SubCommand as Sub,
+import {
+    buildSubCommand,
+    getFilesList,
+    handleSubCommands,
+    type SubCommand as Sub,
+    type getInteractionResponders,
+    type getMessageResponders,
 } from "@elara-services/utils";
 
 import type {
@@ -46,3 +49,5 @@ export interface PrefixCommand {
         responder: getMessageResponders
     ): Promise<unknown> | unknown;
 }
+
+export { buildSubCommand, getFilesList, handleSubCommands };

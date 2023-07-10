@@ -1,10 +1,10 @@
 {
   "name": "@elara-services/rest",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "A custom rest client for the Discord API",
   "main": "./dist/index.js",
   "scripts": {
-    "build": "tsc && npx typedoc src/index.ts",
+    "build": "rm -rf dist && tsc && npx typedoc src/index.ts",
     "pub": "npm run build && npm publish",
     "lint": "eslint .",
     "prettier:format": "prettier --write src/**/*.ts",

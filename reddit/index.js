@@ -5,6 +5,7 @@ exports.Reddit = class Reddit {
     constructor() {
         this.emiiter = new EventEmitter();
         this.announced = new Set();
+        this.urlAnnounced = new Map();
         this.data = { users: new Set(), subs: new Set() };
         this.searchTime = { users: 1, subs: 2 };
         this.enabled = { users: true, subs: true };
@@ -130,10 +131,18 @@ exports.Reddit = class Reddit {
                     for (const r of res) {
                         if ((time(r.created_utc) - (this.searchTime[data] - 1)) > this.searchTime[data]) continue;
                         if (this.announced.has(r.id)) continue;
+                        const name = type === "r" ? r.subreddit : r.author;
+                        const isUrlAnnounced = `${type}/${name}`
+                        /** @type {string[]} */
+                        const announced = this.urlAnnounced.get(isUrlAnnounced);
+                        if (announced && Array.isArray(announced) && announced.length) {
+                            if (announced.includes(r.url)) return null;
+                            else this.urlAnnounced.set(isUrlAnnounced, [ ...announced, r.url ]);
+                        } else this.urlAnnounced.set(isUrlAnnounced, [ r.url ])
                         r.created_format = time(r.created_utc, "d[d], h[h], m[m], s[s]", false);
                         r.postURL = `https://www.reddit.com${r.permalink}`;
                         this.announced.add(r.id);
-                        this.emiiter.emit(event, type === "r" ? r.subreddit : r.author, r);
+                        this.emiiter.emit(event, name, r);
                     }
                 }
             }

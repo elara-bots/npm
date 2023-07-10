@@ -1,0 +1,41 @@
+import { name, version } from "../package.json";
+import type { User, UserResults } from "./interfaces";
+
+export const Messages = {
+    "ERROR": (str: string) => `[${name}, v${version}]: ${str}`,
+    "FETCH_ERROR": (err: Error) => `Error while trying to fetch the information\n${err.message}`,
+
+    "ROCORD": "RoCord",
+    "ROVER": "RoVer",
+    "BLOXLINK": "BloxLink",
+    "ROWIFI": "RoWifi",
+    "ROLINKAPP": "RoLinkApp",
+    "NO_ROBLOX_PROFILE": `I was unable to fetch the Roblox information for that user.`,
+    "BIO": "Bio",
+    "STATUS": "Status",
+    "URL": "URL",
+    "PROFILE": "Profile",
+    "AVATAR": "Avatar",
+    "ID": "ID",
+    "PRIMARY": "Primary",
+    "RANK": "Rank",
+    "ROLE": "Role",
+    "LINK": "Link",
+    "OFFLINE": "Offline",
+    "UNKNOWN": "Unknown",
+    "PAST_NAMES": "Past Names",
+    "JOINED": "Joined",
+    "COUNTS": "Counts",
+    "FRIENDS": "Friends",
+    "FOLLOWERS": "Followers",
+    "FOLLOWING": "Following",
+    "GROUPS": "Groups",
+    "USERNAME": "Username",
+    "GAME_URL": (url: string) => `Game: [URL](${url} "Click here to view the game!")`,
+    "LAST_SEEN": "Last Seen",
+    "ACTIVITY": "Activity",
+    "NOT_VERIFIED": (service: string) => `The user provided isn't verified with: ${service}`,
+    "DISABLED": (service: string) => `The (${service}) service isn't enabled.`,
+    "AUTHOR": (user: User, res: UserResults) => ({ name: `Roblox Info for ${user ? `${user.tag} (${user.id})` : `ID: ${res.user.id}`}`, icon_url: user?.displayAvatarURL?.() ?? `https://cdn.discordapp.com/emojis/411630434040938509.png`, url: `https://services.elara.workers.dev/support` }),
+    "FOOTER": (warn: boolean) => ({ text: warn ? `This will only show up to 4 groups!` : `` })
+}

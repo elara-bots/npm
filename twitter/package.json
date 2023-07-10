@@ -1,6 +1,6 @@
 {
   "name": "@elara-services/twitter",
-  "version": "2.0.1",
+  "version": "2.0.3",
   "description": "Package to help you get twitter posts in your Discord servers easier!",
   "main": "index.js",
   "types": "typings.d.ts",

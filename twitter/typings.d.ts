@@ -1,6 +1,6 @@
 
 declare module "@elara-services/twitter" {
-    import { EventEmitter } from "node:events";
+    import { EventEmitter } from "events";
     import { TwitterApi, TweetStream, UserV2Result, UsersV2Params, TweetV2SingleStreamResult } from "twitter-api-v2";
     import Webhook from "discord-hook";
 

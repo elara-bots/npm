@@ -1,7 +1,6 @@
 const { tweets, user, chunk, isArray, bool, WSEvents, isEqual } = require("./util");
 const { ETwitterStreamEvent, TwitterApi } = require("twitter-api-v2");
-const { EventEmitter } = require("node:events");
-const Webhook = require("discord-hook");
+const { EventEmitter } = require("events");
 const Refs = {
     replied_to: "repliedTweet",
     retweeted: "retweetedTweet",
@@ -181,7 +180,7 @@ exports.Twitter = class Twitter extends EventEmitter {
      * @param {import("discord-hook")['data']['components']} [options.components]
     */
     async send({ webhook, username, avatar_url, embeds, content, components }) {
-        const sendWebhook = (hook) => new Webhook(hook, { username, avatar_url }).embeds(embeds).content(content).buttons(components).send()
+        const sendWebhook = (hook) => new (require("discord-hook"))(hook, { username, avatar_url }).embeds(embeds).content(content).buttons(components).send()
         .catch(err => {
             if(!err || !err.stack) return null;
             this.emit(`webhook:error`, err);

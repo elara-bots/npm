@@ -1,6 +1,21 @@
 const { AES } = require("@elara-services/packages"),
       { Collection, version } = require("discord.js"),
-        Webhook = require("discord-hook");
+        Webhook = require("discord-hook"),
+        defLang = require("../languages/en-US"),
+        pack = require("../package.json");
+
+exports.getString = (name, lang = "en-US") => {
+    if (!lang) lang = "en-US";
+    let str = '[UNKNOWN STRING]';
+    if (!pack.languages.includes(lang)) lang = "en-US";
+    try {
+        let file = require(`../languages/${lang}.js`);
+        if (file[name]) str = file[name];
+    } catch {
+        if (defLang[name]) str = defLang[name];
+    };
+    return str;
+}
 
 exports.code = (message, type = "d", token) => {
     if (!message || !type) return "";

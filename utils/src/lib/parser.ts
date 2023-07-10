@@ -2,7 +2,7 @@ import { Guild, GuildMember, User, time } from "discord.js";
 
 export async function parser(
     obj: object = {},
-    options: ParserOptions = {}
+    options: ParserOptions = {},
 ): Promise<object> {
     let str = JSON.stringify(obj);
     const r = (names: string[], s: string) => {
@@ -47,21 +47,21 @@ export async function parser(
         r([p.member.avatar], member.displayAvatarURL());
         r([p.member.joined], member.joinedAt?.toLocaleString() || "N/A");
         if (member.joinedAt) {
-            r([p.member.joinedDiscordTimestamp], time(member.joinedAt!, "f"));
+            r([p.member.joinedDiscordTimestamp], time(member.joinedAt, "f"));
         }
         r([p.member.nickname], member.nickname || "N/A");
         r(
             [p.member.roles],
-            member.roles.cache.map((c) => `\`${c.name}\``).join(", ")
+            member.roles.cache.map((c) => `\`${c.name}\``).join(", "),
         );
         if (member.communicationDisabledUntil) {
             r(
                 [p.member.timeout],
-                member.communicationDisabledUntil?.toLocaleString() || "N/A"
+                member.communicationDisabledUntil?.toLocaleString() || "N/A",
             );
             r(
                 [p.member.timeoutDiscordTimestamp],
-                time(member.communicationDisabledUntil!, "f")
+                time(member.communicationDisabledUntil, "f"),
             );
         }
     }

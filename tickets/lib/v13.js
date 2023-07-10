@@ -161,14 +161,14 @@ module.exports = class Tickets extends base {
                 if (!ban) return send(
                     typeof appeals.embeds?.not_banned === "object" ?
                         appeals.embeds.not_banned :
-                        { embeds: [ embed(`❌ You can't open this ticket due to you not being banned in the main server!`, { guild, color: 0xFF0000 }) ] }
+                        { embeds: [ embed(this.str("NOT_BANNED_MAIN_SERVER"), { guild, color: 0xFF0000 }) ] }
                 );
                 sendBanReason = {
-                    embeds: [ embed(ban?.reason ?? "No Reason Provided", { title: "Ban Reason", guild: server }) ],
+                    embeds: [ embed(ban?.reason ?? this.str("NO_REASON"), { title: this.str("BAN_REASON"), guild: server }) ],
                     components: [
                         {
                             type: 1, components: [
-                                button({ id: `unban:${member.id}`, style: 4, title: "Unban", emoji: { name: "🔒" } })
+                                button({ id: `unban:${member.id}`, style: 4, title: this.str("UNBAN"), emoji: { name: "🔒" } })
                             ]
                         }
                     ]
@@ -176,7 +176,7 @@ module.exports = class Tickets extends base {
             }
         }
         let channel = await guild.channels.create(`${this.options.prefix}-${generate().slice(0, 5).replace(/-|_/g, "")}`, {
-            type: "GUILD_TEXT", parent: category, reason: `Ticket created by: @${member.user.tag} (${member.id})`,
+            type: "GUILD_TEXT", parent: category, reason: `${this.str("OPEN_TICKET_AUDIT_REASON")} @${member.user.tag} (${member.id})`,
             topic: `ID: ${code(member.id, "e", this.options.encryptToken)}`,
             permissionOverwrites: [
                 { type: "member", id: this.options.client.user.id, allow: ["ADD_REACTIONS", "ATTACH_FILES", "SEND_MESSAGES", "READ_MESSAGE_HISTORY", "EMBED_LINKS", "USE_EXTERNAL_EMOJIS", "VIEW_CHANNEL", "MENTION_EVERYONE"] },
@@ -185,25 +185,25 @@ module.exports = class Tickets extends base {
                 ...permissions
             ]
         }).catch(e => this._debug(e));
-        if (!channel) return send({ embeds: [embed(`❌ I was unable to create the ticket channel, if this keeps happening contact one of the staff members via their DMs!`)] });
+        if (!channel) return send({ embeds: [embed(this.str("NO_CHANNEL_CREATE"))] });
         let msg = await channel.send({
-            content: (this.options.ticket?.open || this.options.ticketOpen)?.content?.replace?.(/%user%/gi, member.user.toString())?.replace?.(/%server%/gi, guild.name) || `${member.user.toString()} 👋 Hello, please explain what you need help with.`,
-            embeds: (this.options.ticket?.open || this.options.ticketOpen)?.embeds || [ embed(undefined, { title: `Support will be with you shortly.`, color: 0xF50DE3, guild, footer: { text: `To close the ticket, press the button below` } }) ],
-            components: [ { type: 1, components: [ button({ id: `${this.prefix}:close`, title: `Close Ticket`, style: 4, emoji: { name: "🔒" } }) ] }]
+            content: (this.options.ticket?.open || this.options.ticketOpen)?.content?.replace?.(/%user%/gi, member.user.toString())?.replace?.(/%server%/gi, guild.name) || `${member.user.toString()} ${this.str("OPEN_TICKET_MESSAGE_CONTENT")}`,
+            embeds: (this.options.ticket?.open || this.options.ticketOpen)?.embeds || [ embed(undefined, { title: this.str("OPEN_TICKET_MESSAGE"), color: 0xF50DE3, guild, footer: { text: this.str("OPEN_TICKET_MESSAGE_FOOTER") } }) ],
+            components: [ { type: 1, components: [ button({ id: `${this.prefix}:close`, title: this.str("CLOSE_TICKET"), style: 4, emoji: { name: "🔒" } }) ] }]
         }).catch(e => this._debug(e));
         if (!msg) return null;
         if (sendBanReason) await channel.send(sendBanReason).catch(e => this._debug(e));
         if (embeds?.length <= 10) for await (const embed of embeds) await channel.send({ embeds: [embed] }).catch(e => this._debug(e));
         if (this.webhookOptions.id && this.webhookOptions.token) webhook(this.webhookOptions)
             .embed(embed(`${de.user} User: ${member.user.toString()} \`@${member.user.tag}\` (${member.id})\n${de.channel} Channel: \`#${channel.name}\` (${channel.id})`, {
-                title: `TIcket: Opened`,
+                title: this.str("OPEN_TICKET_TITLE"),
                 color: 0xFF000,
-                footer: { text: `Ticket ID: ${channel.name.split("-")[1]}` },
+                footer: { text: `${this.str("TICKET_ID")} ${channel.name.split("-")[1]}` },
                 guild
             })).send().catch(e => this._debug(e));
         return send({
-            embeds: [ embed(channel.toString(), { color: 0xFF000, author: { name: `Ticket Created!`, icon_url: `https://cdn.discordapp.com/emojis/476629550797684736.gif` } }) ],
-            components: [{ type: 1, components: [button({ title: "Go to ticket", url: msg.url })] }]
+            embeds: [ embed(channel.toString(), { color: 0xFF000, author: { name: this.str("OPEN_TICKET_CREATE"), icon_url: `https://cdn.discordapp.com/emojis/476629550797684736.gif` } }) ],
+            components: [{ type: 1, components: [button({ title: this.str("GO_TO_TICKET"), url: msg.url })] }]
         })
     }
 
@@ -215,4 +215,4 @@ module.exports = class Tickets extends base {
         return channel.send({ content: options?.content, files: options?.attachments, embeds: options?.embeds, components: options?.components || [{ type: 1, components: [this.button()] }] })
             .then(() => console.log(`Sent the starter message in ${channel.name} (${channel.id})`))
     };
-};
+}

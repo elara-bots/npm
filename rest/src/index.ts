@@ -16,6 +16,7 @@ import {
     type RESTGetAPIChannelInvitesResult,
     type RESTGetAPIChannelPinsResult,
     type RESTGetAPIChannelResult,
+    type RESTGetAPIChannelWebhooksResult,
     type RESTGetAPIGuildMemberResult,
     type RESTGetAPIInviteResult,
     type RESTPatchAPIChannelJSONBody,
@@ -24,6 +25,7 @@ import {
     type RESTPostAPIChannelInviteResult,
     type RESTPostAPIChannelMessageJSONBody,
     type RESTPostAPIChannelTypingResult,
+    type RESTPostAPIChannelWebhookJSONBody,
     type RESTPostAPIInteractionCallbackJSONBody,
     type RESTPutAPIGuildBanJSONBody,
 } from "discord-api-types/v10";
@@ -113,6 +115,10 @@ export class RestClient {
                 body,
                 reason
             }),
+            webhooks: {
+                fetch: (id: string) => this.request<RESTGetAPIChannelWebhooksResult>(Routes.channelWebhooks(id)),
+                post: (id: string, body: RESTPostAPIChannelWebhookJSONBody, reason?: string) => this.request(Routes.channelWebhooks(id), "post", { body, reason }),
+            },
             delete: (id: string, reason?: string) => this.request<RESTDeleteAPIChannelResult>(Routes.channel(id), "delete", { reason }),
             typing: (id: string) => this.request<RESTPostAPIChannelTypingResult>(Routes.channelTyping(id), "post"),
             followers: (channelId: string, followingChannelId: string, reason?: string) => this.request<RESTPostAPIChannelFollowersResult>(Routes.channelFollowers(channelId), "post", {

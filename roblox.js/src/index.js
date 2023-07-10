@@ -36,25 +36,12 @@ module.exports = class Roblox {
         this.rocord = bool(options?.apis?.rocord);
         this.rolinkapp = bool(options?.apis?.rolinkapp);
         this.keys = options?.keys ?? { bloxlink: null, rover: null, rocord: null, rolinkapp: null };
-        this.debug = Boolean(options?.debug ?? false);
+        this.debug = bool(options?.debug, false);
         this.options = options;
         if ("avatarUrl" in options) {
             if (!options.avatarUrl.includes("%USERID%")) throw new Error(Messages.ERROR(`You forgot to include '%USERID%' in the avatarUrl field.`));
         }
         this.events = new EventEmitter();
-    };
-    emit(event, ...args) { return this.events.emit(event, ...args); };
-
-    async get(user, basic = false, guildId = null, include) {
-        if (typeof user === "string" && user.match(/<@!?/gi)) {
-            let r = await this.services.get(user.replace(/<@!?|>/gi, ""), basic, guildId, include);
-            if (!r?.status) return status(r?.message ?? Messages.NO_ROBLOX_PROFILE);
-            return r;
-        } else {
-            let s = await (isNaN(parseInt(user)) ? this.fetchByUsername(user) : this.fetchRoblox(parseInt(user)));
-            if (!s?.status) return status(s?.message ?? Messages.NO_ROBLOX_PROFILE);
-            return s;
-        };
     };
 
     /**
@@ -161,29 +148,6 @@ module.exports = class Roblox {
         return Promise.resolve(true);
     };
 
-    /**
-     * @private
-     * @param {string} url 
-     * @param {object} headers 
-     * @param {string} method 
-     * @param {boolean} returnJSON 
-     * @returns {Promise<object|null|any>}
-     */
-    async _request(url, headers = undefined, method = "GET", returnJSON = true, data = undefined) {
-        try {
-            let body = fetch(url, method)
-            if (headers) body.header(headers)
-            if (typeof data === 'object') body.body(data);
-            let res = await body.send().catch(() => ({ statusCode: 500 }));
-            this._debug(`Requesting (${method}, ${url}) and got ${res.statusCode}`);
-            if (res.statusCode !== 200) return null;
-            return res[returnJSON ? "json" : "text"]();
-        } catch (err) {
-            this._debug(`ERROR while making a request to (${method}, ${url}) `, err);
-            return null;
-        }
-    };
-
 
     /**
      * @param {(string | number)[]} userIds 
@@ -198,21 +162,6 @@ module.exports = class Roblox {
     };
 
     /**
-     * @private
-     */
-    _debug(...args) {
-        if (!this.debug) return;
-        return console.log(`[${pack.name.toUpperCase()}, v${pack.version}]: `, ...args);
-    }
-
-    /**
-     * @private
-     * @param {string} [url]
-     * @returns {Promise<object|void>}
-     */
-    async privateFetch(url = "") { return this._request(url, this.cookieHeader); };
-
-    /**
      * @param {object} res - Information from the Roblox.js response
      * @param {object} user - Discord.js user class
      * @param {object} [options]
@@ -224,7 +173,7 @@ module.exports = class Roblox {
     showDiscordMessageData(res, user = null, { showButtons = true, emoji = "▫", secondEmoji = "◽", color = 11701759 } = {}) {
         let fields = [];
 
-        if (res.activity) fields.push( { name: Messages.ACTIVITY, value: `${emoji}${Messages.STATUS}: ${res.activity.LastLocation}${res.activity.placeId ? `\n${emoji}${Messages.GAME_URL(`https://roblox.com/games/${res.activity.placeId}`)}` : ""}\n${emoji}${Messages.LAST_SEEN}: ${formatDate(res.activity.lastOnline)} (${formatDate(res.activity.lastOnline, "R")})` } )
+        if (res.activity) fields.push( { name: Messages.ACTIVITY, value: `${emoji}${Messages.STATUS}: ${res.activity.lastLocation}${res.activity.placeId ? `\n${emoji}${Messages.GAME_URL(`https://roblox.com/games/${res.activity.placeId}`)}` : ""}\n${emoji}${Messages.LAST_SEEN}: ${formatDate(res.activity.lastOnline)} (${formatDate(res.activity.lastOnline, "R")})` } )
         if (res.user.bio) fields.push({ name: Messages.BIO, value: res.user.bio.slice(0, 1024) });
         if (res.groups.length) {
             for (const g of res.groups.sort((a, b) => b.primary - a.primary).slice(0, 4)) {
@@ -355,7 +304,4 @@ module.exports = class Roblox {
             }
         }
     }
-
-
-    get cookieHeader() { return this.options.cookie ? { "Cookie": this.options.cookie.replace(/%TIME_REPLACE%/gi, new Date().toLocaleString()) } : undefined; };
 };

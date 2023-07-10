@@ -36,25 +36,28 @@ export function embed(): EmbedBuilder {
 }
 export function comment(description: string, color: ColorResolvable) {
     return embed()
-    .setDescription(description)
-    .setColor(color || "Red");
+        .setDescription(description)
+        .setColor(color || "Red");
 }
 
-export function getInteractionResponder(interaction: ChatInputCommandInteraction, handleErrors = log) {
+export function getInteractionResponder(
+    interaction: ChatInputCommandInteraction,
+    handleErrors = log,
+) {
     return {
         reply: async (
-            options: InteractionReplyOptions
+            options: InteractionReplyOptions,
         ): Promise<void | (InteractionResponse | Message)> => {
             if (interaction.deferred) {
                 if ("ephemeral" in options) {
-                    delete options['ephemeral'];
+                    delete options["ephemeral"];
                 }
                 return await interaction.editReply(options).catch(handleErrors);
             }
             return await interaction.reply(options).catch(handleErrors);
         },
         defer: async (
-            options?: InteractionDeferReplyOptions
+            options?: InteractionDeferReplyOptions,
         ): Promise<void | InteractionResponse> => {
             if (interaction.deferred) {
                 return;
@@ -63,7 +66,7 @@ export function getInteractionResponder(interaction: ChatInputCommandInteraction
         },
 
         edit: async (
-            options: CommonInteractionEditReplyOptions
+            options: CommonInteractionEditReplyOptions,
         ): Promise<void | Message> => {
             if (!interaction.deferred) {
                 return;
@@ -71,7 +74,7 @@ export function getInteractionResponder(interaction: ChatInputCommandInteraction
             return await interaction.editReply(options).catch(handleErrors);
         },
         send: async (
-            options: TextBasedChannelSendOption
+            options: TextBasedChannelSendOption,
         ): Promise<void | Message> => {
             if (!interaction.channel || !interaction.channel.isTextBased()) {
                 return;
@@ -80,7 +83,6 @@ export function getInteractionResponder(interaction: ChatInputCommandInteraction
         },
     };
 }
-
 
 export function getMessageResponder(message: Message) {
     return {
@@ -99,9 +101,7 @@ export function getMessageResponder(message: Message) {
             if (!message.channel || !message.channel.isTextBased()) {
                 return;
             }
-            const sentMessage = await message.channel
-                .send(options)
-                .catch(log);
+            const sentMessage = await message.channel.send(options).catch(log);
             if (!sentMessage) {
                 return sentMessage;
             }
@@ -109,7 +109,7 @@ export function getMessageResponder(message: Message) {
             return getMessageResponder(sentMessage);
         },
         react: async (
-            options: EmojiIdentifierResolvable
+            options: EmojiIdentifierResolvable,
         ): Promise<void | MessageReaction> => {
             return await message.react(options).catch(log);
         },
@@ -124,11 +124,15 @@ export function getMessageResponder(message: Message) {
 function log(e: unknown) {
     console.warn(e);
 }
-export type getInteractionResponders = ReturnType<typeof getInteractionResponder>;
+export type getInteractionResponders = ReturnType<
+    typeof getInteractionResponder
+>;
 export type getMessageResponders = ReturnType<typeof getMessageResponder>;
 
-
-export function handleSubCommands<T extends ChatInputCommandInteraction, F extends unknown>(interaction: T, files: F) {
+export function handleSubCommands<T extends ChatInputCommandInteraction, F>(
+    interaction: T,
+    files: F,
+) {
     const responder = getInteractionResponder(interaction);
     const subCommandArg = interaction.options.getSubcommand();
     if (!(files instanceof Collection)) {
@@ -136,23 +140,24 @@ export function handleSubCommands<T extends ChatInputCommandInteraction, F exten
     }
     const command = files.get(subCommandArg);
     if (!command) {
-      return responder.reply({
-        content: `I was unable to find that sub command.`,
-        ephemeral: true,
-      });
+        return responder.reply({
+            content: `I was unable to find that sub command.`,
+            ephemeral: true,
+        });
     }
     return command.execute(interaction, responder);
 }
 
 export interface SubCommand {
-    subCommand: (builder: SSBuild) => SSBuild
+    subCommand: (builder: SSBuild) => SSBuild;
 }
 
 export function buildSubCommand<T extends SubCommand>(
     builder: SBuild | ((builder: SBuild) => SBuild),
-    commands: object
+    commands: object,
 ) {
-    const command = typeof builder === 'function' ? builder(new SBuild()) : builder;
+    const command =
+        typeof builder === "function" ? builder(new SBuild()) : builder;
     const subCommands = getFilesList<T>(commands);
     if (subCommands.size) {
         for (const subCommand of subCommands.values()) {
