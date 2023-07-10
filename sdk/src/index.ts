@@ -24,6 +24,7 @@ import type {
     IMDBShow,
     Image,
     Lyrics,
+    Math,
     NPM,
     PasteGet,
     PastePost,
