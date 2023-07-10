@@ -38,6 +38,8 @@ import type {
     YTStats,
 } from "./interfaces";
 import { routes } from "./routes";
+export * from "./interfaces";
+
 const userAgent = `Elara-Services (${version}, https://github.com/elara-bots/npm)`;
 function status(message: string, status = false): Status {
     return { status, message };
@@ -47,7 +49,7 @@ function catchStatus(err: unknown) {
     return status((err instanceof Error ? err.message : err) as string);
 }
 
-export default class SDK {
+export class SDK {
     private key: string;
     private baseURL: string;
     public constructor(key?: string, baseURL?: string) {
