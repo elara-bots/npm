@@ -17,7 +17,8 @@
     "url": "https://github.com/elara-bots/npm/tree/main/sdk"
   },
   "files": [
-    "dist"
+    "dist",
+    "docs"
   ],
   "devDependencies": {
     "@types/node": "^20.3.0",
