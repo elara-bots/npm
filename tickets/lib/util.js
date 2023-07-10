@@ -1,6 +1,6 @@
 const { AES } = require("@elara-services/packages"),
       { Collection, version } = require("discord.js"),
-        Webhook = require("discord-hook"),
+      { DiscordWebhook: Webhook } = require("@elara-services/webhooks"),
         defLang = require("../languages/en-US"),
         pack = require("../package.json");
 

@@ -1,7 +1,7 @@
 const { EmbedBuilder: MessageEmbed, InteractionType, PermissionFlagsBits, ChannelType } = require("discord.js"),
         base = require("./base"),
       { de, code, fetchMessages, hasTicket, embed, webhook, getAppealServer } = require("./util"),
-      { generate } = require("shortid"),
+      { generate } = require("@elara-services/utils"),
       { Interactions: { button, modal } } = require("@elara-services/packages");
 
 module.exports = class Tickets extends base {
@@ -186,7 +186,7 @@ module.exports = class Tickets extends base {
             }
         }
         let channel = await guild.channels.create({
-            name: `${this.options.prefix}-${generate().slice(0, 5).replace(/-|_/g, "")}`,
+            name: `${this.options.prefix}-${generate(5)}`,
             type: ChannelType.GuildText, 
             parent: category, 
             reason: `Ticket created by: @${member.user.tag} (${member.id})`,

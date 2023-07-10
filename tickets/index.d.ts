@@ -1,7 +1,7 @@
 declare module "@elara-services/tickets" {
     
     import { Client, MessageOptions, GuildMember, Guild, User, TextBasedChannel, Message, Interaction, ModalOptions } from "discord.js";
-    import Webhook from "discord-hook";
+    import type { DiscordWebhook } from "@elara-services/webhooks";
 
     export interface TicketOptions {
         client: Client;
@@ -67,7 +67,7 @@ declare module "@elara-services/tickets" {
         public constructor(options: TicketOptions);
         public options: TicketOptions;
         public prefix: string;
-        public webhook(): typeof Webhook.prototype;
+        public webhook(): typeof DiscordWebhook.prototype;
         public button(options: { style: 1 | 2 | 3 | 4 | 5 | number, id?: string, label?: string, emoji?: { name?: string, id?: string } }): { type: number, custom_id: string, style: number, label?: string, emoji?: { name?: string, id?: string } }
     
         public fetchMessages(channel: TextBasedChannel, limit?: number, before?: string, after?: string, around?: string): Promise<Array<Message>>

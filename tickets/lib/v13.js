@@ -1,7 +1,7 @@
 const { MessageEmbed } = require("discord.js"),
         base = require("./base"),
       { de, code, fetchMessages, hasTicket, embed, webhook, getAppealServer } = require("./util"),
-      { generate } = require("shortid"),
+      { generate } = require("@elara-services/utils"),
       { Interactions: { button, modal } } = require("@elara-services/packages");
 
 module.exports = class Tickets extends base {
@@ -175,7 +175,7 @@ module.exports = class Tickets extends base {
                 }
             }
         }
-        let channel = await guild.channels.create(`${this.options.prefix}-${generate().slice(0, 5).replace(/-|_/g, "")}`, {
+        let channel = await guild.channels.create(`${this.options.prefix}-${generate(5)}`, {
             type: "GUILD_TEXT", parent: category, reason: `${this.str("OPEN_TICKET_AUDIT_REASON")} @${member.user.tag} (${member.id})`,
             topic: `ID: ${code(member.id, "e", this.options.encryptToken)}`,
             permissionOverwrites: [
