@@ -2,6 +2,9 @@ let fetch;
 
 try {
     fetch = require("@elara-services/fetch");
+    if ("fetch" in fetch) {
+        fetch = fetch.fetch;
+    }
 } catch {
 
 }
