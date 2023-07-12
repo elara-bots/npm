@@ -1,6 +1,6 @@
 import { getKeys } from "@elara-services/utils";
 
-export const langs = {
+const langs = {
     en: "English",
     fr: "French",
     es: "Spanish",
@@ -108,18 +108,23 @@ export const langs = {
     zu: "Zulu",
 };
 
-export function find(name: Lang | LangName) {
-    for (const key of getKeys(langs)) {
-        if (key === name) {
-            return key;
+export const Languages = {
+    langs,
+    find(name: Lang | LangName) {
+        for (const key of getKeys(langs)) {
+            if (key === name) {
+                return key;
+            }
+            if (langs[key] === name) {
+                return key;
+            }
         }
-        if (langs[key] === name) {
-            return key;
-        }
-    }
-    return null;
-}
+        return null;
+    },
+};
+
 export type Lang = keyof typeof langs;
+
 export type LangName =
     | "English"
     | "French"
