@@ -1,7 +1,14 @@
 import { is } from "@elara-services/utils";
 
 export class Tasks extends null {
-    async create({ id, time, shouldCancel }: TaskCreate = { id: "", time: "", shouldCancel: true }, run: (...args: unknown[]) => Promise<unknown> | unknown) {
+    async create(
+        { id, time, shouldCancel }: TaskCreate = {
+            id: "",
+            time: "",
+            shouldCancel: true,
+        },
+        run: (...args: unknown[]) => Promise<unknown> | unknown,
+    ) {
         const sc = await import("node-schedule").catch(() => {});
         if (!sc) {
             return `Unable to find the "node-schedule" package.`;

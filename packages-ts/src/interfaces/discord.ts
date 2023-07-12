@@ -1,13 +1,27 @@
-import { APIModalActionRowComponent, APISelectMenuOption, ComponentType } from "discord-api-types/v10";
+import {
+    APIModalActionRowComponent,
+    APISelectMenuOption,
+    ComponentType,
+} from "discord-api-types/v10";
 
-export type ButtonStyles = 'PRIMARY' | 'BLURPLE' | 'SECONDARY' | 'GREY' | 'SUCCESS' | 'GREEN' | 'DANGER' | 'RED' | 'LINK' | 'URL';
+export type ButtonStyles =
+    | "PRIMARY"
+    | "BLURPLE"
+    | "SECONDARY"
+    | "GREY"
+    | "SUCCESS"
+    | "GREEN"
+    | "DANGER"
+    | "RED"
+    | "LINK"
+    | "URL";
 
 export type ButtonNumberStyles = 1 | 2 | 3 | 4 | 5;
 
 export interface ButtonOptions {
     type?: number;
     style?: ButtonNumberStyles | ButtonStyles;
-    emoji?: { name?: string | null, id?: string | null, animated?: boolean };
+    emoji?: { name?: string | null; id?: string | null; animated?: boolean };
     disabled?: boolean;
     id?: string;
     title?: string;
@@ -15,7 +29,7 @@ export interface ButtonOptions {
     label?: string;
     url?: string;
 }
-export interface SelectOptions { 
+export interface SelectOptions {
     id?: string;
     custom_id?: string;
     holder?: string;
@@ -24,9 +38,14 @@ export interface SelectOptions {
     max?: number;
     max_values?: number;
     min_values?: number;
-    type?: ComponentType.ChannelSelect | ComponentType.MentionableSelect | ComponentType.RoleSelect | ComponentType.StringSelect | ComponentType.UserSelect;
+    type?:
+        | ComponentType.ChannelSelect
+        | ComponentType.MentionableSelect
+        | ComponentType.RoleSelect
+        | ComponentType.StringSelect
+        | ComponentType.UserSelect;
     disabled?: boolean;
-    options?: APISelectMenuOption[]
+    options?: APISelectMenuOption[];
 }
 export interface ModalOptions {
     title?: string;
@@ -34,9 +53,9 @@ export interface ModalOptions {
     custom_id?: string;
     id?: string;
     components: {
-        type: 1 | ComponentType.ActionRow,
-        components: APIModalActionRowComponent[]
-    }[]
+        type: 1 | ComponentType.ActionRow;
+        components: APIModalActionRowComponent[];
+    }[];
 }
 
 export interface TextInputOptions {
@@ -66,9 +85,20 @@ export interface Slash {
     locale?: {
         names?: Record<string, string>;
         descriptions?: Record<string, string>;
-    }
+    };
 }
-export type ChannelTypes = 'GUILD_TEXT' | 'DM' | 'GUILD_VOICE' | 'GROUP_DM' | 'GUILD_CATEGORY' | 'GUILD_NEWS' | 'GUILD_STORE' | 'GUILD_NEWS_THREAD' | 'GUILD_PUBLIC_THREAD' | 'GUILD_PRIVATE_THREAD' | 'GUILD_STAGE_VOICE';
+export type ChannelTypes =
+    | "GUILD_TEXT"
+    | "DM"
+    | "GUILD_VOICE"
+    | "GROUP_DM"
+    | "GUILD_CATEGORY"
+    | "GUILD_NEWS"
+    | "GUILD_STORE"
+    | "GUILD_NEWS_THREAD"
+    | "GUILD_PUBLIC_THREAD"
+    | "GUILD_PRIVATE_THREAD"
+    | "GUILD_STAGE_VOICE";
 
 export interface SlashOptions {
     type: number;
@@ -81,10 +111,10 @@ export interface SlashOptions {
     max_value?: number;
     min_length?: number;
     max_length?: number;
-    choices?: { name: string, value: string }[];
+    choices?: { name: string; value: string }[];
     options?: SlashOptions[];
     locale?: {
         names?: Record<string, string>;
         descriptions?: Record<string, string>;
-    }
+    };
 }

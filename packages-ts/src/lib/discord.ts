@@ -1,10 +1,28 @@
 import { is } from "@elara-services/utils";
 import { ComponentType } from "discord-api-types/v10";
-import type { ButtonNumberStyles, ButtonOptions, ModalOptions, SelectOptions, Slash, SlashOptions, TextInputOptions } from "../interfaces";
-export const ButtonStyle = { PRIMARY: 1, BLURPLE: 1, SECONDARY: 2, GREY: 2, SUCCESS: 3, GREEN: 3, DANGER: 4, RED: 4, LINK: 5, URL: 5 };
+import type {
+    ButtonNumberStyles,
+    ButtonOptions,
+    ModalOptions,
+    SelectOptions,
+    Slash,
+    SlashOptions,
+    TextInputOptions,
+} from "../interfaces";
+export const ButtonStyle = {
+    PRIMARY: 1,
+    BLURPLE: 1,
+    SECONDARY: 2,
+    GREY: 2,
+    SUCCESS: 3,
+    GREEN: 3,
+    DANGER: 4,
+    RED: 4,
+    LINK: 5,
+    URL: 5,
+};
 
 export const Interactions = {
-
     button: (options: ButtonOptions = {}) => {
         if (typeof options.style === "string") {
             const style = ButtonStyle[options.style] as ButtonNumberStyles;
@@ -15,7 +33,10 @@ export const Interactions = {
             }
         }
 
-        if (typeof options.url === "string" && options.url.match(/(https?|discord):\/\//gi)) {
+        if (
+            typeof options.url === "string" &&
+            options.url.match(/(https?|discord):\/\//gi)
+        ) {
             options.style = 5;
             options.id = "";
         }
@@ -24,15 +45,23 @@ export const Interactions = {
             label: options?.title ?? options?.label ?? "",
             type: options?.type ?? 2,
             style: options?.style ? options.style : 2,
-            disabled: typeof options.disabled === "boolean" ? options.disabled : false,
+            disabled:
+                typeof options.disabled === "boolean"
+                    ? options.disabled
+                    : false,
             emoji: options?.emoji ?? undefined,
-            url: options?.url ?? undefined
+            url: options?.url ?? undefined,
         };
     },
 
     select: (options: SelectOptions = {}) => {
-        if (options.type === ComponentType.StringSelect && !Array.isArray(options.options)) {
-            throw new Error(`[Interactions#select]: The 'options' isn't an array.`);
+        if (
+            options.type === ComponentType.StringSelect &&
+            !Array.isArray(options.options)
+        ) {
+            throw new Error(
+                `[Interactions#select]: The 'options' isn't an array.`,
+            );
         }
         const data = {
             custom_id: "",
@@ -80,7 +109,9 @@ export const Interactions = {
 
     modal: (options: ModalOptions = { components: [] }) => {
         if (!is.array(options.components)) {
-            throw new Error(`[Interactions#modal]: 'components' isn't an array, or is empty.`);
+            throw new Error(
+                `[Interactions#modal]: 'components' isn't an array, or is empty.`,
+            );
         }
         const data = {
             custom_id: "",
@@ -173,7 +204,7 @@ export const Duration = {
                 const n = dur.match(/\d+/g) || ["0"];
                 const [num, [str]] = [
                     parseInt(n[0]),
-                    dur.match(/[A-Za-z]+/g) || ['']
+                    dur.match(/[A-Za-z]+/g) || [""],
                 ];
                 if (isNaN(num)) {
                     totalTime = 0;
@@ -191,23 +222,51 @@ export const Duration = {
 
     determineTimeType: (str: string) => {
         switch (str) {
-            case "ms": case "millisecond": case "milliseconds": return 1;
+            case "ms":
+            case "millisecond":
+            case "milliseconds":
+                return 1;
 
-            case "s": case "second": case "seconds": return 1000;
+            case "s":
+            case "second":
+            case "seconds":
+                return 1000;
 
-            case "m": case "min": case "mins": case "minute": case "minutes": return 60 * 1000;
+            case "m":
+            case "min":
+            case "mins":
+            case "minute":
+            case "minutes":
+                return 60 * 1000;
 
-            case "h": case "hr": case "hour": case "hours": return 60 * 60 * 1000;
+            case "h":
+            case "hr":
+            case "hour":
+            case "hours":
+                return 60 * 60 * 1000;
 
-            case "d": case "day": case "days": return 24 * 60 * 60 * 1000;
+            case "d":
+            case "day":
+            case "days":
+                return 24 * 60 * 60 * 1000;
 
-            case "w": case "week": case "weeks": return 7 * 24 * 60 * 60 * 1000;
+            case "w":
+            case "week":
+            case "weeks":
+                return 7 * 24 * 60 * 60 * 1000;
 
-            case "mo": case "month": case "months": return 30 * 24 * 60 * 60 * 1000;
+            case "mo":
+            case "month":
+            case "months":
+                return 30 * 24 * 60 * 60 * 1000;
 
-            case "y": case "year": case "years": return 365 * 24 * 60 * 60 * 1000;
+            case "y":
+            case "year":
+            case "years":
+                return 365 * 24 * 60 * 60 * 1000;
 
-            default: return 1;
+            default:
+                return 1;
         }
     },
 
@@ -217,12 +276,12 @@ export const Duration = {
             for (const match of MATCHES_ALL) {
                 const [num, str] = [
                     match.match(/\d+/g),
-                    match.match(/[A-Za-z]+/g)
+                    match.match(/[A-Za-z]+/g),
                 ];
-                if (!num || (num.length !== 1)) {
+                if (!num || num.length !== 1) {
                     return false;
                 }
-                if (!str || (str.length !== 1)) {
+                if (!str || str.length !== 1) {
                     return false;
                 }
                 if (!Number.isInteger(parseInt(num[0]))) {
@@ -240,22 +299,39 @@ export const Duration = {
     },
 
     timeIds: new Set([
-        "ms", "millisecond", "milliseconds",
-        "s", "second", "seconds",
-        "m", "min", "mins", "minute", "minutes",
-        "h", "hr", "hrs", "hour", "hours",
-        "d", "day", "days",
-        "w", "week", "weeks",
-        "mo", "month", "months",
-        "y", "year", "years"
-    ])
+        "ms",
+        "millisecond",
+        "milliseconds",
+        "s",
+        "second",
+        "seconds",
+        "m",
+        "min",
+        "mins",
+        "minute",
+        "minutes",
+        "h",
+        "hr",
+        "hrs",
+        "hour",
+        "hours",
+        "d",
+        "day",
+        "days",
+        "w",
+        "week",
+        "weeks",
+        "mo",
+        "month",
+        "months",
+        "y",
+        "year",
+        "years",
+    ]),
 };
 
 export const SlashBuilder = {
-
-    TEXT_BASED_CHANNELS: [
-        0, 5, 11, 12
-    ],
+    TEXT_BASED_CHANNELS: [0, 5, 11, 12],
 
     types: {
         sub_command: 1,
@@ -270,16 +346,28 @@ export const SlashBuilder = {
         number: 10,
         context: {
             user: 2,
-            message: 3
-        }
+            message: 3,
+        },
     },
 
     context: {
-        user: (name: string, options: object) => SlashBuilder.create(name, "", { type: SlashBuilder.types.context.user, ...options }),
-        message: (name: string, options: object) => SlashBuilder.create(name, "", { type: SlashBuilder.types.context.message, ...options })
+        user: (name: string, options: object) =>
+            SlashBuilder.create(name, "", {
+                type: SlashBuilder.types.context.user,
+                ...options,
+            }),
+        message: (name: string, options: object) =>
+            SlashBuilder.create(name, "", {
+                type: SlashBuilder.types.context.message,
+                ...options,
+            }),
     },
 
-    choice: (name: string, value: string, name_localizations: Record<string, string>) => {
+    choice: (
+        name: string,
+        value: string,
+        name_localizations: Record<string, string>,
+    ) => {
         return { name, value, name_localizations };
     },
 
@@ -319,7 +407,7 @@ export const SlashBuilder = {
             options: [],
             type: 0,
             dm_permission: false,
-            default_member_permissions: ""
+            default_member_permissions: "",
         };
         if (options?.locale?.names) {
             obj.name_localizations = options.locale.names;
@@ -328,7 +416,7 @@ export const SlashBuilder = {
             obj.description_localizations = options.locale.descriptions;
         }
         if (is.array(options.options)) {
-            obj['options'] = options.options;
+            obj["options"] = options.options;
         }
         if (is.number(options.type)) {
             obj.type = options.type;
@@ -336,16 +424,24 @@ export const SlashBuilder = {
 
         if ("dmPermission" in options && is.boolean(options.dmPermission)) {
             obj["dm_permission"] = options.dmPermission;
-        } else if ("dm_permission" in options && is.boolean(options.dm_permission)) {
+        } else if (
+            "dm_permission" in options &&
+            is.boolean(options.dm_permission)
+        ) {
             obj["dm_permission"] = options.dm_permission;
         }
 
-        if ("default_member_permissions" in options && is.string(options.default_member_permissions)) {
+        if (
+            "default_member_permissions" in options &&
+            is.string(options.default_member_permissions)
+        ) {
             obj.default_member_permissions = options.default_member_permissions;
-        }
-        else if ("defaultMemberPermissions" in options && is.string(options.defaultMemberPermissions)) {
+        } else if (
+            "defaultMemberPermissions" in options &&
+            is.string(options.defaultMemberPermissions)
+        ) {
             obj.default_member_permissions = options.defaultMemberPermissions;
         }
         return obj;
-    }
+    },
 };

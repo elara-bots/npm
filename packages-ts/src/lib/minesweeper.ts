@@ -20,10 +20,16 @@ export class Minesweeper {
         this.types = {
             mine: opts?.emote ?? "bomb",
             numbers: [
-                'zero', 'one', 'two',
-                'three', 'four', 'five',
-                'six', 'seven', 'eight'
-            ]
+                "zero",
+                "one",
+                "two",
+                "three",
+                "four",
+                "five",
+                "six",
+                "seven",
+                "eight",
+            ],
         };
     }
 
@@ -52,17 +58,33 @@ export class Minesweeper {
         }
         let counter = 0;
         const hasLeft = y > 0;
-        const hasRight = y < (this.columns - 1);
+        const hasRight = y < this.columns - 1;
         const hasTop = x > 0;
-        const hasBottom = x < (this.rows - 1);
-        counter += +(hasTop && hasLeft && this.matrix[x - 1][y - 1] === this.types.mine);
+        const hasBottom = x < this.rows - 1;
+        counter += +(
+            hasTop &&
+            hasLeft &&
+            this.matrix[x - 1][y - 1] === this.types.mine
+        );
         counter += +(hasTop && this.matrix[x - 1][y] === this.types.mine);
-        counter += +(hasTop && hasRight && this.matrix[x - 1][y + 1] === this.types.mine);
+        counter += +(
+            hasTop &&
+            hasRight &&
+            this.matrix[x - 1][y + 1] === this.types.mine
+        );
         counter += +(hasLeft && this.matrix[x][y - 1] === this.types.mine);
         counter += +(hasRight && this.matrix[x][y + 1] === this.types.mine);
-        counter += +(hasBottom && hasLeft && this.matrix[x + 1][y - 1] === this.types.mine);
+        counter += +(
+            hasBottom &&
+            hasLeft &&
+            this.matrix[x + 1][y - 1] === this.types.mine
+        );
         counter += +(hasBottom && this.matrix[x + 1][y] === this.types.mine);
-        counter += +(hasBottom && hasRight && this.matrix[x + 1][y + 1] === this.types.mine);
+        counter += +(
+            hasBottom &&
+            hasRight &&
+            this.matrix[x + 1][y + 1] === this.types.mine
+        );
         return this.types.numbers[counter];
     }
 
@@ -72,7 +94,9 @@ export class Minesweeper {
         }
         this.generateEmptyMatrix();
         this.plantMines();
-        this.matrix = this.matrix.map((row, x) => row.map((col, y) => this.getNumberOfMines(x, y)));
+        this.matrix = this.matrix.map((row, x) =>
+            row.map((col, y) => this.getNumberOfMines(x, y)),
+        );
         return this.matrix;
     }
 }
