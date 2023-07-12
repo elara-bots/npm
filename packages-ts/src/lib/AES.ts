@@ -90,8 +90,8 @@ export class AES {
             // @ts-expect-error
             output = decipher.update(ciphertext) + decipher.final();
         } else {
-            // @ts-expect-error
             output = Buffer.concat([
+                // @ts-expect-error
                 decipher.update(ciphertext),
                 decipher.final(),
             ]);
