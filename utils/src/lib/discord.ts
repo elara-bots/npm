@@ -13,7 +13,7 @@ import {
     User,
     type PermissionResolvable,
 } from "discord.js";
-import { sleep } from "./extra";
+import { is, sleep } from "./extra";
 export type errorHandler = (e: Error) => unknown;
 
 export function commands(content: string, prefix: string) {
@@ -45,7 +45,7 @@ export function canTakeActionAgainstMember(
     if (
         !(member instanceof GuildMember) ||
         !(mod instanceof GuildMember) ||
-        !Array.isArray(permissions) ||
+        !is.array(permissions) ||
         !member.guild.members.me ||
         [member.guild.ownerId, member.client.user.id].includes(member.id)
     ) {
@@ -71,10 +71,23 @@ export const discord = {
     user: async (
         client: Client,
         args: string,
-        { force, fetch, mock }: DiscordUserOptions,
+        { force, fetch, mock }: DiscordUserOptions = {
+            fetch: true,
+            force: false,
+            mock: false,
+        },
     ): Promise<User | null> => {
         if (!client || !client.isReady() || !args) {
             return null;
+        }
+        if (!is.boolean(force)) {
+            force = false;
+        }
+        if (!is.boolean(fetch)) {
+            fetch = true;
+        }
+        if (!is.boolean(mock)) {
+            mock = false;
         }
         const matches = args.match(/^(?:<@!?)?([0-9]+)>?$/);
         if (!matches) {
@@ -114,7 +127,7 @@ export const discord = {
         return getMock();
     },
     role: async (guild: Guild, id: string): Promise<Role | null> => {
-        if (!guild?.roles || !id) {
+        if (!guild?.roles || !is.string(id)) {
             return null;
         }
         const matches = id.match(/^(?:<@&?)?([0-9]+)>?$/);
@@ -134,7 +147,7 @@ export const discord = {
         id: string,
         guildToSearch: Guild | null = null,
     ): Promise<Channel | null> => {
-        if (!client || !id) {
+        if (!client || !is.string(id)) {
             return null;
         }
         const hm = id.match(/^(?:<#?)?([0-9]+)>?$/);
@@ -159,7 +172,7 @@ export const discord = {
         fetch = false,
         withPresences = true,
     ): Promise<GuildMember | null> => {
-        if (!guild || !args) {
+        if (!guild || !is.string(args)) {
             return null;
         }
         const matches = args.match(/^(?:<@!?)?([0-9]+)>?$/);

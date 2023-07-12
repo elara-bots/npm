@@ -1,5 +1,5 @@
-import Services from "elara-services";
-export const services = new Services("[KEY_NOT_SET]");
+import { SDK } from "@elara-services/sdk";
+export const services = new SDK();
 
 export function sleep(timeout?: number) {
     return new Promise((r) => setTimeout(r, timeout));
@@ -84,17 +84,14 @@ export async function createBin(
                 bin === "mine" ? bins.haste : bins.mine,
             );
         case "mine-f": {
-            const b = (await services.paste.post(title, args, priv)) as {
-                status: boolean;
-                key: string;
-                id: string;
-            };
-            if (b.status && ["messages", "discord"].includes(ext)) {
+            const b = await services.paste.post(title, args, priv);
+            if (!b.status) {
+                return fetch(args, bins.mine, bins.haste);
+            }
+            if (["messages", "discord"].includes(ext)) {
                 return `https://my.elara.services/${ext}/${b.id}`;
             }
-            return b.status
-                ? `https://my.elara.services/b/v/${b.key}`
-                : fetch(args, bins.mine, bins.haste);
+            return `https://my.elara.services/b/v/${b.id}`;
         }
         default:
             return fetch(
@@ -151,4 +148,46 @@ export const getEntries = <T extends object>(obj: T) => {
 
 export const getKeys = <T extends object>(obj: T) => {
     return Object.keys(obj) as (keyof T)[];
+};
+
+export function generate(stringLength = 5) {
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    let str = "";
+    for (let i = 0; i < stringLength; i++) {
+        str += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return str;
+}
+
+export const is = {
+    string: (name: string | undefined): name is string => {
+        if (typeof name === "string" && name) {
+            return true;
+        }
+        return false;
+    },
+    number: (num: number | undefined): num is number => {
+        if (typeof num === "number" && !isNaN(num) && num >= 1) {
+            return true;
+        }
+        return false;
+    },
+    boolean: (bool: boolean | undefined): bool is boolean => {
+        if (typeof bool === "boolean") {
+            return true;
+        }
+        return false;
+    },
+    array: <T>(arr: T[] | undefined): arr is T[] => {
+        if (Array.isArray(arr) && arr.length) {
+            return true;
+        }
+        return false;
+    },
+    object: (obj: object | undefined): obj is object => {
+        if (typeof obj === "object") {
+            return true;
+        }
+        return false;
+    },
 };
