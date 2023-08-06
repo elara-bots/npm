@@ -22,6 +22,7 @@ export interface User {
     name: string;
     id: string;
     full_name?: string | null;
+    roleMentions?: string[];
     webhooks?: string[];
     color?: string | number;
     ignoreText?: string[];
@@ -80,6 +81,7 @@ export class Client extends EventEmitter {
         color,
         ignoreText,
         useLinkButton,
+        roleMentions,
     }: User) {
         if (this.data.find((c) => c.id === id)) {
             return this;
@@ -92,13 +94,13 @@ export class Client extends EventEmitter {
             name,
             id,
             full_name: is.string(full_name) ? full_name : null,
+            roleMentions: is.array(roleMentions) ? roleMentions : [],
             color: is.string(color)
                 ? color
                 : is.number(color)
                 ? color
                 : 0xcd08eb,
             webhooks: is.array(webhooks) ? webhooks : [],
-            // TODO: Add this.
             ignoreText: is.array(ignoreText) ? ignoreText : [],
             useLinkButton: is.boolean(useLinkButton) ? useLinkButton : true,
         });
@@ -132,7 +134,6 @@ export class Client extends EventEmitter {
         }
         const fields = [];
         if (!reposted && post.posts.repliedTo) {
-            // eslint-disable-next-line no-useless-escape
             fields.push(
                 field(
                     `Replied To`,
@@ -214,6 +215,9 @@ export class Client extends EventEmitter {
         embeds.push(embed);
         const getData = (webhook: string) => ({
             webhook,
+            content: is.array(user.roleMentions)
+                ? user.roleMentions.map((c) => `<@&${c}>`).join(", ")
+                : undefined,
             username: `${(user.full_name || author.username).replace(
                 /discord/gi,
                 "𝖽𝗂𝗌𝖼𝗈𝗋𝖽"
@@ -334,6 +338,18 @@ export class Client extends EventEmitter {
             for (const post of posts) {
                 const formattedPost = format.post(post);
                 if (!formattedPost) {
+                    continue;
+                }
+                if (
+                    is.array(user.ignoreText) &&
+                    user.ignoreText.some(
+                        (c) =>
+                            is.string(formattedPost.content) &&
+                            formattedPost.content
+                                .toLowerCase()
+                                .includes(c.toLowerCase())
+                    )
+                ) {
                     continue;
                 }
                 this.sendDefault(user, formattedPost);
