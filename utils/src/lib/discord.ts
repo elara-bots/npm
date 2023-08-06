@@ -1,18 +1,4 @@
-import {
-    Channel,
-    Client,
-    EmbedBuilder,
-    Guild,
-    GuildMember,
-    Message,
-    MessageCreateOptions,
-    MessagePayload,
-    Role,
-    SnowflakeGenerateOptions,
-    SnowflakeUtil,
-    User,
-    type PermissionResolvable,
-} from "discord.js";
+import { Channel, Client, EmbedBuilder, Guild, GuildMember, Message, MessageCreateOptions, MessagePayload, Role, SnowflakeGenerateOptions, SnowflakeUtil, User, type PermissionResolvable } from "discord.js";
 import { is, sleep } from "./extra";
 export type errorHandler = (e: Error) => unknown;
 
@@ -37,25 +23,11 @@ export function commands(content: string, prefix: string) {
     };
 }
 
-export function canTakeActionAgainstMember(
-    mod: GuildMember,
-    member: GuildMember,
-    permissions: PermissionResolvable[],
-) {
-    if (
-        !(member instanceof GuildMember) ||
-        !(mod instanceof GuildMember) ||
-        !is.array(permissions) ||
-        !member.guild.members.me ||
-        [member.guild.ownerId, member.client.user.id].includes(member.id)
-    ) {
+export function canTakeActionAgainstMember(mod: GuildMember, member: GuildMember, permissions: PermissionResolvable[]) {
+    if (!(member instanceof GuildMember) || !(mod instanceof GuildMember) || !is.array(permissions) || !member.guild.members.me || [member.guild.ownerId, member.client.user.id].includes(member.id)) {
         return false;
     }
-    if (
-        member.guild.members.me.roles.highest.comparePositionTo(
-            member.roles.highest,
-        ) < 0
-    ) {
+    if (member.guild.members.me.roles.highest.comparePositionTo(member.roles.highest) < 0) {
         return false;
     }
     if (mod.roles.highest.comparePositionTo(member.roles.highest) < 0) {
@@ -91,11 +63,7 @@ export const discord = {
         }
         const matches = args.match(/^(?:<@!?)?([0-9]+)>?$/);
         if (!matches) {
-            return (
-                client.users.cache.find((c) =>
-                    c.tag.toLowerCase().includes(args.toLowerCase()),
-                ) ?? null
-            );
+            return client.users.cache.find((c) => c.tag.toLowerCase().includes(args.toLowerCase())) ?? null;
         }
         const getMock = () => {
             if (mock) {
@@ -110,9 +78,7 @@ export const discord = {
         };
         if (client.users.cache.has(matches[1])) {
             if (force) {
-                return client.users
-                    .fetch(matches[1], { cache: true, force: true })
-                    .catch(() => getMock());
+                return client.users.fetch(matches[1], { cache: true, force: true }).catch(() => getMock());
             }
             return client.users.resolve(matches[1]);
         }
@@ -120,9 +86,7 @@ export const discord = {
             return null;
         }
         if (fetch) {
-            return client.users
-                .fetch(matches[1], { cache: true, force: true })
-                .catch(() => getMock());
+            return client.users.fetch(matches[1], { cache: true, force: true }).catch(() => getMock());
         }
         return getMock();
     },
@@ -132,32 +96,18 @@ export const discord = {
         }
         const matches = id.match(/^(?:<@&?)?([0-9]+)>?$/);
         if (!matches) {
-            return (
-                guild.roles.cache.find(
-                    (c) =>
-                        c.name.toLowerCase() === id.toLowerCase() ||
-                        c.name.toLowerCase().includes(id.toLowerCase()),
-                ) || null
-            );
+            return guild.roles.cache.find((c) => c.name.toLowerCase() === id.toLowerCase() || c.name.toLowerCase().includes(id.toLowerCase())) || null;
         }
         return guild.roles.fetch(matches[1], { cache: true }).catch(() => null);
     },
-    channel: async (
-        client: Client,
-        id: string,
-        guildToSearch: Guild | null = null,
-    ): Promise<Channel | null> => {
+    channel: async (client: Client, id: string, guildToSearch: Guild | null = null): Promise<Channel | null> => {
         if (!client || !is.string(id)) {
             return null;
         }
         const hm = id.match(/^(?:<#?)?([0-9]+)>?$/);
         if (!hm) {
             if (guildToSearch) {
-                return (
-                    guildToSearch.channels.cache.find((c) =>
-                        c.name.includes(id),
-                    ) ?? null
-                );
+                return guildToSearch.channels.cache.find((c) => c.name.includes(id)) ?? null;
             }
             return null;
         }
@@ -166,22 +116,13 @@ export const discord = {
         }
         return (await client.channels.fetch(hm[1]).catch(() => {})) || null;
     },
-    member: async (
-        guild: Guild,
-        args: string,
-        fetch = false,
-        withPresences = true,
-    ): Promise<GuildMember | null> => {
+    member: async (guild: Guild, args: string, fetch = false, withPresences = true): Promise<GuildMember | null> => {
         if (!guild || !is.string(args)) {
             return null;
         }
         const matches = args.match(/^(?:<@!?)?([0-9]+)>?$/);
         if (!matches) {
-            return (
-                guild.members.cache.find((c) =>
-                    c.user.tag.toLowerCase().includes(args.toLowerCase()),
-                ) ?? null
-            );
+            return guild.members.cache.find((c) => c.user.tag.toLowerCase().includes(args.toLowerCase())) ?? null;
         }
         let m: GuildMember | null = guild.members.resolve(matches[1]);
         if (!m) {
@@ -216,11 +157,7 @@ export const discord = {
             const channel = await discord.channel(client, channelId);
             if (!channel || !("send" in channel)) {
                 if (isFunc) {
-                    errorHandler(
-                        new Error(
-                            `[WARN] Failed to send message to channel: <#${channelId}> (${channelId})`,
-                        ),
-                    );
+                    errorHandler(new Error(`[WARN] Failed to send message to channel: <#${channelId}> (${channelId})`));
                 }
                 return null;
             }
@@ -270,12 +207,7 @@ export function setMobileStatusIcon(deviceType: "iOS" | "Android" = "iOS") {
 export function field(name = "\u200b", value = "\u200b", inline = false) {
     return { name, value, inline };
 }
-export function lazyField(
-    embed: EmbedBuilder,
-    name = "\u200b",
-    value = "\u200b",
-    inline = false,
-) {
+export function lazyField(embed: EmbedBuilder, name = "\u200b", value = "\u200b", inline = false) {
     if ("addFields" in embed) {
         return embed.addFields(field(name, value, inline));
     }

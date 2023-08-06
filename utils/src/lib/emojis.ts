@@ -1,5 +1,4 @@
-// @ts-ignore
-import * as fetch from "@elara-services/fetch";
+import { fetch } from "@elara-services/fetch";
 import type { Emoji } from "discord.js";
 
 export function getUnicodeEmoji(emoji: string | null) {
@@ -36,13 +35,10 @@ export async function getDiscordEmoji(emoji: Emoji | null) {
         if (!emote) {
             return null;
         }
-        const url = `https://twemoji.maxcdn.com/v/12.1.4/72x72/${emote}.png`;
+        const url = `https://cdn.jsdelivr.net/gh/twitter/twemoji@v12.1.4/assets/72x72/${emote}.png`;
         const res = await fetch(url)
             .timeout(5000)
-            .header(
-                "User-Agent",
-                `Services v${Math.floor(Math.random() * 5000)}`,
-            )
+            .header("User-Agent", `Services v${Math.floor(Math.random() * 5000)}`)
             .send()
             .catch(() => ({ statusCode: 500 }));
         if (res?.statusCode !== 200) {
@@ -60,9 +56,7 @@ export async function getDiscordEmoji(emoji: Emoji | null) {
         name: emoji.name,
         id: emoji.id,
         animated: emoji.animated,
-        url: `https://cdn.discordapp.com/emojis/${emoji.id}${
-            emoji.animated ? ".gif" : ".png"
-        }`,
+        url: `https://cdn.discordapp.com/emojis/${emoji.id}${emoji.animated ? ".gif" : ".png"}`,
         raw: `<${emoji.animated ? "a" : ""}:${emoji.name}:${emoji.id}>`,
     };
 }

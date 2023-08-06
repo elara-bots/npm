@@ -1,53 +1,25 @@
-import {
-    Collection,
-    EmbedBuilder,
-    SlashCommandBuilder as SBuild,
-    SlashCommandSubcommandBuilder as SSBuild,
-    type ChatInputCommandInteraction,
-    type ColorResolvable,
-    type EmojiIdentifierResolvable,
-    type InteractionDeferReplyOptions,
-    type InteractionEditReplyOptions,
-    type InteractionReplyOptions,
-    type InteractionResponse,
-    type Message,
-    type MessageCreateOptions,
-    type MessageEditOptions,
-    type MessagePayload,
-    type MessageReaction,
-    type MessageReplyOptions,
-} from "discord.js";
-import { getFilesList, sleep } from ".";
+import { Collection, SlashCommandBuilder as SBuild, SlashCommandSubcommandBuilder as SSBuild, type ChatInputCommandInteraction, type EmojiIdentifierResolvable, type InteractionDeferReplyOptions, type InteractionEditReplyOptions, type InteractionReplyOptions, type InteractionResponse, type Message, type MessageCreateOptions, type MessageEditOptions, type MessagePayload, type MessageReaction, type MessageReplyOptions } from "discord.js";
+import { getFilesList, sleep, DefaultColors, resolveColor, colors } from ".";
+import { EmbedBuilder } from "@discordjs/builders";
 
-export type TextBasedChannelSendOption =
-    | string
-    | MessagePayload
-    | MessageCreateOptions;
+export type TextBasedChannelSendOption = string | MessagePayload | MessageCreateOptions;
 
-export type CommonInteractionEditReplyOptions =
-    | string
-    | MessagePayload
-    | InteractionEditReplyOptions;
+export type CommonInteractionEditReplyOptions = string | MessagePayload | InteractionEditReplyOptions;
 
 export type MessageReplyOption = string | MessagePayload | MessageReplyOptions;
 export type MessageEditOption = string | MessagePayload | MessageEditOptions;
 export function embed(): EmbedBuilder {
     return new EmbedBuilder();
 }
-export function comment(description: string, color: ColorResolvable) {
+export function comment(description: string, color: keyof typeof DefaultColors | string | number) {
     return embed()
         .setDescription(description)
-        .setColor(color || "Red");
+        .setColor(resolveColor(color) || colors.red);
 }
 
-export function getInteractionResponder(
-    interaction: ChatInputCommandInteraction,
-    handleErrors = log,
-) {
+export function getInteractionResponder(interaction: ChatInputCommandInteraction, handleErrors = log) {
     return {
-        reply: async (
-            options: InteractionReplyOptions,
-        ): Promise<void | (InteractionResponse | Message)> => {
+        reply: async (options: InteractionReplyOptions): Promise<void | (InteractionResponse | Message)> => {
             if (interaction.deferred) {
                 if ("ephemeral" in options) {
                     delete options["ephemeral"];
@@ -56,26 +28,20 @@ export function getInteractionResponder(
             }
             return await interaction.reply(options).catch(handleErrors);
         },
-        defer: async (
-            options?: InteractionDeferReplyOptions,
-        ): Promise<void | InteractionResponse> => {
+        defer: async (options?: InteractionDeferReplyOptions): Promise<void | InteractionResponse> => {
             if (interaction.deferred) {
                 return;
             }
             return await interaction.deferReply(options).catch(handleErrors);
         },
 
-        edit: async (
-            options: CommonInteractionEditReplyOptions,
-        ): Promise<void | Message> => {
+        edit: async (options: CommonInteractionEditReplyOptions): Promise<void | Message> => {
             if (!interaction.deferred) {
                 return;
             }
             return await interaction.editReply(options).catch(handleErrors);
         },
-        send: async (
-            options: TextBasedChannelSendOption,
-        ): Promise<void | Message> => {
+        send: async (options: TextBasedChannelSendOption): Promise<void | Message> => {
             if (!interaction.channel || !interaction.channel.isTextBased()) {
                 return;
             }
@@ -108,9 +74,7 @@ export function getMessageResponder(message: Message) {
 
             return getMessageResponder(sentMessage);
         },
-        react: async (
-            options: EmojiIdentifierResolvable,
-        ): Promise<void | MessageReaction> => {
+        react: async (options: EmojiIdentifierResolvable): Promise<void | MessageReaction> => {
             return await message.react(options).catch(log);
         },
         edit: async (options: MessageEditOption): Promise<void | Message> => {
@@ -124,15 +88,10 @@ export function getMessageResponder(message: Message) {
 function log(e: unknown) {
     console.warn(e);
 }
-export type getInteractionResponders = ReturnType<
-    typeof getInteractionResponder
->;
+export type getInteractionResponders = ReturnType<typeof getInteractionResponder>;
 export type getMessageResponders = ReturnType<typeof getMessageResponder>;
 
-export function handleSubCommands<T extends ChatInputCommandInteraction, F>(
-    interaction: T,
-    files: F,
-) {
+export function handleSubCommands<T extends ChatInputCommandInteraction, F>(interaction: T, files: F) {
     const responder = getInteractionResponder(interaction);
     const subCommandArg = interaction.options.getSubcommand();
     if (!(files instanceof Collection)) {
@@ -152,12 +111,8 @@ export interface SubCommand {
     subCommand: (builder: SSBuild) => SSBuild;
 }
 
-export function buildSubCommand<T extends SubCommand>(
-    builder: SBuild | ((builder: SBuild) => SBuild),
-    commands: object,
-) {
-    const command =
-        typeof builder === "function" ? builder(new SBuild()) : builder;
+export function buildSubCommand<T extends SubCommand>(builder: SBuild | ((builder: SBuild) => SBuild), commands: object) {
+    const command = typeof builder === "function" ? builder(new SBuild()) : builder;
     const subCommands = getFilesList<T>(commands);
     if (subCommands.size) {
         for (const subCommand of subCommands.values()) {

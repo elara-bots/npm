@@ -1,9 +1,6 @@
 import { Guild, GuildMember, User, time } from "discord.js";
 
-export async function parser(
-    obj: object = {},
-    options: ParserOptions = {},
-): Promise<object> {
+export async function parser(obj: object = {}, options: ParserOptions = {}): Promise<object> {
     let str = JSON.stringify(obj);
     const r = (names: string[], s: string) => {
         str = str.replace(new RegExp(names.join("|"), "gi"), s);
@@ -50,19 +47,10 @@ export async function parser(
             r([p.member.joinedDiscordTimestamp], time(member.joinedAt, "f"));
         }
         r([p.member.nickname], member.nickname || "N/A");
-        r(
-            [p.member.roles],
-            member.roles.cache.map((c) => `\`${c.name}\``).join(", "),
-        );
+        r([p.member.roles], member.roles.cache.map((c) => `\`${c.name}\``).join(", "));
         if (member.communicationDisabledUntil) {
-            r(
-                [p.member.timeout],
-                member.communicationDisabledUntil?.toLocaleString() || "N/A",
-            );
-            r(
-                [p.member.timeoutDiscordTimestamp],
-                time(member.communicationDisabledUntil, "f"),
-            );
+            r([p.member.timeout], member.communicationDisabledUntil?.toLocaleString() || "N/A");
+            r([p.member.timeoutDiscordTimestamp], time(member.communicationDisabledUntil, "f"));
         }
     }
 

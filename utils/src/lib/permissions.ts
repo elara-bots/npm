@@ -1,10 +1,7 @@
+import { is } from "./extra";
+
 export const v13Permissions = {
-    basic: [
-        "EMBED_LINKS",
-        "SEND_MESSAGES",
-        "VIEW_CHANNEL",
-        "READ_MESSAGE_HISTORY",
-    ],
+    basic: ["EMBED_LINKS", "SEND_MESSAGES", "VIEW_CHANNEL", "READ_MESSAGE_HISTORY"],
     admin: "ADMINISTRATOR",
     invite: "CREATE_INSTANT_INVITE",
     nickname: "CHANGE_NICKNAME",
@@ -108,3 +105,7 @@ export const v14Permissions = {
         },
     },
 };
+
+export function checkChannelPerms(channel: any, id: string, perms: any | any[] | number | bigint = 84992n) {
+    return channel?.permissionsFor?.(id)?.has?.(is.undefined(perms) ? 84992n : perms) ?? false;
+}

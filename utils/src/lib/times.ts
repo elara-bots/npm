@@ -1,4 +1,4 @@
-import { time as Time, TimestampStylesString } from "discord.js";
+import { time as Time, TimestampStylesString } from "@discordjs/builders";
 import moment, { type DurationInputArg1, type unitOfTime } from "moment";
 import MS from "ms";
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -9,11 +9,7 @@ export let times = {
     short: "",
 };
 
-export function getTimeFrom(
-    time: DurationInputArg1,
-    name: unitOfTime.DurationConstructor,
-    date: Date | string,
-) {
+export function getTimeFrom(time: DurationInputArg1, name: unitOfTime.DurationConstructor, date: Date | string) {
     return moment(date ? new Date(date) : new Date())
         .add(time, name)
         .toISOString();
@@ -36,21 +32,7 @@ export const ms = {
         seconds -= hours * (60 * 60);
         const minutes = Math.floor(seconds / 60);
         seconds -= minutes * 60;
-        return `${0 < days ? days + ` Day${days === 1 ? "" : "s"}, ` : ""}${
-            hours === 0
-                ? ""
-                : `${hours} Hour${hours === 1 ? "" : "s"}${
-                      (minutes && seconds) === 0 ? "" : ", "
-                  }`
-        }${
-            minutes !== 0
-                ? `${minutes} Minute${minutes === 1 ? "" : "s"}${
-                      seconds === 0 ? "" : ", "
-                  }`
-                : ""
-        }${
-            seconds !== 0 ? `${seconds} Second${seconds === 1 ? "" : "s"}` : ""
-        }`;
+        return `${0 < days ? days + ` Day${days === 1 ? "" : "s"}, ` : ""}${hours === 0 ? "" : `${hours} Hour${hours === 1 ? "" : "s"}${(minutes && seconds) === 0 ? "" : ", "}`}${minutes !== 0 ? `${minutes} Minute${minutes === 1 ? "" : "s"}${seconds === 0 ? "" : ", "}` : ""}${seconds !== 0 ? `${seconds} Second${seconds === 1 ? "" : "s"}` : ""}`;
     },
 };
 
@@ -65,18 +47,10 @@ export function getTimeLeft(date: Date | string, type: string) {
     );
 }
 
-export function getTimeRemaining(
-    date: Date | string,
-    type: string,
-    reverse = false,
-) {
+export function getTimeRemaining(date: Date | string, type: string, reverse = false) {
     return (
         moment
-            .duration(
-                reverse
-                    ? new Date(date).getTime() - new Date().getTime()
-                    : new Date().getTime() - new Date(date).getTime(),
-            )
+            .duration(reverse ? new Date(date).getTime() - new Date().getTime() : new Date().getTime() - new Date(date).getTime())
             // @ts-ignore
             .format(type)
     );
@@ -84,18 +58,11 @@ export function getTimeRemaining(
 
 export type TimeFormatDate = Date | string;
 
-export function timeFormat(
-    date: TimeFormatDate,
-    discordFormat = false,
-    format: TimestampStylesString = "f",
-) {
+export function timeFormat(date: TimeFormatDate, discordFormat = false, format: TimestampStylesString = "f") {
     if (discordFormat) {
         return Time(new Date(date), format);
     }
-    return `${new Date(date || new Date()).toLocaleString(
-        "en-US",
-        times.timeZone ? { timeZone: times.timeZone } : undefined,
-    )}${times.short ? ` (${times.short})` : ""}`;
+    return `${new Date(date || new Date()).toLocaleString("en-US", times.timeZone ? { timeZone: times.timeZone } : undefined)}${times.short ? ` (${times.short})` : ""}`;
 }
 
 export const time = {
