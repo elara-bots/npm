@@ -85,3 +85,25 @@ client.on("ready", () => {
 
 client.login("BOT TOKEN HERE")
 ```
+
+
+## Want to have a select menu instead of button(s)?
+> Just use `<Ticket>.prefix` for the select menu option value
+```js
+{
+    "custom_id": "....", // This can be anything.
+    "max_values": 1,
+    "min_values": 1,
+    "placeholder": "Select a ticket type below",
+    "options": [
+        { "label": "Support", "value": supportTicket.prefix, "description": "Open an Support ticket for x, y, z." },
+        { "label": "Moderator", "value": modTicket.prefix, "description": "Open an Moderator ticket for x, y, z." },
+        // etc.
+        // Just make sure you use `<Ticket>.prefix` for the value of the option.
+    ]
+}
+```
+
+# Want to make the bot / responses be in a certain lagnauge? 
+Make a PR request with the language you would like to see in [elara-bots/npm](https://github.com/elara-bots/npm) GitHub repo
+- Copy the contents of `./languages/en-US.js`
