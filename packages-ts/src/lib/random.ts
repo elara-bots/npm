@@ -2047,3 +2047,36 @@ export function randomWords(options: RandomWord): string | string[] {
 
     return results;
 }
+
+export interface RandomNumberOptions {
+    min?: number;
+    max?: number;
+    integer?: boolean;
+}
+
+export function randomNumber(options?: RandomNumberOptions) {
+    const { min, max, integer } = getDefaultsForRandomNumber(options);
+    if (max === min) {
+        return min;
+    }
+    const r = Math.random() * (max - min + Number(!!integer)) + min;
+    return integer ? Math.floor(r) : r;
+}
+
+function getDefaultsForRandomNumber(options?: RandomNumberOptions) {
+    if (!is.object(options)) {
+        options = {};
+    }
+    let min: number = options.min || 0;
+    let max: number = options.max || 1;
+    const integer = options.integer || false;
+    if (!is.number(min, false)) {
+        min = max - 1;
+    } else if (!is.number(max, false)) {
+        max = min + 1;
+    }
+    if (max < min) {
+        throw new Error("invalid options, max must be >= min");
+    }
+    return { min, max, integer };
+}

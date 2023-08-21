@@ -1,5 +1,5 @@
 import { is } from "@elara-services/utils";
-import { ComponentType } from "discord-api-types/v10";
+import { APISelectMenuOption, ComponentType } from "discord-api-types/v10";
 import type {
     ButtonNumberStyles,
     ButtonOptions,
@@ -68,7 +68,7 @@ export const Interactions = {
             placeholder: "",
             min_values: 0,
             max_values: 0,
-            options: [],
+            options: [] as unknown[],
             type: 3,
             disabled: false,
         };
@@ -101,7 +101,7 @@ export const Interactions = {
             data.type = options.type;
         }
         if (is.array(options.options)) {
-            data.options === options.options;
+            data.options = options.options;
         }
 
         return data;
@@ -132,16 +132,26 @@ export const Interactions = {
         return data;
     },
 
-    textInput: (options: TextInputOptions = {}, row = false) => {
-        const data = {
+    textInput: (options: TextInputOptions = {}, row = true) => {
+        const data: {
+            type: number;
+            custom_id: string | undefined;
+            style: number;
+            label: string | undefined;
+            min_length: number | undefined;
+            max_length: number | undefined;
+            placeholder: string | undefined;
+            value: string | undefined;
+            required: boolean | undefined;
+        } = {
             type: 4,
-            custom_id: "",
+            custom_id: undefined,
             style: 1,
-            label: "",
-            min_length: 0,
-            max_length: 0,
-            placeholder: "",
-            value: "",
+            label: undefined,
+            min_length: undefined,
+            max_length: undefined,
+            placeholder: undefined,
+            value: undefined,
             required: false,
         };
         if (is.number(options.type)) {
@@ -396,18 +406,18 @@ export const SlashBuilder = {
             name_localizations: Record<string, string> | undefined;
             description_localizations: Record<string, string> | undefined;
             options: unknown[];
-            type: number;
+            type: number | undefined;
             dm_permission: boolean;
-            default_member_permissions: string;
+            default_member_permissions: string | undefined;
         } = {
             name,
             description,
             name_localizations: undefined,
             description_localizations: undefined,
             options: [],
-            type: 0,
+            type: undefined,
             dm_permission: false,
-            default_member_permissions: "",
+            default_member_permissions: undefined,
         };
         if (options?.locale?.names) {
             obj.name_localizations = options.locale.names;
