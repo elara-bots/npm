@@ -1,4 +1,5 @@
-import { Guild, GuildMember, User, time } from "discord.js";
+import { Guild, GuildMember, User } from "discord.js";
+import { timeFormat } from "./times";
 
 export async function parser(obj: object = {}, options: ParserOptions = {}): Promise<object> {
     let str = JSON.stringify(obj);
@@ -23,7 +24,7 @@ export async function parser(obj: object = {}, options: ParserOptions = {}): Pro
         r([p.guild.banner], guild.bannerURL() as string);
         r([p.guild.splash], guild.discoverySplashURL() as string);
         r([p.guild.created], guild.createdAt.toLocaleString());
-        r([p.guild.createdDiscordTimestamp], time(guild.createdAt, "f"));
+        r([p.guild.createdDiscordTimestamp], timeFormat(guild.createdAt, true, "f"));
         r([p.guild.vanity], guild.vanityURLCode || "N/A");
         r([p.guild.features], guild.features.join(", "));
     }
@@ -36,7 +37,7 @@ export async function parser(obj: object = {}, options: ParserOptions = {}): Pro
         r([p.user.accentColor], user.hexAccentColor || "N/A");
         r([p.user.banner], user.bannerURL() || "");
         r([p.user.created], user.createdAt.toLocaleString());
-        r([p.user.createdDiscordTimestamp], time(user.createdAt, "f"));
+        r([p.user.createdDiscordTimestamp], timeFormat(user.createdAt, true, "f"));
     }
 
     if (options.member) {
@@ -44,13 +45,13 @@ export async function parser(obj: object = {}, options: ParserOptions = {}): Pro
         r([p.member.avatar], member.displayAvatarURL());
         r([p.member.joined], member.joinedAt?.toLocaleString() || "N/A");
         if (member.joinedAt) {
-            r([p.member.joinedDiscordTimestamp], time(member.joinedAt, "f"));
+            r([p.member.joinedDiscordTimestamp], timeFormat(member.joinedAt, true, "f"));
         }
         r([p.member.nickname], member.nickname || "N/A");
         r([p.member.roles], member.roles.cache.map((c) => `\`${c.name}\``).join(", "));
         if (member.communicationDisabledUntil) {
             r([p.member.timeout], member.communicationDisabledUntil?.toLocaleString() || "N/A");
-            r([p.member.timeoutDiscordTimestamp], time(member.communicationDisabledUntil, "f"));
+            r([p.member.timeoutDiscordTimestamp], timeFormat(member.communicationDisabledUntil, true, "f"));
         }
     }
 

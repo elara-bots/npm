@@ -1,4 +1,5 @@
-import { Channel, Client, EmbedBuilder, Guild, GuildMember, Message, MessageCreateOptions, MessagePayload, Role, SnowflakeGenerateOptions, SnowflakeUtil, User, type PermissionResolvable } from "discord.js";
+import { Collection } from "@discordjs/collection";
+import { Channel, Client, EmbedBuilder, Guild, GuildMember, Message, MessageCreateOptions, MessagePayload, Role, SnowflakeGenerateOptions, SnowflakeUtil, User, type GuildBan, type PermissionResolvable } from "discord.js";
 import { is, sleep } from "./extra";
 export type errorHandler = (e: Error) => unknown;
 
@@ -37,6 +38,38 @@ export function canTakeActionAgainstMember(mod: GuildMember, member: GuildMember
         return false;
     }
     return true;
+}
+
+export async function fetchAllGuildBans(
+    guild: Guild,
+    options: {
+        after?: string;
+        before?: string;
+        limit?: number;
+    },
+) {
+    const bans = [
+        ...(
+            await guild.bans
+                .fetch({
+                    after: options.after,
+                    before: options.before,
+                    limit: options.limit && Math.min(options.limit, 1000),
+                })
+                .catch(() => new Collection())
+        ).values(),
+    ] as GuildBan[];
+
+    if (options.limit && options.limit > 1000 && bans.length >= 1000) {
+        const page = await fetchAllGuildBans(guild, {
+            after: options.before ? undefined : bans[bans.length - 1].user.id,
+            before: options.before ? bans[0].user.id : undefined,
+            limit: options.limit - bans.length,
+        });
+        bans[options.before ? "unshift" : "push"](...page);
+    }
+
+    return bans;
 }
 
 export const discord = {
@@ -179,7 +212,7 @@ export const discord = {
                 messageId: string;
             },
             errorHandler: errorHandler = () => {},
-        ): Promise<Message<true> | Message<false> | null> => {
+        ): Promise<Message | null> => {
             const channel = await discord.channel(client, channelId);
             if (!channel || !("messages" in channel)) {
                 return null;

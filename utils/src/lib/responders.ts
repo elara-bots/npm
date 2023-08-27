@@ -11,10 +11,14 @@ export type MessageEditOption = string | MessagePayload | MessageEditOptions;
 export function embed(): EmbedBuilder {
     return new EmbedBuilder();
 }
-export function comment(description: string, color: keyof typeof DefaultColors | string | number) {
-    return embed()
+export function comment(description: string, color: keyof typeof DefaultColors | string | number, toJSON = false) {
+    const em = embed()
         .setDescription(description)
         .setColor(resolveColor(color) || colors.red);
+    if (toJSON) {
+        return em.toJSON();
+    }
+    return em;
 }
 
 export function getInteractionResponder(interaction: ChatInputCommandInteraction, handleErrors = log) {
