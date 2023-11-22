@@ -1,3 +1,27 @@
+import { Status } from "./interfaces";
+import { name, version } from "../package.json";
+
+export const userAgent = `${name} (${version}, https://github.com/elara-bots/npm)`;
+export function status(message: string | Error | unknown): Status {
+    const obj: Status = {
+        status: false,
+        message: `Unknown error while trying to get the data.`,
+    };
+    if (message instanceof Error) {
+        obj.message = message.message;
+    } else if (typeof message === "string") {
+        obj.message = message;
+    }
+    return obj;
+}
+
+export const links = {
+    docs: `https://elara-services-sdk.pages.dev`,
+    base: "https://my.elara.services",
+    haste: "https://h.elara.workers.dev",
+    support: `https://services.elara.workers.dev/support`,
+} as const;
+
 export const routes = {
     ping: "/site/ping",
     bin: {
@@ -19,8 +43,6 @@ export const routes = {
         facts: (type: string) => `/api/facts?type=${type.toLowerCase()}`,
         memes: (clean: boolean) => `/api/photos/memes?clean=${clean}`,
         ball: `/api/8ball`,
-        dogbreed: (type: string, breed: string) =>
-            `/api/dogbreed?type=${type}&breed=${breed}`,
         npm: (name: string) => `/api/npm?name=${name}`,
         time: {
             place: (name: string) =>
@@ -55,9 +77,9 @@ export const routes = {
                     mod: string;
                 }) =>
                     `/dev/blacklists/servers?id=${id}&action=${action}&name=${encodeURIComponent(
-                        name
+                        name,
                     )}&reason=${encodeURIComponent(
-                        reason
+                        reason,
                     )}&mod=${encodeURIComponent(mod)}`,
                 list: (id: string) => `/dev/blacklists/servers?id=${id}`,
             },
@@ -78,11 +100,11 @@ export const routes = {
                     mod: string;
                 }) =>
                     `/dev/blacklists/users?id=${id}&action=${action}&username=${encodeURIComponent(
-                        username
+                        username,
                     )}&tag=${encodeURIComponent(
-                        tag
+                        tag,
                     )}&reason=${encodeURIComponent(
-                        reason
+                        reason,
                     )}&mod=${encodeURIComponent(mod)}`,
                 list: (id: string) => `/dev/blacklists/users?id=${id}`,
             },
@@ -92,23 +114,14 @@ export const routes = {
     platform: {
         ytstats: (user: string, token: string) =>
             `/api/platform/yt-stats?user=${user}&token=${token}`,
-        twitch: (token: string, name: string) =>
-            `/api/platform/twitch?user=${name}&token=${token}`,
         roblox: (id: string, group: boolean) =>
             `/api/platform/roblox${group ? `-group` : ""}?id=${id}`,
         fortnite: (user: string, token: string, platform: string) =>
             `/api/platform/fortnite?user=${user}&token=${token}&platform=${platform}`,
-        paladins: (
-            devId: string,
-            auth: string,
-            platform: string,
-            username: string
-        ) =>
-            `/api/platform/paladins?devID=${devId}&auth=${auth}&platform=${platform}&user=${username}`,
         imdb: (name: string, token: string) =>
             `/api/platform/imdb?token=${token}&show=${name}`,
         ytsearch: (name: string, type: string, token: string) =>
             `/api/platform/yt-search?token=${token}&name=${name}&type=${type}`,
         picarto: (search: string) => `/api/platform/picarto?search=${search}`,
     },
-};
+} as const;

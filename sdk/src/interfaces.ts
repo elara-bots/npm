@@ -6,15 +6,11 @@ export interface HasteOptions {
 }
 
 export interface Base {
-    status: boolean;
+    status: true;
 }
 
 export interface Ping extends Base {
     time: number;
-}
-
-export interface Status extends Base {
-    message: string;
 }
 
 export interface HasteGet extends Base {
@@ -460,6 +456,11 @@ export interface BlacklistUser extends Base {
 export interface BlacklistUserAll extends Base {
     ids: string[];
     all: BlacklistedUser[];
+}
+
+export interface Status {
+    status: false;
+    message: string;
 }
 
 export type Response<T> = Promise<T | Status>;
