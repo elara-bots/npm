@@ -12,6 +12,7 @@ module.exports = class Tickets extends base {
      */
     constructor(options = {}) {
         super(options);
+        this.options = options;
     }
     /**
      * @param {import("discord.js").Interaction} int
@@ -40,12 +41,12 @@ module.exports = class Tickets extends base {
              */
             const send = async (options = {}, defer = false) => {
                 if (defer) {
-                    return int.deferReply(options).catch(this._debug);
+                    return int.deferReply(options).catch((e) => this._debug(e));
                 }
                 if (int.replied || int.deferred) {
-                    return int.editReply(options).catch(this._debug);
+                    return int.editReply(options).catch((e) => this._debug(e));
                 }
-                return int.reply(options).catch(this._debug);
+                return int.reply(options).catch((e) => this._debug(e));
             };
             switch (customId) {
                 case this.prefix: {
@@ -59,14 +60,14 @@ module.exports = class Tickets extends base {
                         })
                     ) {
                         return send({
-                            embeds: [embed(this.str("TICKET_LIMIT_ONE_PER_USER")(this.options.prefix), { guild, str: this.str })],
+                            embeds: [embed(this.str("TICKET_LIMIT_ONE_PER_USER")(this.options.prefix), { guild, str: (name) => this.str(name, this?.options?.lang) })],
                             ephemeral: true,
                         });
                     }
                     if (this.options.support?.ignore?.length) {
                         if (this.options.support.ignore.some((c) => member.roles?.cache?.has?.(c))) {
                             return send({
-                                embeds: [embed(this.str("TICKET_BLOCKED"), { str: this.str })],
+                                embeds: [embed(this.str("TICKET_BLOCKED"), { str: (name) => this.str(name, this?.options?.lang) })],
                                 ephemeral: true,
                             });
                         }
@@ -79,10 +80,10 @@ module.exports = class Tickets extends base {
                                         title: this.options.modal?.title,
                                         components: defs.getModalComponents(this.options.modal.questions || []),
                                     },
-                                    { prefix: this.prefix, str: this.str },
+                                    { prefix: this.prefix, str: (name) => this.str(name, this?.options?.lang) },
                                 ),
                             )
-                            .catch(this._debug);
+                            .catch((e) => this._debug(e));
                     }
                     return this.handleCreate({ guild, member, category, send });
                 }
@@ -112,7 +113,7 @@ module.exports = class Tickets extends base {
                             embed(this.str("TICKET_CLOSE_CONFIRM"), {
                                 color: 0xff000,
                                 guild,
-                                str: this.str,
+                                str: (name) => this.str(name, this?.options?.lang),
                             }),
                         ],
                         components: [
@@ -192,7 +193,7 @@ module.exports = class Tickets extends base {
             }
             if (customId.startsWith(`${this.prefix}:close:confirm`)) {
                 if (customId.includes(`:modal_submit`)) {
-                    return int.showModal(defs.modals.reason(customId, this.str)).catch(this._debug);
+                    return int.showModal(defs.modals.reason(customId, (name) => this.str(name, this?.options?.lang))).catch((e) => this._debug(e));
                 }
                 await send({ ephemeral: true }, true);
                 let reason = this.str("NO_REASON");
@@ -202,19 +203,19 @@ module.exports = class Tickets extends base {
                 const user = await discord.user(this.options.client, customId.split("close:confirm:")[1].replace(/:modal_complete/gi, ""), { fetch: true, mock: false });
                 if (!user) {
                     return send({
-                        embeds: [embed(this.str("NO_USER_FOUND"), { str: this.str })],
+                        embeds: [embed(this.str("NO_USER_FOUND"), { str: (name) => this.str(name, this?.options?.lang) })],
                     });
                 }
                 let messages = await fetchMessages(channel, 5000);
                 if (!messages?.length) {
                     return send({
-                        embeds: [embed(this.str("NO_MESSAGES_FETCHED"), { str: this.str })],
+                        embeds: [embed(this.str("NO_MESSAGES_FETCHED"), { str: (name) => this.str(name, this?.options?.lang) })],
                     });
                 }
-                let closed = await channel.delete(`${member.user.tag} (${member.id}) closed the ticket.`).catch(this._debug);
+                let closed = await channel.delete(`${member.user.tag} (${member.id}) closed the ticket.`).catch((e) => this._debug(e));
                 if (!closed) {
                     return send({
-                        embeds: [embed(this.str("NO_CHANNEL_DELETE"), { str: this.str })],
+                        embeds: [embed(this.str("NO_CHANNEL_DELETE"), { str: (name) => this.str(name, this?.options?.lang) })],
                     });
                 }
                 return this.closeTicket({
@@ -230,31 +231,31 @@ module.exports = class Tickets extends base {
             if (customId.startsWith(`${this.prefix}:unban:`)) {
                 if (!int.memberPermissions?.has?.(perms.members.ban)) {
                     return send({
-                        embeds: [embed(this.str("NO_BAN_PERMS_USER"), { str: this.str })],
+                        embeds: [embed(this.str("NO_BAN_PERMS_USER"), { str: (name) => this.str(name, this?.options?.lang) })],
                         ephemeral: true,
                     });
                 }
                 let server = getAppealServer(this.options);
                 if (!server) {
                     return send({
-                        embeds: [embed(this.str("NO_APPEAL_SERVER_FOUND"), { str: this.str })],
+                        embeds: [embed(this.str("NO_APPEAL_SERVER_FOUND"), { str: (name) => this.str(name, this?.options?.lang) })],
                         ephemeral: true,
                     });
                 }
                 const mod = await discord.member(server, member.id, true);
                 if (!mod) {
                     return send({
-                        embeds: [embed(this.str("NOT_FOUND_IN_APPEAL_SERVER")(server), { str: this.str })],
+                        embeds: [embed(this.str("NOT_FOUND_IN_APPEAL_SERVER")(server), { str: (name) => this.str(name, this?.options?.lang) })],
                         ephemeral: true,
                     });
                 }
                 if (!mod.permissions?.has?.(perms.members.ban)) {
                     return send({
-                        embeds: [embed(this.str("NO_BAN_PERMS_USER_IN_APPEAL_SERVER")(server), { str: this.str })],
+                        embeds: [embed(this.str("NO_BAN_PERMS_USER_IN_APPEAL_SERVER")(server), { str: (name) => this.str(name, this?.options?.lang) })],
                         ephemeral: true,
                     });
                 }
-                return int.showModal(defs.modals.unbanReason(customId, server, this.str, member, this.prefix)).catch(this._debug);
+                return int.showModal(defs.modals.unbanReason(customId, server, (name) => this.str(name, this?.options?.lang), member, this.prefix)).catch((e) => this._debug(e));
             }
 
             if (customId.startsWith(`${this.prefix}:unban_modal:`)) {
@@ -262,30 +263,30 @@ module.exports = class Tickets extends base {
                 const [, , id] = customId.split(":");
                 if (!int.memberPermissions?.has?.(perms.members.ban)) {
                     return send({
-                        embeds: [embed(this.str("NO_BAN_PERMS_USER"), { str: this.str })],
+                        embeds: [embed(this.str("NO_BAN_PERMS_USER"), { str: (name) => this.str(name, this?.options?.lang) })],
                     });
                 }
                 let server = getAppealServer(this.options);
                 if (!server) {
                     return send({
-                        embeds: [embed(this.str("NO_APPEAL_SERVER_FOUND"), { str: this.str })],
+                        embeds: [embed(this.str("NO_APPEAL_SERVER_FOUND"), { str: (name) => this.str(name, this?.options?.lang) })],
                     });
                 }
                 const mod = await discord.member(server, member.id, true);
                 if (!mod) {
                     return send({
-                        embeds: [embed(this.str("NOT_FOUND_IN_APPEAL_SERVER")(server), { str: this.str })],
+                        embeds: [embed(this.str("NOT_FOUND_IN_APPEAL_SERVER")(server), { str: (name) => this.str(name, this?.options?.lang) })],
                     });
                 }
                 if (!mod.permissions?.has?.(perms.members.ban)) {
                     return send({
-                        embeds: [embed(this.str("NO_BAN_PERMS_USER_IN_APPEAL_SERVER")(server), { str: this.str })],
+                        embeds: [embed(this.str("NO_BAN_PERMS_USER_IN_APPEAL_SERVER")(server), { str: (name) => this.str(name, this?.options?.lang) })],
                     });
                 }
-                let isBanned = await server.bans.fetch({ user: id, force: true }).catch(this._debug);
+                let isBanned = await server.bans.fetch({ user: id, force: true }).catch((e) => this._debug(e));
                 if (!isBanned) {
                     return send({
-                        embeds: [embed(this.str("USER_NOT_BANNED")(id), { str: this.str })],
+                        embeds: [embed(this.str("USER_NOT_BANNED")(id), { str: (name) => this.str(name, this?.options?.lang) })],
                     });
                 }
                 return server.bans
@@ -308,9 +309,9 @@ module.exports = class Tickets extends base {
                                     },
                                 ],
                             })
-                            .catch(this._debug);
+                            .catch((e) => this._debug(e));
                         send({
-                            embeds: [embed(this.str("UNBAN_SUCCESS")(id, server.name), { str: this.str })],
+                            embeds: [embed(this.str("UNBAN_SUCCESS")(id, server.name), { str: (name) => this.str(name, this?.options?.lang) })],
                         });
                     })
                     .catch((e) =>
@@ -334,7 +335,15 @@ module.exports = class Tickets extends base {
         }
     }
 
-    /** @private */
+    /**
+     * @param {object} [opts]
+     * @param {import("discord.js").Guild} opts.guild
+     * @param {import("discord.js").GuildMember} opts.member
+     * @param {string} opts.category
+     * @param {Function} opts.send
+     * @param {import("discord.js").APIEmbed[]} opts.embeds
+     * @private
+     */
     async handleCreate({ guild, member, category, send, embeds = [] } = {}) {
         await send({ ephemeral: true }, true);
         let [permissions, { appeals }, sendBanReason] = [[], this.options ?? {}, null];
@@ -366,7 +375,7 @@ module.exports = class Tickets extends base {
         if (appeals?.enabled) {
             let server = getAppealServer(this.options);
             if (server) {
-                let ban = await server.bans.fetch({ user: member.id, force: true }).catch(this._debug);
+                let ban = await server.bans.fetch({ user: member.id, force: true }).catch((e) => this._debug(e));
                 if (!ban) {
                     return send(
                         typeof appeals.embeds?.not_banned === "object"
@@ -376,7 +385,7 @@ module.exports = class Tickets extends base {
                                       embed(this.str("NOT_BANNED_MAIN_SERVER"), {
                                           guild,
                                           color: 0xff0000,
-                                          str: this.str,
+                                          str: (name) => this.str(name, this?.options?.lang),
                                       }),
                                   ],
                               },
@@ -387,7 +396,7 @@ module.exports = class Tickets extends base {
                         embed(ban?.reason ?? this.str("NO_REASON"), {
                             title: this.str("BAN_REASON"),
                             guild: server,
-                            str: this.str,
+                            str: (name) => this.str(name, this?.options?.lang),
                         }),
                     ],
                     components: [
@@ -429,9 +438,9 @@ module.exports = class Tickets extends base {
                     ...permissions,
                 ],
             })
-            .catch(this._debug);
+            .catch((e) => this._debug(e));
         if (!channel) {
-            return send({ embeds: [embed(this.str("NO_CHANNEL_CREATE"), { str: this.str })] });
+            return send({ embeds: [embed(this.str("NO_CHANNEL_CREATE"), { str: (name) => this.str(name, this?.options?.lang) })] });
         }
         let embs = await Promise.all(
             (
@@ -441,7 +450,7 @@ module.exports = class Tickets extends base {
                         color: 0xf50de3,
                         guild,
                         footer: { text: this.str("OPEN_TICKET_MESSAGE_FOOTER") },
-                        str: this.str,
+                        str: (name) => this.str(name, this?.options?.lang),
                     }),
                 ]
             ).map((c) => parser(c, { guild, member, user: member.user })),
@@ -464,18 +473,36 @@ module.exports = class Tickets extends base {
                         ],
                     },
                 ],
+                allowedMentions: {
+                    users: [member.id, ...this.getSupportIds.users],
+                    roles: [...this.getSupportIds.roles],
+                },
             })
-            .catch(this._debug);
+            .catch((e) => this._debug(e));
         if (!msg) {
             return null;
         }
         if (sendBanReason) {
-            await channel.send(sendBanReason).catch(this._debug);
+            await channel.send(sendBanReason).catch((e) => this._debug(e));
         }
         if (embeds?.length <= 10) {
             for await (const embed of embeds) {
-                await channel.send({ embeds: [embed] }).catch(this._debug);
+                await channel.send({ embeds: [embed] }).catch((e) => this._debug(e));
             }
+        }
+        if (this.options.ticket?.supportCommentThread === true) {
+            await channel.threads
+                .create({
+                    name: this.str("SUPPORT_TALK"),
+                    invitable: false,
+                    type: 12,
+                    startMessage: !this.getSupportIds.empty
+                        ? {
+                              content: `${this.getSupportIds.roles.length ? this.getSupportIds.roles.map((c) => `<@&${c}>`).join(" ") : ""}${this.getSupportIds.users.length ? `${this.getSupportIds.roles.length ? ` | ` : ""}${this.getSupportIds.users.map((c) => `<@${c}>`).join(" ")}` : ""}`,
+                          }
+                        : undefined,
+                })
+                .catch((e) => this._debug(e));
         }
         if (this.webhookOptions.id && this.webhookOptions.token) {
             webhook(this.webhookOptions)
@@ -487,11 +514,11 @@ module.exports = class Tickets extends base {
                             text: `${this.str("TICKET_ID")} ${channel.name.split("-")[1]}`,
                         },
                         guild,
-                        str: this.str,
+                        str: (name) => this.str(name, this?.options?.lang),
                     }),
                 )
                 .send()
-                .catch(this._debug);
+                .catch((e) => this._debug(e));
         }
         return send({
             embeds: [
@@ -501,7 +528,7 @@ module.exports = class Tickets extends base {
                         name: this.str("OPEN_TICKET_CREATE"),
                         icon_url: `https://cdn.discordapp.com/emojis/476629550797684736.gif`,
                     },
-                    str: this.str,
+                    str: (name) => this.str(name, this?.options?.lang),
                 }),
             ],
             components: [

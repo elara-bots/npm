@@ -40,6 +40,7 @@ module.exports = {
     CLOSED_TICKET: "closed the ticket.",
     FORM_RESPONSE: "Form Response",
     MODAL_CONTENT: "Content",
+    SUPPORT_TALK: "Support Talk",
     ONLY_SUPPORT: "Only support staff can close tickets",
     GO_TO_TICKET: "Go to ticket",
     CLOSE_TICKET: "Close Ticket",

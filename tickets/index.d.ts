@@ -50,8 +50,12 @@ declare module "@elara-services/tickets" {
         ticket?: {
             category?: string;
             closeReason?: boolean;
+            supportCommentThread?: boolean;
             limitOnePerUser?: boolean;
             open?: Pick<MessageOptions, "content" | "embeds">
+            close?: {
+                confirm?: Pick<MessageOptions, "content" | "embeds">
+            }
         }
     }
 
@@ -132,7 +136,7 @@ declare module "@elara-services/tickets" {
             users: string[];
         };
 
-        public str(name: keyof LangFile): string;
+        public str(name: keyof LangFile, lang?: Langs): string;
 
         public button(options: { style: 1 | 2 | 3 | 4 | 5 | number, id?: string, label?: string, emoji?: { name?: string, id?: string } }): { type: number, custom_id: string, style: number, label?: string, emoji?: { name?: string, id?: string } }
         public closeTicket(options: {
@@ -144,6 +148,7 @@ declare module "@elara-services/tickets" {
         }): Promise<unknown>;
 
         public run(int: Interaction): Promise<unknown>;
+        public runMany(interaction: Interaction, tickets: Tickets[]): this;
         public starterMessage(channelId: string, options?: Pick<MessageOptions, "embeds" | "content" | "components" | "attachments">): Promise<unknown>;
     };
 

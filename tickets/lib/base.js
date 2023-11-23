@@ -2,7 +2,7 @@ const { getWebhookInfo, displayMessages, de, webhook, getString } = require("./u
 const {
     Interactions: { button },
 } = require("@elara-services/packages");
-const { is } = require("@elara-services/utils");
+const { is, status, isV13 } = require("@elara-services/utils");
 const { WebhookClient } = require("discord.js");
 const required = ["client", "prefix", "encryptToken"];
 
@@ -34,16 +34,15 @@ module.exports = class Tickets {
         return {
             roles: this.options.support?.roles || [],
             users: this.options.support?.users || [],
+            empty: [...(this.options.support?.roles || []), ...(this.options.support?.users || [])].length ? false : true,
         };
     }
 
     /**
-     *
      * @param {import("discord.js").Interaction} interation
      * @param {Tickets[]} tickets
-     * @returns
      */
-    runMultiple(interation, tickets = []) {
+    runMany(interation, tickets = []) {
         if (!interation || !is.array(tickets)) {
             return this;
         }
@@ -53,15 +52,74 @@ module.exports = class Tickets {
         return this;
     }
 
+    get manage() {
+        return {
+            add: async (channelId, userId, permType = "member") => {
+                const channel = this.options.client.channels.resolve(channelId);
+                if (!channel) {
+                    return status.error(`Unable to find (${channelId}) channel`);
+                }
+                let mod = permType === "mod";
+                let perms = {};
+                if (isV13()) {
+                    perms = {
+                        VIEW_CHANNEL: true,
+                        SEND_MESSAGES: true,
+                        READ_MESSAGE_HISTORY: true,
+                        ATTACH_FILES: true,
+                        EMBED_LINKS: true,
+                        USE_EXTERNAL_EMOJIS: true,
+                    };
+                    if (mod) {
+                        perms["MANAGE_MESSAGES"] = true;
+                        perms["MANAGE_THREADS"] = true;
+                    }
+                } else {
+                    perms = {
+                        ViewChannel: true,
+                        SendMessages: true,
+                        ReadMessageHistory: true,
+                        AttachFiles: true,
+                        EmbedLinks: true,
+                        UseExternalEmojis: true,
+                    };
+                    if (mod) {
+                        perms["ManageMessages"] = true;
+                        perms["ManageThreads"] = true;
+                    }
+                }
+                return channel.permissionOverwrites
+                    .edit(userId, perms, {
+                        reason: `Added to the ticket.`,
+                    })
+                    .then(() => status.success(`Added to the ticket.`))
+                    .catch((e) => status.error(e.message || e));
+            },
+            remove: async (channelId, userId) => {
+                const channel = this.options.client.channels.resolve(channelId);
+                if (!channel) {
+                    return status.error(`Unable to find (${channelId}) channel`);
+                }
+                return channel.permissionOverwrites
+                    .delete(userId, `Removed from the ticket.`)
+                    .then(() => status.success(`Removed from the ticket.`))
+                    .catch((e) => status.error(e.message || e));
+            },
+        };
+    }
+
     /**
      * @param {keyof typeof import("../languages/en-US")} name
      */
-    str(name) {
-        return getString(name, this.options?.lang || "en-US");
+    str(name, lang = "en-US") {
+        return getString(name, lang || this?.options?.lang || "en-US");
     }
 
     /** @private */
     _debug(...args) {
+        if (!is.object(this.options)) {
+            return null;
+        }
         if (this.options?.debug) {
             console.log(...args);
         }
@@ -82,6 +140,14 @@ module.exports = class Tickets {
             emoji: options.emoji,
         });
     }
+    /**
+     * @param {object} opts
+     * @param {import("discord.js").GuildMember} opts.member
+     * @param {import("discord.js").TextChannel} opts.channel
+     * @param {import("discord.js").Guild} opts.guild
+     * @param {import("discord.js").User} opts.user
+     * @param {string} opts.reason
+     */
     async closeTicket({ member, messages, channel, guild, user, reason } = {}) {
         const { id, token, username, avatar: avatarURL, threadId } = this.webhookOptions;
         if (!id || !token) {
@@ -119,7 +185,7 @@ module.exports = class Tickets {
                 files: [
                     {
                         name: `${this.str("TRANSCRIPT")}.txt`,
-                        attachment: Buffer.from(displayMessages(channel, messages.reverse(), channel.name.split("-")[1], this.options.prefix, this.str)),
+                        attachment: Buffer.from(displayMessages(channel, messages.reverse(), channel.name.split("-")[1], this.options.prefix, (name) => this.str(name, this?.options?.lang))),
                     },
                 ],
             })
