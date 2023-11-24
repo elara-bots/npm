@@ -1,6 +1,7 @@
 import { fetch } from "@elara-services/fetch";
 import { getEntries, is, parser as P } from "@elara-services/utils";
-import type { Guild, GuildMember, User, VoiceState } from "discord.js";
+import type { Client, Guild, GuildMember, User, VoiceState } from "discord.js";
+import { name, version } from "../../package.json";
 import {
     AmariLevel,
     CachedOptions,
@@ -8,10 +9,13 @@ import {
     MEEShitLevel,
     Users,
 } from "../interfaces";
-import { name, version } from "../../package.json";
 
 export function random(min: number, max: number) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+export function getClientIntents(client: Client) {
+    return (client.options.intents?.bitfield || client.options.intents) as number;
 }
 
 export function incUserStat(

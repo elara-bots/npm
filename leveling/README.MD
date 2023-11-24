@@ -10,7 +10,7 @@
 ----
 
 ## REQUIRED: 
-- `client`: A v14 discord.js client. (this will not work with any version below v14)
+- `client`: A v13/v14 discord.js client. (this will not work with any version below v13)
 - `mongodb_uri`: A mongodb connection uri. (this is for the package to save the data for servers/users/weekly)
 
 ## Features: 

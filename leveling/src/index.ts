@@ -1,21 +1,18 @@
-import { is, p } from "@elara-services/utils";
+import { hasBit, is, p } from "@elara-services/utils";
 import {
     APIEmbed,
     Client,
-    Events as DEvents,
-    IntentsBitField,
     Message,
-    PermissionFlagsBits,
     TextBasedChannel,
     VoiceState,
     type GuildMember,
-    type PartialGuildMember,
+    type PartialGuildMember
 } from "discord.js";
 import { EventEmitter } from "events";
 import type { CachedOptions, Settings, UserCache, Users } from "./interfaces";
 import { Database } from "./services";
 import { API } from "./services/api";
-import { getVoiceMultiplier, incUserStat, parser, random } from "./utils";
+import { getClientIntents, getVoiceMultiplier, incUserStat, parser, random } from "./utils";
 export type * from "./interfaces";
 export type * from "./services";
 export type * from "./services/api";
@@ -102,29 +99,15 @@ export class Leveling extends Database {
             return true;
         }
         this.#listening = true;
-        if (
-            this.client.options.intents.has(IntentsBitField.Flags.GuildMessages)
-        ) {
-            this.client.on(
-                DEvents.MessageCreate,
-                (m) => void this.#messageCreate(m)
-            );
+        const intents = getClientIntents(this.client);
+        if (hasBit(intents, 512 /* Guild Messages */)) {
+            this.client.on("messageCreate", (m) => void this.#messageCreate(m));
         }
-        if (
-            this.client.options.intents.has(IntentsBitField.Flags.GuildMembers)
-        ) {
-            this.client.on(DEvents.GuildMemberRemove, (m) =>
-                this.#guildMemberRemove(m)
-            );
+        if (hasBit(intents, 2 /* Guild Members */)) {
+            this.client.on("guildMemberRemove", (m) => this.#guildMemberRemove(m));
         }
-        if (
-            this.client.options.intents.has(
-                IntentsBitField.Flags.GuildVoiceStates
-            )
-        ) {
-            this.client.on(DEvents.VoiceStateUpdate, (o, n) =>
-                this.#voiceStateUpdate(o, n)
-            );
+        if (hasBit(intents, 128 /* Guild Voice States */)) {
+            this.client.on("voiceStateUpdate", (o, n) => this.#voiceStateUpdate(o, n));
         }
     }
 
@@ -373,11 +356,7 @@ export class Leveling extends Database {
                 });
             }
             if (find) {
-                if (
-                    member.guild.members.me?.permissions.has(
-                        PermissionFlagsBits.ManageRoles
-                    )
-                ) {
+                if (member.guild.members.me?.permissions.has(268435456n)) {
                     roles = roles.filter((c) => !find.roles.remove.includes(c));
                     if (!db.toggles.stackRoles) {
                         roles = roles.filter((c) => !allLevelRoles.includes(c));
@@ -438,8 +417,8 @@ export class Leveling extends Database {
                         allowedMentions:
                             profile.data.toggles.pings === true
                                 ? {
-                                      parse: [],
-                                  }
+                                    parse: [],
+                                }
                                 : undefined,
                     })
                     .catch(() => null);

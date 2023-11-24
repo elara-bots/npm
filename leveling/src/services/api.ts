@@ -1,5 +1,4 @@
-import { chunk, discord, is, ms, status } from "@elara-services/utils";
-import { IntentsBitField, SnowflakeUtil } from "discord.js";
+import { chunk, discord, hasBit, is, ms, snowflakes, status } from "@elara-services/utils";
 import { Leveling } from "..";
 import { Leaderboards, RankProfiles } from "../canvas";
 import type {
@@ -21,7 +20,7 @@ import type {
     Users,
     Weekly,
 } from "../interfaces";
-import { colors, fetchAllUsers, incUserStat } from "../utils";
+import { colors, fetchAllUsers, getClientIntents, incUserStat } from "../utils";
 
 const message = `Unable to find/create the user's profile.`;
 const server_not_found = `Unable to find/create the server's data.`;
@@ -882,7 +881,7 @@ export class API {
                                         : null,
                                     bot: user?.bot || false,
                                     createdAt: new Date(
-                                        SnowflakeUtil.timestampFrom(db.userId)
+                                        parseInt(`${snowflakes.get(db.userId).timestamp}`)
                                     ),
                                 },
                             });
@@ -1480,11 +1479,7 @@ export class API {
             return status.error(`Unable to fetch (${userId})'s Discord info`);
         }
         let memberStatus;
-        if (
-            this.#client.client.options.intents.has(
-                IntentsBitField.Flags.GuildPresences
-            )
-        ) {
+        if (hasBit(getClientIntents(this.#client.client), 256 /* Guild Presences */)) {
             const guild = this.#client.client.guilds.resolve(guildId);
             if (guild && guild.available) {
                 const member = await discord.member(guild, userId, true, true);
