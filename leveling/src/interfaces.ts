@@ -1,4 +1,4 @@
-import type { APIEmbed } from "discord.js";
+import type { APIEmbed } from "discord-api-types/v10";
 import type { Document, Types } from "mongoose";
 
 export interface Users {
@@ -59,7 +59,15 @@ export interface Users {
         type: ColorType;
         color: string;
     }[];
+
+    cooldowns: {
+        name: CooldownType;
+        date: number;
+        cooldown: number;
+    }[];
 }
+
+export type CooldownType = "xp";
 
 export type ColorType =
     | "canvacord.username"
@@ -119,7 +127,11 @@ export interface WeeklyUser {
     voice: number;
     xp: number;
 }
-
+export type AnnounceToggleTypes =
+    | "dm"
+    | "channel"
+    | "ping"
+    | "onlyRegisteredLevels";
 export type ServerToggleTypes =
     | "leveling"
     | "resetOnLeave"
@@ -233,11 +245,16 @@ export interface Settings {
     };
     levels: {
         level: number; // Level required to gain the levels before.
+        levelName: string;
         options: Options;
         roles: {
             add: string[];
             remove: string[];
         };
+    }[];
+    cooldowns: {
+        roles: string[];
+        seconds: number;
     }[];
     toggles: {
         onlyRegisteredLevels: boolean;
@@ -252,7 +269,7 @@ export interface Settings {
         };
     };
 }
-
+export type IgnoreTypes = "channels" | "roles" | "users";
 export type CachedOptions<D extends object> = Document<unknown, null, D> &
     D & { _id: Types.ObjectId };
 

@@ -14,7 +14,10 @@ export class Database {
         users: model("Users", schemas.users),
         weekly: model("weekly", schemas.weekly),
     };
-    public constructor(url: string, public client: Client) {
+    public constructor(
+        url: string,
+        public client: Client,
+    ) {
         this.#url = url;
         this.#connect();
     }
@@ -42,12 +45,12 @@ export class Database {
                 if (is.array(data)) {
                     if (data.length) {
                         const previousWeek = moment(
-                            moment().endOf("week")
+                            moment().endOf("week"),
                         ).subtract(1, "week");
                         const f = data.find(
                             (c) =>
                                 !c.announced &&
-                                c.endOfWeek === previousWeek.toISOString()
+                                c.endOfWeek === previousWeek.toISOString(),
                         );
                         if (f) {
                             f.announced = true;
@@ -56,7 +59,7 @@ export class Database {
                         }
                     }
                     const find = data.find((c) =>
-                        isThisWeek(new Date(c.endOfWeek))
+                        isThisWeek(new Date(c.endOfWeek)),
                     );
                     if (!find) {
                         return create();
@@ -87,12 +90,12 @@ export class Database {
                 if (is.array(data.users)) {
                     for (const user of data.users) {
                         const find = db.users.find(
-                            (c) => c.userId === user.userId
+                            (c) => c.userId === user.userId,
                         );
                         if (find) {
                             if (is.number(user.level)) {
                                 find.level = Math.floor(
-                                    find.level + user.level
+                                    find.level + user.level,
                                 );
                             }
                             if (is.number(user.xp)) {
@@ -100,12 +103,12 @@ export class Database {
                             }
                             if (is.number(user.messages)) {
                                 find.messages = Math.floor(
-                                    find.messages + user.messages
+                                    find.messages + user.messages,
                                 );
                             }
                             if (is.number(user.voice)) {
                                 find.voice = Math.floor(
-                                    find.voice + user.voice
+                                    find.voice + user.voice,
                                 );
                             }
                         } else {
@@ -181,36 +184,44 @@ export class Database {
         }
         const channel = await discord.channel(
             this.client,
-            db.announce.weekly.channel
+            db.announce.weekly.channel,
         );
-        if (!channel || !channel.isTextBased()) {
+        if (!channel) {
             return;
         }
-        const levels = new Leveling(this.client, "");
+        if ("send" in channel) {
+            const levels = new Leveling(this.client, "");
 
-        const lb = await levels.api.getLeaderboard(
-            data.guildId,
-            {
-                page: 1,
-                perPage: 10,
-                sort: "top",
-                sortBy: "xp",
-            },
-            "canvacord",
-            true
-        );
-        if (!lb.status) {
-            return;
+            const lb = await levels.api.getLeaderboard(
+                data.guildId,
+                {
+                    page: 1,
+                    perPage: 10,
+                    sort: "top",
+                    sortBy: "xp",
+                },
+                "canvacord",
+                true,
+            );
+            if (!lb.status) {
+                return;
+            }
+            // @ts-ignore
+            return channel
+                .send({
+                    content: db.announce.weekly.roles.length
+                        ? db.announce.weekly.roles
+                              .map((c) => `<@&${c}>`)
+                              .join(", ")
+                        : "",
+                    files: [
+                        {
+                            name: "weekly.png",
+                            attachment: Buffer.from(lb.image),
+                        },
+                    ],
+                })
+                .catch(() => null);
         }
-        return channel
-            .send({
-                content: db.announce.weekly.roles.length
-                    ? db.announce.weekly.roles.map((c) => `<@&${c}>`).join(", ")
-                    : "",
-                files: [
-                    { name: "weekly.png", attachment: Buffer.from(lb.image) },
-                ],
-            })
-            .catch(() => null);
     }
 }

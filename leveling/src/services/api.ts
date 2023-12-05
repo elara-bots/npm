@@ -1,13 +1,23 @@
-import { chunk, discord, hasBit, is, ms, snowflakes, status } from "@elara-services/utils";
+import {
+    chunk,
+    discord,
+    hasBit,
+    is,
+    ms,
+    snowflakes,
+    status,
+} from "@elara-services/utils";
 import { Leveling } from "..";
 import { Leaderboards, RankProfiles } from "../canvas";
 import type {
+    AnnounceToggleTypes,
     CachedOptions,
     CanvasLeaderboardTypes,
     CanvasRankProfileTypes,
     CanvasResponse,
     CanvasResponseWithQuery,
     ColorType,
+    IgnoreTypes,
     LeaderboardCanvasOptions,
     LeaderboardFormatted,
     LeaderboardFormattedResponse,
@@ -20,25 +30,38 @@ import type {
     Users,
     Weekly,
 } from "../interfaces";
-import { colors, fetchAllUsers, getClientIntents, incUserStat } from "../utils";
+import {
+    colors,
+    fetchAllUsers,
+    getClientIntents,
+    getGuildIcon,
+    getUserAvatar,
+    incUserStat,
+    save,
+    tog,
+} from "../utils";
 
 const message = `Unable to find/create the user's profile.`;
 const server_not_found = `Unable to find/create the server's data.`;
 const toggle = (bool: boolean) => (bool ? `Enabled` : `Disabled`);
-const save = async (data: { save: () => Promise<unknown> }) => {
-    return data.save().catch(() => null);
-};
+
 export class API {
     #client: Leveling;
     public constructor(client: Leveling) {
         this.#client = client;
     }
 
-    async #handleIgnore(
-        guildId: string,
-        type: "channels" | "roles" | "users",
-        arr: string[]
-    ) {
+    /**
+     * Returns the server name (ID) string
+     */
+    #getServer(guildId: string) {
+        return `\`${
+            this.#client.client.guilds.resolve(guildId)?.name ||
+            "Unknown Server"
+        }\` (${guildId}) server`;
+    }
+
+    async #handleIgnore(guildId: string, type: IgnoreTypes, arr: string[]) {
         const data = await this.#client.getSettings(guildId);
         if (!data) {
             return status.error(server_not_found);
@@ -52,7 +75,7 @@ export class API {
         }
         await save(data);
         return status.success(
-            `Updated (${type}) ignore list in (${guildId}) server.`
+            `Updated (${type}) ignore list in ${this.#getServer(guildId)}`,
         );
     }
 
@@ -81,7 +104,7 @@ export class API {
                                       $in: guildIds,
                                   },
                               }
-                            : {}
+                            : {},
                     )
                     .lean()
                     .catch(() => []);
@@ -100,97 +123,133 @@ export class API {
                     return status.error(server_not_found);
                 }
                 if (type === "leveling") {
-                    data.enabled = data.enabled ? false : true;
+                    data.enabled = tog(data.enabled);
                     await save(data);
                     return status.success(
-                        `${toggle(
-                            data.enabled
-                        )} leveling for (${guildId}) server.`
+                        `${toggle(data.enabled)} leveling for ${this.#getServer(
+                            guildId,
+                        )}`,
                     );
                 } else if (type === "resetOnLeave") {
-                    data.toggles.resetOnLeave = data.toggles.resetOnLeave
-                        ? false
-                        : true;
+                    data.toggles.resetOnLeave = tog(data.toggles.resetOnLeave);
                     await save(data);
                     return status.success(
                         `${toggle(
-                            data.toggles.resetOnLeave
-                        )} resetOnLeave for (${guildId}) server.`
+                            data.toggles.resetOnLeave,
+                        )} resetOnLeave for ${this.#getServer(guildId)}`,
                     );
                 } else if (type === "stackRoles") {
-                    data.toggles.stackRoles = data.toggles.stackRoles
-                        ? false
-                        : true;
+                    data.toggles.stackRoles = tog(data.toggles.stackRoles);
                     await save(data);
                     return status.success(
                         `${toggle(
-                            data.toggles.stackRoles
-                        )} stack roles for (${guildId}) server.`
+                            data.toggles.stackRoles,
+                        )} stack roles for ${this.#getServer(guildId)}`,
                     );
                 } else if (type === "weeklyleaderboard") {
-                    data.toggles.weekly.track = data.toggles.weekly.track
-                        ? false
-                        : true;
+                    data.toggles.weekly.track = tog(data.toggles.weekly.track);
                     await save(data);
                     return status.success(
                         `${toggle(
-                            data.toggles.weekly.track
-                        )} weekly leaderboard for (${guildId}) server.`
+                            data.toggles.weekly.track,
+                        )} weekly leaderboard for ${this.#getServer(guildId)}`,
                     );
                 } else if (type === "voice.xp") {
-                    data.toggles.voice.xp = data.toggles.voice.xp
-                        ? false
-                        : true;
+                    data.toggles.voice.xp = tog(data.toggles.voice.xp);
                     await save(data);
                     return status.success(
                         `${toggle(
-                            data.toggles.voice.xp
-                        )} voice earning for (${guildId}) server.`
+                            data.toggles.voice.xp,
+                        )} voice earning for ${this.#getServer(guildId)}`,
                     );
                 } else if (type === "voice.unmutedRequired") {
-                    data.toggles.voice.shouldBeUnmuted = data.toggles.voice
-                        .shouldBeUnmuted
-                        ? false
-                        : true;
+                    data.toggles.voice.shouldBeUnmuted = tog(
+                        data.toggles.voice.shouldBeUnmuted,
+                    );
                     await save(data);
                     return status.success(
                         `${toggle(
-                            data.toggles.voice.shouldBeUnmuted
-                        )} talking required for voice earning for (${guildId}) server.`
+                            data.toggles.voice.shouldBeUnmuted,
+                        )} talking required for voice earning for ${this.#getServer(
+                            guildId,
+                        )}`,
                     );
                 } else if (type === "weekly.announce") {
-                    data.announce.weekly.enabled = data.announce.weekly.enabled
-                        ? false
-                        : true;
+                    data.announce.weekly.enabled = tog(
+                        data.announce.weekly.enabled,
+                    );
                     await save(data);
                     return status.success(
                         `${toggle(
-                            data.announce.weekly.enabled
-                        )} weekly leaderboard announcements for (${guildId}) server.`
+                            data.announce.weekly.enabled,
+                        )} weekly leaderboard announcements for ${this.#getServer(
+                            guildId,
+                        )}`,
                     );
                 }
                 return status.error(
-                    `You failed to provide any valid toggle options.`
+                    `You failed to provide any valid toggle options.`,
                 );
             },
 
             /**
-             * Set the cooldown for XP earned on a certain server.
+             * Set the cooldown for XP earned on a certain server or create a custom cooldown for certain roles.
              * NOTE: This is in seconds!
              */
-            cooldown: async (guildId: string, seconds: number) => {
+            cooldown: async (
+                guildId: string,
+                seconds: number,
+                roles?: string[],
+            ) => {
                 const data = await this.#client.getSettings(guildId);
                 if (!data) {
                     return status.error(server_not_found);
                 }
-                data.cooldown = seconds;
+                const time = ms.get(seconds * 1000, true);
+                const str = [];
+                if (is.array(roles, false)) {
+                    const changes = [];
+                    const find = data.cooldowns.find(
+                        (c) => c.seconds === seconds,
+                    );
+                    if (find) {
+                        for (const role of roles) {
+                            if (find.roles.includes(role)) {
+                                changes.push(`- ${role}`);
+                                find.roles = find.roles.filter(
+                                    (c) => c !== role,
+                                );
+                            } else {
+                                changes.push(`+ ${role}`);
+                                find.roles.push(role);
+                            }
+                        }
+                        if (!is.array(find.roles)) {
+                            data.cooldowns = data.cooldowns.filter(
+                                (c) => c.seconds !== seconds,
+                            );
+                        }
+                    } else {
+                        changes.push(...roles.map((c) => `+ ${c}`));
+                        data.cooldowns.push({ seconds, roles });
+                    }
+                    str.push(
+                        `Set a custom cooldown (${time}) on ${this.#getServer(
+                            guildId,
+                        )} and updated for the following roles:\n${changes.join(
+                            "\n",
+                        )}`,
+                    );
+                } else {
+                    str.push(
+                        `Set the main cooldown (${time}) on ${this.#getServer(
+                            guildId,
+                        )}`,
+                    );
+                    data.cooldown = seconds;
+                }
                 await save(data);
-                return status.success(
-                    `Set (${ms.get(
-                        seconds * 1000,
-                        true
-                    )}) cooldown for (${guildId}) server.`
-                );
+                return status.success(str.join(" "));
             },
 
             /**
@@ -198,7 +257,7 @@ export class API {
              */
             setXP: async (
                 guildId: string,
-                options: { min?: number; max?: number }
+                options: { min?: number; max?: number },
             ) => {
                 const data = await this.#client.getSettings(guildId);
                 if (!data) {
@@ -216,8 +275,8 @@ export class API {
                 await save(data);
                 return status.success(
                     `I've set the XP (${changes.join(
-                        ", "
-                    )}) for (${guildId}) server.`
+                        ", ",
+                    )}) for ${this.#getServer(guildId)}`,
                 );
             },
 
@@ -233,10 +292,14 @@ export class API {
                     let reason = ``;
                     if (data.announce.weekly.channel === channelId) {
                         data.announce.weekly.channel = "";
-                        reason = `I've reset the weekly announcement channel for (${guildId}) server.`;
+                        reason = `I've reset the weekly announcement channel for ${this.#getServer(
+                            guildId,
+                        )}`;
                     } else {
                         data.announce.weekly.channel = channelId;
-                        reason = `I've set the weekly announcement channel to (${channelId}) for (${guildId}) server.`;
+                        reason = `I've set the weekly announcement channel to (${channelId}) for ${this.#getServer(
+                            guildId,
+                        )}`;
                     }
                     await save(data);
                     return status.success(reason);
@@ -253,7 +316,11 @@ export class API {
                     }
                     let reason = "";
                     if (!is.array(data.announce.weekly.roles)) {
-                        reason = `Added (${roles.length}) roles to the weekly announcement ping roles to (${guildId}) server.`;
+                        reason = `Added (${
+                            roles.length
+                        }) roles to the weekly announcement ping roles to ${this.#getServer(
+                            guildId,
+                        )}`;
                         data.announce.weekly.roles = roles;
                     } else {
                         const arr = [];
@@ -262,7 +329,7 @@ export class API {
                                 arr.push(`- ${role}`);
                                 data.announce.weekly.roles =
                                     data.announce.weekly.roles.filter(
-                                        (c) => c !== role
+                                        (c) => c !== role,
                                     );
                             } else {
                                 arr.push(`+ ${role}`);
@@ -271,8 +338,8 @@ export class API {
                         }
                         if (is.array(arr)) {
                             reason = `Updated the weekly announcement ping roles:\n${arr.join(
-                                " | "
-                            )} in (${guildId}) server`;
+                                " | ",
+                            )} in ${this.#getServer(guildId)}`;
                         }
                     }
                     await save(data);
@@ -286,12 +353,12 @@ export class API {
             import: async (
                 guildId: string,
                 targetGuildId: string,
-                type: "amari" | "mee6" = "amari"
+                type: "amari" | "mee6" = "amari",
             ) => {
                 const data = await fetchAllUsers(targetGuildId, type);
                 if (!is.array(data)) {
                     return status.error(
-                        `Unable to find anyone from (${type}) bot that needed to be imported.`
+                        `Unable to find anyone from (${type}) bot that needed to be imported.`,
                     );
                 }
                 const newData = data.map((c) => ({
@@ -310,6 +377,7 @@ export class API {
                         locked: false,
                         pings: true,
                     },
+                    cooldowns: [],
                 }));
                 const dbs = await this.#client.dbs.users
                     .find({ guildId })
@@ -322,7 +390,7 @@ export class API {
                         .catch(console.error);
                 } else {
                     const insert = newData.filter(
-                        (c) => !dbs.find((r) => c.userId === r.id)
+                        (c) => !dbs.find((r) => c.userId === r.id),
                     );
                     if (is.array(insert)) {
                         amount = insert.length;
@@ -332,7 +400,9 @@ export class API {
                     }
                 }
                 return status.success(
-                    `I've imported (${amount}) users from (${type}) leaderboard for (${guildId}) server.`
+                    `I've imported (${amount}) users from (${type}) leaderboard for ${this.#getServer(
+                        guildId,
+                    )}`,
                 );
             },
 
@@ -340,44 +410,42 @@ export class API {
                 /**
                  * Toggle on/off certain features for a certain server.
                  */
-                toggle: async (
-                    guildId: string,
-                    type: "dm" | "channel" | "ping" | "onlyRegisteredLevels"
-                ) => {
+                toggle: async (guildId: string, type: AnnounceToggleTypes) => {
                     const data = await this.#client.getSettings(guildId);
                     if (!data) {
                         return status.error(server_not_found);
                     }
                     if (type === "ping") {
-                        data.announce.channel.ping = data.announce.channel.ping
-                            ? false
-                            : true;
+                        data.announce.channel.ping = tog(
+                            data.announce.channel.ping,
+                        );
                         await save(data);
                         return status.success(
                             data.announce.channel.ping
                                 ? `I'll now mention users when announcing levels`
-                                : `I'll not mention users when announcing levels`
+                                : `I'll not mention users when announcing levels`,
                         );
                     } else if (type === "onlyRegisteredLevels") {
-                        data.toggles.onlyRegisteredLevels = data.toggles
-                            .onlyRegisteredLevels
-                            ? false
-                            : true;
+                        data.toggles.onlyRegisteredLevels = tog(
+                            data.toggles.onlyRegisteredLevels,
+                        );
                         await save(data);
                         return status.success(
                             data.toggles.onlyRegisteredLevels
                                 ? `I'll only announce levels that is registered.`
-                                : `I'll announce all level ups`
+                                : `I'll announce all level ups`,
                         );
                     }
-                    data.announce[type].enabled = data.announce[type].enabled
-                        ? false
-                        : true;
+                    data.announce[type].enabled = tog(
+                        data.announce[type].enabled,
+                    );
                     await save(data);
                     return status.success(
-                        data.announce[type].enabled
-                            ? `Enabled (${type}) announcements for (${guildId}) server.`
-                            : `Disabled (${type}) announcements for (${guildId}) server.`
+                        `${toggle(
+                            data.announce[type].enabled,
+                        )} (${type}) announcements for ${this.#getServer(
+                            guildId,
+                        )}`,
                     );
                 },
 
@@ -387,7 +455,7 @@ export class API {
                 setMessage: async (
                     guildId: string,
                     type: "dm" | "channel",
-                    options: OptionalOptions
+                    options: OptionalOptions,
                 ) => {
                     const data = await this.#client.getSettings(guildId);
                     if (!data) {
@@ -401,7 +469,9 @@ export class API {
                     }
                     await save(data);
                     return status.success(
-                        `Updated (${type}) announcement message for (${guildId}) server.`
+                        `Updated (${type}) announcement message for ${this.#getServer(
+                            guildId,
+                        )}`,
                     );
                 },
 
@@ -417,8 +487,12 @@ export class API {
                     await save(data);
                     return status.success(
                         channelId
-                            ? `I've set the announce channel to <#${channelId}> (${channelId}) in (${guildId}) server.`
-                            : `Reset the announce channel in (${guildId}) server.`
+                            ? `I've set the announce channel to <#${channelId}> (${channelId}) in ${this.#getServer(
+                                  guildId,
+                              )}`
+                            : `Reset the announce channel in ${this.#getServer(
+                                  guildId,
+                              )}`,
                     );
                 },
             },
@@ -432,10 +506,11 @@ export class API {
                     guildId: string,
                     level: number,
                     options?: {
+                        levelName?: string;
                         add?: string[];
                         remove?: string[];
                         options?: OptionalOptions;
-                    }
+                    },
                 ) => {
                     const data = await this.#client.getSettings(guildId);
                     if (!data) {
@@ -448,11 +523,12 @@ export class API {
                     const find = data.levels.find((c) => c.level === level);
                     if (find) {
                         return status.error(
-                            `Level (${level}) is already registered.`
+                            `Level (${level}) is already registered.`,
                         );
                     }
                     data.levels.push({
                         level,
+                        levelName: options?.levelName || `Level ${level}`,
                         roles,
                         options: {
                             content: options?.options?.content || "",
@@ -465,20 +541,20 @@ export class API {
                         str.push(
                             `- Add Roles: ${roles.add
                                 .map((c) => `<@&${c}>`)
-                                .join(", ")}`
+                                .join(", ")}`,
                         );
                     }
                     if (is.array(roles.remove)) {
                         str.push(
                             `- Remove Roles: ${roles.remove
                                 .map((c) => `<@&${c}>`)
-                                .join(", ")}`
+                                .join(", ")}`,
                         );
                     }
                     return status.success(
-                        `Registered (${level}) Level on ${guildId} server.${
-                            str.length ? `\n${str.join("\n")}` : ""
-                        }`
+                        `Registered (${level}) Level on ${this.#getServer(
+                            guildId,
+                        )}${str.length ? `\n${str.join("\n")}` : ""}`,
                     );
                 },
 
@@ -493,13 +569,17 @@ export class API {
                     const find = data.levels.find((c) => c.level === level);
                     if (!find) {
                         return status.error(
-                            `Unable to find (${level}) level in ${guildId} server.`
+                            `Unable to find (${level}) level in ${this.#getServer(
+                                guildId,
+                            )}`,
                         );
                     }
                     data.levels = data.levels.filter((c) => c.level !== level);
                     await save(data);
                     return status.success(
-                        `Removed (${level}) level from ${guildId} server.`
+                        `Removed (${level}) level from ${this.#getServer(
+                            guildId,
+                        )}`,
                     );
                 },
 
@@ -510,7 +590,7 @@ export class API {
                 addRoles: async (
                     guildId: string,
                     level: number,
-                    roles: string[]
+                    roles: string[],
                 ) => {
                     const data = await this.#client.getSettings(guildId);
                     if (!data) {
@@ -519,13 +599,15 @@ export class API {
                     const find = data.levels.find((c) => c.level === level);
                     if (!find) {
                         return status.error(
-                            `Unable to find (${level}) level in ${guildId} server.`
+                            `Unable to find (${level}) level in ${this.#getServer(
+                                guildId,
+                            )}`,
                         );
                     }
                     for (const role of roles) {
                         if (find.roles.add.includes(role)) {
                             find.roles.add = find.roles.add.filter(
-                                (c) => c !== role
+                                (c) => c !== role,
                             );
                         } else {
                             find.roles.add.push(role);
@@ -533,7 +615,9 @@ export class API {
                     }
                     await save(data);
                     return status.success(
-                        `Updated (${level}) level's (add) roles in (${guildId}) server.`
+                        `Updated (${level}) level's (add) roles in ${this.#getServer(
+                            guildId,
+                        )}`,
                     );
                 },
 
@@ -544,7 +628,7 @@ export class API {
                 removeRoles: async (
                     guildId: string,
                     level: number,
-                    roles: string[]
+                    roles: string[],
                 ) => {
                     const data = await this.#client.getSettings(guildId);
                     if (!data) {
@@ -553,13 +637,15 @@ export class API {
                     const find = data.levels.find((c) => c.level === level);
                     if (!find) {
                         return status.error(
-                            `Unable to find (${level}) level in ${guildId} server.`
+                            `Unable to find (${level}) level in ${this.#getServer(
+                                guildId,
+                            )}`,
                         );
                     }
                     for (const role of roles) {
                         if (find.roles.remove.includes(role)) {
                             find.roles.remove = find.roles.remove.filter(
-                                (c) => c !== role
+                                (c) => c !== role,
                             );
                         } else {
                             find.roles.remove.push(role);
@@ -567,7 +653,9 @@ export class API {
                     }
                     await save(data);
                     return status.success(
-                        `Updated (${level}) level's (remove) roles in (${guildId}) server.`
+                        `Updated (${level}) level's (remove) roles in ${this.#getServer(
+                            guildId,
+                        )}`,
                     );
                 },
 
@@ -577,7 +665,7 @@ export class API {
                 setMessage: async (
                     guildId: string,
                     options: OptionalOptions,
-                    level: number
+                    level: number,
                 ) => {
                     const data = await this.#client.getSettings(guildId);
                     if (!data) {
@@ -586,7 +674,9 @@ export class API {
                     const find = data.levels.find((c) => c.level === level);
                     if (!find) {
                         return status.error(
-                            `Unable to find (${level}) level in (${guildId}) server.`
+                            `Unable to find (${level}) level in ${this.#getServer(
+                                guildId,
+                            )}`,
                         );
                     }
                     if (is.string(options.content, false)) {
@@ -597,7 +687,9 @@ export class API {
                     }
                     await save(data);
                     return status.success(
-                        `Updated (${level}) level's message options in (${guildId}) server.`
+                        `Updated (${level}) level's message options in ${this.#getServer(
+                            guildId,
+                        )}`,
                     );
                 },
             },
@@ -612,18 +704,20 @@ export class API {
                     options?: {
                         roles?: string[];
                         channels?: string[];
-                    }
+                    },
                 ) => {
                     const data = await this.#client.getSettings(guildId);
                     if (!data) {
                         return status.error(server_not_found);
                     }
                     const find = data.multipliers.find(
-                        (c) => c.multiplier === multiplier
+                        (c) => c.multiplier === multiplier,
                     );
                     if (find) {
                         return status.error(
-                            `Multiplier (${multiplier}) already exists in (${guildId}) server.`
+                            `Multiplier (${multiplier}) already exists in ${this.#getServer(
+                                guildId,
+                            )}`,
                         );
                     }
                     data.multipliers.push({
@@ -633,7 +727,9 @@ export class API {
                     });
                     await save(data);
                     return status.success(
-                        `Added (${multiplier}) multiplier to (${guildId}) server.`
+                        `Added (${multiplier}) multiplier to ${this.#getServer(
+                            guildId,
+                        )}`,
                     );
                 },
 
@@ -646,19 +742,23 @@ export class API {
                         return status.error(server_not_found);
                     }
                     const find = data.multipliers.find(
-                        (c) => c.multiplier === multiplier
+                        (c) => c.multiplier === multiplier,
                     );
                     if (!find) {
                         return status.error(
-                            `Multiplier (${multiplier}) doesn't exist in (${guildId}) server.`
+                            `Multiplier (${multiplier}) doesn't exist in ${this.#getServer(
+                                guildId,
+                            )}`,
                         );
                     }
                     data.multipliers = data.multipliers.filter(
-                        (c) => c.multiplier !== find.multiplier
+                        (c) => c.multiplier !== find.multiplier,
                     );
                     await save(data);
                     return status.success(
-                        `Removed (${multiplier}) multiplier to (${guildId}) server.`
+                        `Removed (${multiplier}) multiplier to ${this.#getServer(
+                            guildId,
+                        )}`,
                     );
                 },
 
@@ -668,24 +768,26 @@ export class API {
                 channels: async (
                     guildId: string,
                     multiplier: number,
-                    channels: string[]
+                    channels: string[],
                 ) => {
                     const data = await this.#client.getSettings(guildId);
                     if (!data) {
                         return status.error(server_not_found);
                     }
                     const find = data.multipliers.find(
-                        (c) => c.multiplier === multiplier
+                        (c) => c.multiplier === multiplier,
                     );
                     if (!find) {
                         return status.error(
-                            `Multiplier (${multiplier}) doesn't exist in (${guildId}) server.`
+                            `Multiplier (${multiplier}) doesn't exist in ${this.#getServer(
+                                guildId,
+                            )}`,
                         );
                     }
                     for (const channel of channels) {
                         if (find.channels.includes(channel)) {
                             find.channels = find.channels.filter(
-                                (c) => c !== channel
+                                (c) => c !== channel,
                             );
                         } else {
                             find.channels.push(channel);
@@ -693,7 +795,7 @@ export class API {
                     }
                     await save(data);
                     return status.success(
-                        `Multiplier (${multiplier}) channels is now updated.`
+                        `Multiplier (${multiplier}) channels is now updated.`,
                     );
                 },
 
@@ -703,18 +805,20 @@ export class API {
                 roles: async (
                     guildId: string,
                     multiplier: number,
-                    roles: string[]
+                    roles: string[],
                 ) => {
                     const data = await this.#client.getSettings(guildId);
                     if (!data) {
                         return status.error(server_not_found);
                     }
                     const find = data.multipliers.find(
-                        (c) => c.multiplier === multiplier
+                        (c) => c.multiplier === multiplier,
                     );
                     if (!find) {
                         return status.error(
-                            `Multiplier (${multiplier}) doesn't exist in (${guildId}) server.`
+                            `Multiplier (${multiplier}) doesn't exist in ${this.#getServer(
+                                guildId,
+                            )}`,
                         );
                     }
                     for (const role of roles) {
@@ -726,7 +830,7 @@ export class API {
                     }
                     await save(data);
                     return status.success(
-                        `Multiplier (${multiplier}) roles is now updated.`
+                        `Multiplier (${multiplier}) roles is now updated.`,
                     );
                 },
             },
@@ -757,7 +861,7 @@ export class API {
                 get: async <D>(
                     guildId: string,
                     options?: LeaderboardOptions,
-                    board?: D
+                    board?: D,
                 ) => {
                     let page = options?.page || 1;
                     let perPage = options?.perPage || null;
@@ -774,7 +878,7 @@ export class API {
                             .catch(() => [])) as CachedOptions<Users>[]);
                     if (!is.array(data)) {
                         return status.error(
-                            `Unable to find anyone on the leaderboard.`
+                            `Unable to find anyone on the leaderboard.`,
                         );
                     }
                     const getSorted = () => {
@@ -801,7 +905,7 @@ export class API {
                         }
                         if (!is.array(pages[page - 1])) {
                             return status.error(
-                                `Unable to find anyone on the leaderboard.`
+                                `Unable to find anyone on the leaderboard.`,
                             );
                         }
                         return {
@@ -837,26 +941,26 @@ export class API {
                     guildId: string,
                     options?: LeaderboardOptions,
                     forceStatic?: boolean,
-                    board?: D
+                    board?: D,
                 ) => {
                     const DB = await this.servers.leaderboard.get(
                         guildId,
                         options,
-                        board
+                        board,
                     );
                     if (!DB.status) {
                         return DB;
                     }
 
                     const fetchData = async <D extends LeaderboardUser[]>(
-                        dbs: D
+                        dbs: D,
                     ) => {
                         const users: LeaderboardFormatted[] = [];
                         for await (const db of dbs) {
                             const user = await discord.user(
                                 this.#client.client,
                                 db.userId,
-                                { fetch: true, mock: true }
+                                { fetch: true, mock: true },
                             );
                             users.push({
                                 ...db,
@@ -868,20 +972,19 @@ export class API {
                                     discriminator: user?.discriminator ?? "0",
                                     tag: user?.tag ?? "Unknown User#0",
                                     id: db.userId,
-                                    avatar:
-                                        user?.displayAvatarURL({
-                                            forceStatic,
-                                            extension: forceStatic
-                                                ? "png"
-                                                : undefined,
-                                        }) || "",
+                                    avatar: getUserAvatar(user),
                                     accentColor: user?.hexAccentColor || null,
                                     banner: user?.banner
                                         ? user.bannerURL()
                                         : null,
                                     bot: user?.bot || false,
                                     createdAt: new Date(
-                                        parseInt(`${snowflakes.get(db.userId).timestamp}`)
+                                        parseInt(
+                                            `${
+                                                snowflakes.get(db.userId)
+                                                    .timestamp
+                                            }`,
+                                        ),
                                     ),
                                 },
                             });
@@ -895,7 +998,7 @@ export class API {
                         }
                         if (!is.array(pages[DB.query.page - 1])) {
                             return status.error(
-                                `Unable to find anyone on the leaderboard.`
+                                `Unable to find anyone on the leaderboard.`,
                             );
                         }
                         return {
@@ -919,7 +1022,7 @@ export class API {
                  */
                 setBackground: async (
                     guildId: string,
-                    options: { url?: string | null; color?: string | null }
+                    options: { url?: string | null; color?: string | null },
                 ) => {
                     const data = await this.#client.getSettings(guildId);
                     if (!data) {
@@ -935,7 +1038,7 @@ export class API {
                             changed.push(
                                 `Background URL: ${
                                     data.background.url || "Reset"
-                                }`
+                                }`,
                             );
                         }
                         if (is.string(options.color, false)) {
@@ -943,7 +1046,7 @@ export class API {
                             changed.push(
                                 `Background Color: ${
                                     data.background.color || "Reset"
-                                }`
+                                }`,
                             );
                         }
                     }
@@ -953,8 +1056,8 @@ export class API {
                     await save(data);
                     return status.success(
                         `I've updated the Leaderboard background info:\n${changed.join(
-                            "\n"
-                        )}`
+                            "\n",
+                        )}`,
                     );
                 },
             },
@@ -1017,7 +1120,7 @@ export class API {
                     userId: string,
                     guildId: string,
                     type: string,
-                    count = 1
+                    count = 1,
                 ) => {
                     const data = await this.#client.getUser(userId, guildId);
                     if (!data) {
@@ -1026,7 +1129,9 @@ export class API {
                     data.stats = incUserStat(data, type, count);
                     await save(data);
                     return status.success(
-                        `I've added (${count}) to (${type}) stats for (${userId}) user on (${guildId}) server`
+                        `I've added (${count}) to (${type}) stats for (${userId}) user on ${this.#getServer(
+                            guildId,
+                        )}`,
                     );
                 },
                 /**
@@ -1038,7 +1143,7 @@ export class API {
                     userId: string,
                     guildId: string,
                     type: string,
-                    count = 1
+                    count = 1,
                 ) => {
                     const data = await this.#client.getUser(userId, guildId);
                     if (!data) {
@@ -1047,7 +1152,9 @@ export class API {
                     data.stats = incUserStat(data, type, count);
                     await save(data);
                     return status.success(
-                        `I've added (${count}) to (${type}) stats for (${userId}) user on (${guildId}) server`
+                        `I've added (${count}) to (${type}) stats for (${userId}) user on ${this.#getServer(
+                            guildId,
+                        )}`,
                     );
                 },
             },
@@ -1058,7 +1165,7 @@ export class API {
             position: async (
                 userId: string,
                 guildId: string,
-                sort?: "ascending" | "descending"
+                sort?: "ascending" | "descending",
             ) => {
                 if (!sort) {
                     sort = "descending";
@@ -1091,7 +1198,7 @@ export class API {
                     .catch(() => []);
                 if (!is.array(data)) {
                     return status.error(
-                        `Unable to find (${userId}) user in any server.`
+                        `Unable to find (${userId}) user in any server.`,
                     );
                 }
                 return status.data(data);
@@ -1103,18 +1210,20 @@ export class API {
             toggle: async (
                 userId: string,
                 guildId: string,
-                type: UserToggles
+                type: UserToggles,
             ) => {
                 const data = await this.#client.getUser(userId, guildId);
                 if (!data) {
                     return status.error(message);
                 }
-                data.toggles[type] = data.toggles[type] ? false : true;
+                data.toggles[type] = tog(data.toggles[type]);
                 await save(data);
                 return status.success(
                     `I've turned ${
                         data.toggles[type] ? "on" : "off"
-                    } ${type} for (${userId})'s profile in (${guildId}) server.`
+                    } ${type} for (${userId})'s profile in ${this.#getServer(
+                        guildId,
+                    )}`,
                 );
             },
 
@@ -1125,7 +1234,7 @@ export class API {
                 userId: string,
                 guildId: string,
                 xp: number,
-                voiceMinutes?: number
+                voiceMinutes?: number,
             ) => {
                 const data = await this.#client.getUser(userId, guildId);
                 if (!data) {
@@ -1148,7 +1257,7 @@ export class API {
             setLevel: async (
                 userId: string,
                 guildId: string,
-                level: number
+                level: number,
             ) => {
                 const data = await this.#client.getUser(userId, guildId);
                 if (!data) {
@@ -1158,7 +1267,7 @@ export class API {
                 data.xp = level * level * 100;
                 await save(data);
                 return status.success(
-                    `${userId}'s level is now set to: ${level}`
+                    `${userId}'s level is now set to: ${level}`,
                 );
             },
 
@@ -1168,7 +1277,7 @@ export class API {
             setBackground: async (
                 userId: string,
                 guildId: string,
-                background?: string
+                background?: string,
             ) => {
                 const data = await this.#client.getUser(userId, guildId);
                 if (!data) {
@@ -1180,19 +1289,23 @@ export class API {
                         !background.match(/.(png|jpg|jpeg|gif|webp)/gi)
                     ) {
                         return status.error(
-                            `The background url provided isn't a valid image link.`
+                            `The background url provided isn't a valid image link.`,
                         );
                     }
                     data.background = background;
                     await save(data);
                     return status.success(
-                        `Set ${userId}'s background url in ${guildId} server to: ${background}`
+                        `Set ${userId}'s background url in ${this.#getServer(
+                            guildId,
+                        )} to: ${background}`,
                     );
                 } else {
                     data.background = "";
                     await save(data);
                     return status.success(
-                        `Reset ${userId}'s background url in ${guildId} server`
+                        `Reset ${userId}'s background url in ${this.#getServer(
+                            guildId,
+                        )}`,
                     );
                 }
             },
@@ -1204,12 +1317,12 @@ export class API {
                 userId: string,
                 guildId: string,
                 type: ColorType,
-                color?: string | number
+                color?: string | number,
             ) => {
                 if (
                     is.string(color, false) &&
                     ["null", "undefined", null, undefined, "0", 0].includes(
-                        color.toLowerCase()
+                        color.toLowerCase(),
                     )
                 ) {
                     color = "";
@@ -1217,8 +1330,8 @@ export class API {
                 if (!is.string(type) || !colors.valid(type.toLowerCase())) {
                     return status.error(
                         `Color type (${type}) isn't valid, here are the valid options: ${colors.types.join(
-                            ", "
-                        )}`
+                            ", ",
+                        )}`,
                     );
                 }
                 const data = await this.#client.getUser(userId, guildId);
@@ -1230,12 +1343,12 @@ export class API {
                     color = `#${color.toString(16)}`;
                 }
                 const find = data.colors.find(
-                    (c) => c.type === type.toLowerCase()
+                    (c) => c.type === type.toLowerCase(),
                 );
                 if (is.string(color)) {
                     if (!color.startsWith("#")) {
                         return status.error(
-                            `The color needs to be a hex color! (ex: #fffff)`
+                            `The color needs to be a hex color! (ex: #fffff)`,
                         );
                     }
                     if (find) {
@@ -1248,15 +1361,19 @@ export class API {
                     }
                     await save(data);
                     return status.success(
-                        `Set ${userId}'s (${type.toLowerCase()}) color profile to ${color} in ${guildId} server.`
+                        `Set ${userId}'s (${type.toLowerCase()}) color profile to ${color} in ${this.#getServer(
+                            guildId,
+                        )}`,
                     );
                 } else {
                     data.colors = data.colors.filter(
-                        (c) => c.type !== type.toLowerCase()
+                        (c) => c.type !== type.toLowerCase(),
                     );
                     await save(data);
                     return status.success(
-                        `Reset ${userId}'s (${type.toLowerCase()}) color profile in ${guildId} server.`
+                        `Reset ${userId}'s (${type.toLowerCase()}) color profile in ${this.#getServer(
+                            guildId,
+                        )}`,
                     );
                 }
             },
@@ -1273,7 +1390,7 @@ export class API {
                 data.level = Math.floor(0.1 * Math.sqrt(data.xp));
                 await save(data);
                 return status.success(
-                    `${userId}'s XP is now set to: ${data.xp} and level ${data.level}`
+                    `${userId}'s XP is now set to: ${data.xp} and level ${data.level}`,
                 );
             },
 
@@ -1299,7 +1416,7 @@ export class API {
                         .catch(() => []);
                     if (!is.array(data)) {
                         return status.error(
-                            `There is no data to delete for (${userId})`
+                            `There is no data to delete for (${userId})`,
                         );
                     }
                     await this.#client.dbs.users
@@ -1319,13 +1436,15 @@ export class API {
                     const data = await this.#client.getUser(userId, guildId);
                     if (!data) {
                         return status.error(
-                            `There is no data to delete for (${userId})`
+                            `There is no data to delete for (${userId})`,
                         );
                     }
                     await data.deleteOne().catch(() => null);
                     return {
                         status: true,
-                        message: `Deleted ${userId}'s profile in ${guildId} server.`,
+                        message: `Deleted ${userId}'s profile in ${this.#getServer(
+                            guildId,
+                        )}`,
                         data,
                     };
                 },
@@ -1344,7 +1463,7 @@ export class API {
                                       $in: users,
                                   },
                               }
-                            : {}
+                            : {},
                     )
                     .lean()
                     .catch(() => []);
@@ -1393,9 +1512,9 @@ export class API {
                 const data = await this.#client.weekly.get(guildId, weeklyId);
                 if (!data) {
                     return status.error(
-                        `Unable to find any weekly data for: ${guildId}${
-                            weeklyId ? ` (${weeklyId})` : ""
-                        }`
+                        `Unable to find any weekly data for ${this.#getServer(
+                            guildId,
+                        )} ${weeklyId ? ` (${weeklyId})` : ""}`,
                     );
                 }
                 return status.data(data.toJSON());
@@ -1411,7 +1530,9 @@ export class API {
                     .catch(() => []);
                 if (!is.array(data)) {
                     return status.error(
-                        `Unable to find any weekly data for: ${guildId}`
+                        `Unable to find any weekly data for ${this.#getServer(
+                            guildId,
+                        )}`,
                     );
                 }
                 return status.data(data);
@@ -1423,7 +1544,7 @@ export class API {
             leaderboard: async (
                 guildId: string,
                 weeklyId?: string,
-                options?: LeaderboardOptions
+                options?: LeaderboardOptions,
             ) => {
                 if (!weeklyId) {
                     const find = await this.#client.weekly.get(guildId);
@@ -1440,14 +1561,16 @@ export class API {
                 }
                 if (!is.array(data.data.users)) {
                     return status.error(
-                        `There is no one on the weekly leaderboard for: ${guildId}`
+                        `There is no one on the weekly leaderboard for ${this.#getServer(
+                            guildId,
+                        )}`,
                     );
                 }
                 return await this.servers.leaderboard.formatted(
                     guildId,
                     options,
                     true,
-                    data.data.users
+                    data.data.users,
                 );
             },
         };
@@ -1460,11 +1583,11 @@ export class API {
     public async getRankCard(
         userId: string,
         guildId: string,
-        type: CanvasRankProfileTypes = "arcane"
+        type: CanvasRankProfileTypes = "arcane",
     ): CanvasResponse {
         if (!RankProfiles[type]) {
             return status.error(
-                `Canvas profile (${type}) isn't a valid option.`
+                `Canvas profile (${type}) isn't a valid option.`,
             );
         }
         const db = await this.#client.getUser(userId, guildId);
@@ -1479,7 +1602,12 @@ export class API {
             return status.error(`Unable to fetch (${userId})'s Discord info`);
         }
         let memberStatus;
-        if (hasBit(getClientIntents(this.#client.client), 256 /* Guild Presences */)) {
+        if (
+            hasBit(
+                getClientIntents(this.#client.client),
+                256 /* Guild Presences */,
+            )
+        ) {
             const guild = this.#client.client.guilds.resolve(guildId);
             if (guild && guild.available) {
                 const member = await discord.member(guild, userId, true, true);
@@ -1495,12 +1623,12 @@ export class API {
                 user,
                 db,
                 await this.users.position(userId, guildId),
-                memberStatus
+                memberStatus,
             );
         } catch (err) {
             console.trace(err);
             return status.error(
-                `Error while trying to generate the user's rank card.`
+                `Error while trying to generate the user's rank card.`,
             );
         }
     }
@@ -1516,17 +1644,17 @@ export class API {
             "background" | "backgroundColor"
         >,
         type: CanvasLeaderboardTypes = "canvacord",
-        isWeekly = false
+        isWeekly = false,
     ): CanvasResponseWithQuery {
         if (!Leaderboards[type]) {
             return status.error(
-                `Canvas profile (${type}) isn't a valid option.`
+                `Canvas profile (${type}) isn't a valid option.`,
             );
         }
         if (options && is.number(options.perPage)) {
             if (![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].includes(options.perPage)) {
                 status.error(
-                    `The 'options.perPage' value is invalid, you can only use perPage 1 through 10`
+                    `The 'options.perPage' value is invalid, you can only use perPage 1 through 10`,
                 );
             }
         }
@@ -1537,7 +1665,7 @@ export class API {
         const guild = this.#client.client.guilds.resolve(guildId);
         if (!guild || !guild.available) {
             return status.error(
-                `Unable to fetch (${guildId}) server's information.`
+                `Unable to fetch (${guildId}) server's information.`,
             );
         }
         let lb;
@@ -1547,7 +1675,7 @@ export class API {
             lb = await this.servers.leaderboard.formatted(
                 guildId,
                 options,
-                true
+                true,
             );
         }
         if (!lb.status) {
@@ -1566,7 +1694,7 @@ export class API {
             {
                 title: guild.name,
                 image:
-                    guild.iconURL({ forceStatic: true, extension: "png" }) ||
+                    getGuildIcon(guild) ||
                     "https://cdn.discordapp.com/emojis/858809264893460511.png",
                 subtitle: isWeekly
                     ? `Weekly Leaderboard!`
@@ -1576,8 +1704,8 @@ export class API {
                 backgroundColor: db.data.background.color || "",
                 background:
                     db.data.background.url ||
-                    "https://raw.githubusercontent.com/neplextech/canvacord/main/test/bg.png",
-            }
+                    "https://i.imgur.com/Y5m4ntt.jpeg",
+            },
         );
     }
 }

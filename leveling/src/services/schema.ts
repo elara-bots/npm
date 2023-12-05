@@ -43,6 +43,13 @@ export const users = new Schema<Users>({
             color: t.string(),
         }),
     ],
+    cooldowns: [
+        new Schema({
+            name: t.string(),
+            date: t.num(),
+            cooldown: t.num(),
+        }),
+    ],
 });
 
 export const settings = new Schema<Settings>({
@@ -82,6 +89,7 @@ export const settings = new Schema<Settings>({
     levels: [
         new Schema({
             level: t.num(),
+            levelName: t.string(),
             options,
             roles: {
                 add: t.array(),
@@ -94,6 +102,12 @@ export const settings = new Schema<Settings>({
             channels: t.array(),
             roles: t.array(),
             multiplier: t.num(),
+        }),
+    ],
+    cooldowns: [
+        new Schema({
+            roles: t.array(),
+            seconds: t.num(),
         }),
     ],
     toggles: {

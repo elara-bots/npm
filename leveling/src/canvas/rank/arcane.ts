@@ -6,7 +6,7 @@ import type {
     CanvasResponse,
     Users,
 } from "../../interfaces";
-import { colors, getData } from "../../utils";
+import { colors, getData, getUserAvatar } from "../../utils";
 const defs = {
     progress: {
         first: "#008cff",
@@ -21,7 +21,7 @@ const defs = {
 export async function arcane(
     user: User,
     db: CachedOptions<Users>,
-    rank: number
+    rank: number,
 ): CanvasResponse {
     const { xp, level } = getData(db);
     return createArcaneRankProfile({
@@ -32,7 +32,7 @@ export async function arcane(
             current: xp.current,
             max: xp.required,
         },
-        avatar: user.displayAvatarURL({ forceStatic: true, extension: "png" }),
+        avatar: getUserAvatar(user),
         background: db.background,
         colors: {
             progress: {
@@ -69,7 +69,7 @@ async function createArcaneRankProfile(user: ArcaneUser): CanvasResponse {
             canvas.width,
             canvas.height,
             10,
-            user.background
+            user.background,
         );
     } else {
         // Draw the background.
@@ -102,7 +102,7 @@ async function createArcaneRankProfile(user: ArcaneUser): CanvasResponse {
         (user.xp.current * 600) / user.xp.max,
         30,
         5,
-        true
+        true,
     );
 
     // Draw user info.
@@ -114,7 +114,7 @@ async function createArcaneRankProfile(user: ArcaneUser): CanvasResponse {
         120,
         70,
         user.avatar ||
-            "https://cdn.discordapp.com/emojis/1081469562106691655.png"
+            "https://cdn.discordapp.com/emojis/1081469562106691655.png",
     );
     ctx.lineWidth = 7;
     ctx.strokeStyle = "#36393f";
@@ -143,7 +143,7 @@ async function createArcaneRankProfile(user: ArcaneUser): CanvasResponse {
         width(`Level ${user.level}`, 10),
         25,
         5,
-        true
+        true,
     );
     await rectangle(
         ctx,
@@ -152,7 +152,7 @@ async function createArcaneRankProfile(user: ArcaneUser): CanvasResponse {
         width(`Rank ${user.rank}`, 10),
         25,
         5,
-        true
+        true,
     );
     await rectangle(
         ctx,
@@ -161,7 +161,7 @@ async function createArcaneRankProfile(user: ArcaneUser): CanvasResponse {
         width(`${user.xp.current} / ${user.xp.max} XP`, 10),
         25,
         5,
-        true
+        true,
     );
 
     ctx.globalAlpha = 1;
@@ -170,12 +170,12 @@ async function createArcaneRankProfile(user: ArcaneUser): CanvasResponse {
     ctx.fillText(
         `Rank ${user.rank}`,
         width(`Level ${user.level}`, 155, 20),
-        120
+        120,
     );
     ctx.fillText(
         `${user.xp.current} / ${user.xp.max} XP`,
         width(`Level ${user.level}`, `Rank ${user.rank}`, 155, 40),
-        120
+        120,
     );
 
     function width(...params: any[]) {
@@ -210,7 +210,7 @@ function rectangle(
               bl: number;
           },
     background?: string | boolean,
-    stroke?: boolean
+    stroke?: boolean,
 ) {
     return new Promise(async (resolve) => {
         // @ts-ignore
@@ -243,7 +243,7 @@ function rectangle(
             x + width,
             y + height,
             x + width - radius.br,
-            y + height
+            y + height,
         );
         ctx.lineTo(x + radius.bl, y + height);
         ctx.quadraticCurveTo(x, y + height, x, y + height - radius.bl);

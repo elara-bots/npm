@@ -6,13 +6,13 @@ import type {
     MemberPresenceStatus,
     Users,
 } from "../../interfaces";
-import { colors, getData } from "../../utils";
+import { colors, getData, getUserAvatar } from "../../utils";
 
 export async function canvacord(
     user: User,
     db: CachedOptions<Users>,
     rank: number,
-    memberStatus?: MemberPresenceStatus
+    memberStatus?: MemberPresenceStatus,
 ): CanvasResponse {
     if (memberStatus === "offline") {
         memberStatus = "invisible";
@@ -20,16 +20,14 @@ export async function canvacord(
     const canvas = await import("canvacord").catch(() => null);
     if (!canvas) {
         return status.error(
-            `Unable to find 'canvacord', make sure you have it installed!`
+            `Unable to find 'canvacord', make sure you have it installed!`,
         );
     }
     canvas.Font.loadDefault();
     const { level, xp } = getData(db);
 
     const ca = new canvas.RankCardBuilder()
-        .setAvatar(
-            user.displayAvatarURL({ forceStatic: true, extension: "png" })
-        )
+        .setAvatar(getUserAvatar(user))
         .setUsername(user.displayName)
         .setLevel(level)
         .setCurrentXP(xp.current)

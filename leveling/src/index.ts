@@ -1,18 +1,25 @@
 import { hasBit, is, p } from "@elara-services/utils";
 import {
-    APIEmbed,
     Client,
     Message,
     TextBasedChannel,
     VoiceState,
     type GuildMember,
-    type PartialGuildMember
+    type PartialGuildMember,
 } from "discord.js";
+import type { APIEmbed } from "discord-api-types/v10";
 import { EventEmitter } from "events";
 import type { CachedOptions, Settings, UserCache, Users } from "./interfaces";
 import { Database } from "./services";
 import { API } from "./services/api";
-import { getClientIntents, getVoiceMultiplier, incUserStat, parser, random } from "./utils";
+import {
+    getClientIntents,
+    getMinutes,
+    getVoiceMultiplier,
+    incUserStat,
+    parser,
+    random,
+} from "./utils";
 export type * from "./interfaces";
 export type * from "./services";
 export type * from "./services/api";
@@ -28,11 +35,10 @@ export class Leveling extends Database {
      */
     #listening = false;
     #events = new EventEmitter();
-    /**
-     * Internal cache for user cooldowns
-     */
-    #cache = new Map<string, UserCache>();
-    public constructor(public client: Client, mongodbURI: string) {
+    public constructor(
+        public client: Client,
+        mongodbURI: string,
+    ) {
         super(mongodbURI, client);
     }
 
@@ -40,7 +46,7 @@ export class Leveling extends Database {
      * Emits when the cooldown is added for the user
      */
     public onCooldown(
-        listener: (message: Message<true>, cooldown: UserCache) => unknown
+        listener: (message: Message<true>, cooldown: UserCache) => unknown,
     ) {
         return this.#events.on("cooldown", listener);
     }
@@ -51,8 +57,8 @@ export class Leveling extends Database {
         listener: (
             member: GuildMember,
             profile: Users & { _id: string },
-            server: Settings & { _id: string }
-        ) => unknown
+            server: Settings & { _id: string },
+        ) => unknown,
     ) {
         return this.#events.on("level", listener);
     }
@@ -64,31 +70,10 @@ export class Leveling extends Database {
         listener: (
             member: GuildMember,
             profile: Users & { _id: string },
-            server: Settings & { _id: string }
-        ) => unknown
+            server: Settings & { _id: string },
+        ) => unknown,
     ) {
         return this.#events.on("xp", listener);
-    }
-
-    public get cache() {
-        return {
-            clear: {
-                /**
-                 * Delete a user from a server's cooldown.
-                 */
-                user: (userId: string, guildId: string) =>
-                    this.#cache.delete(`${userId}-${guildId}`),
-                /**
-                 * Delete all users from a server's cooldown
-                 */
-                server: (guildId: string) =>
-                    [...this.#cache.values()].map((c) =>
-                        c.search.includes(guildId)
-                            ? this.#cache.delete(c.search)
-                            : false
-                    ),
-            },
-        };
     }
 
     /**
@@ -104,10 +89,14 @@ export class Leveling extends Database {
             this.client.on("messageCreate", (m) => void this.#messageCreate(m));
         }
         if (hasBit(intents, 2 /* Guild Members */)) {
-            this.client.on("guildMemberRemove", (m) => this.#guildMemberRemove(m));
+            this.client.on("guildMemberRemove", (m) =>
+                this.#guildMemberRemove(m),
+            );
         }
         if (hasBit(intents, 128 /* Guild Voice States */)) {
-            this.client.on("voiceStateUpdate", (o, n) => this.#voiceStateUpdate(o, n));
+            this.client.on("voiceStateUpdate", (o, n) =>
+                this.#voiceStateUpdate(o, n),
+            );
         }
     }
 
@@ -129,7 +118,7 @@ export class Leveling extends Database {
         if (
             is.array(db.ignore.channels) &&
             db.ignore.channels.some((c) =>
-                [voice.channelId, voice.channel?.parentId].includes(c)
+                [voice.channelId, voice.channel?.parentId].includes(c),
             )
         ) {
             return; // Ignore the user / XP earned in this channel.
@@ -161,17 +150,17 @@ export class Leveling extends Database {
         let [voiceDuration, voiceMinutes] = [0, 0];
         if (user.voice.duration) {
             voiceMinutes = parseInt(
-                ((now - user.voice.duration) / 60000).toFixed(0)
+                ((now - user.voice.duration) / 60000).toFixed(0),
             );
             voiceDuration = parseInt(
-                ((now - user.voice.duration) / 1000).toFixed(0)
+                ((now - user.voice.duration) / 1000).toFixed(0),
             );
         }
         const xpToGive = Math.floor(
             Math.min(
                 voiceDuration * user.voice.multiplier,
-                20 * 25 * 3 * user.voice.multiplier
-            )
+                20 * 25 * 3 * user.voice.multiplier,
+            ),
         );
         if (!old.channelId && voice.channelId) {
             user.voice.multiplier = getVoiceMultiplier(voice);
@@ -193,7 +182,7 @@ export class Leveling extends Database {
                     voice.channel ?? old.channel,
                     xpToGive,
                     db,
-                    voiceMinutes
+                    voiceMinutes,
                 );
             }
             user.voice.duration = 0;
@@ -266,25 +255,39 @@ export class Leveling extends Database {
         if (!user) {
             return;
         }
-        const search = `${message.author.id}-${message.guildId}`;
-        const cooldown = this.#cache.get(search);
-        if (cooldown) {
-            const time = Date.now() - cooldown.date;
-            if (time < cooldown.cooldown) {
-                this.#events.emit("cooldown", message, cooldown);
+        const find = user.cooldowns.find((c) => c.name === "xp");
+        let cool = getMinutes(db.cooldown);
+        if (is.array(db.cooldowns)) {
+            const hasCustom = db.cooldowns.find((c) =>
+                member.roles.cache.hasAny(...c.roles),
+            );
+            if (hasCustom) {
+                cool = getMinutes(hasCustom.seconds);
+            }
+        }
+        if (find) {
+            const time = Date.now() - find.date;
+            if (time < find.cooldown) {
+                this.#events.emit("cooldown", message, find);
                 return;
             }
-            this.#cache.delete(search);
+            find.cooldown = cool;
+            find.date = Date.now() + cool;
+        } else {
+            user.cooldowns.push({
+                name: "xp",
+                date: Date.now() + cool,
+                cooldown: cool,
+            });
         }
-        this.#cache.set(search, {
-            date: Date.now() + (db.cooldown || 60) * 1000,
-            cooldown: (db.cooldown || 60) * 1000,
-            search,
-        });
+        user = await user.save().catch(() => null);
+        if (!user) {
+            return;
+        }
         if (
             is.array(db.ignore.channels) &&
             db.ignore.channels.some((c) =>
-                [message.channelId, message.channel.parentId].includes(c)
+                [message.channelId, message.channel.parentId].includes(c),
             )
         ) {
             return; // Ignore the user / XP earned in this channel.
@@ -309,14 +312,14 @@ export class Leveling extends Database {
         currentChannel: TextBasedChannel | null,
         xp: number,
         db: CachedOptions<Settings>,
-        voiceMinutes?: number
+        voiceMinutes?: number,
     ) {
         let roles = [...member.roles.cache.keys()];
         const level = await this.api.users.appendXP(
             member.id,
             member.guild.id,
             xp,
-            voiceMinutes
+            voiceMinutes,
         );
         const profile = await this.api.users.get(member.id, member.guild.id);
         if (!profile.status) {
@@ -334,7 +337,7 @@ export class Leveling extends Database {
                     xp: `${profile.data.xp}`,
                     background: profile.data.background,
                 },
-                { member, guild: member.guild, user: member.user }
+                { member, guild: member.guild, user: member.user },
             );
         };
         const getOptions = async (options: {
@@ -362,12 +365,7 @@ export class Leveling extends Database {
                         roles = roles.filter((c) => !allLevelRoles.includes(c));
                     }
                     roles.push(...find.roles.add);
-                    await member
-                        .edit({
-                            roles,
-                            reason: `[AUTOMATIC]: Level up!`,
-                        })
-                        .catch(() => null);
+                    await member.edit({ roles }).catch(() => null);
                 }
             }
             if (db.toggles.onlyRegisteredLevels === true && !find) {
@@ -376,9 +374,9 @@ export class Leveling extends Database {
             if (db.announce.channel.enabled) {
                 const channel =
                     member.guild.channels.resolve(
-                        db.announce.channel.channel
+                        db.announce.channel.channel,
                     ) || currentChannel;
-                if (channel?.isTextBased()) {
+                if (channel && "send" in channel) {
                     const users = [member.id];
                     if (
                         !db.announce.channel.ping ||
@@ -417,8 +415,8 @@ export class Leveling extends Database {
                         allowedMentions:
                             profile.data.toggles.pings === true
                                 ? {
-                                    parse: [],
-                                }
+                                      parse: [],
+                                  }
                                 : undefined,
                     })
                     .catch(() => null);

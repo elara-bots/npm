@@ -11,13 +11,13 @@ export async function canvacord(
     players: LeaderboardCanvasPlayers[],
     query: LeaderboardQuery,
     header?: LeaderboardCanvasHeader,
-    options?: LeaderboardCanvasOptions
+    options?: LeaderboardCanvasOptions,
 ): CanvasResponseWithQuery {
     players = players.slice(0, 10);
     const canvas = await import("canvacord").catch(() => null);
     if (!canvas) {
         return status.error(
-            `Unable to find the (canvacord) npm package, make sure to install it.`
+            `Unable to find the (canvacord) npm package, make sure to install it.`,
         );
     }
     canvas.Font.loadDefault();
