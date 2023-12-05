@@ -692,6 +692,32 @@ export class API {
                         )}`,
                     );
                 },
+
+                get: async (guildId: string, level: number) => {
+                    const data = await this.#client.getSettings(guildId);
+                    if (!data) {
+                        return status.error(server_not_found);
+                    }
+                    const find = data.levels.find((c) => c.level === level);
+                    if (!find) {
+                        return status.error(`Unable to find level (${level})`);
+                    }
+                    return status.data(find);
+                },
+
+                getLevelName: async (guildId: string, level: number) => {
+                    const data = await this.#client.getSettings(guildId);
+                    if (!data) {
+                        return status.success(`Level ${level}`);
+                    }
+                    const find = data.levels.find((c) => c.level === level);
+                    if (!find) {
+                        return status.success(`Level ${level}`);
+                    }
+                    return status.success(
+                        find.levelName || `Level ${find.level}`,
+                    );
+                },
             },
 
             multipliers: {
