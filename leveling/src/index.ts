@@ -1,4 +1,4 @@
-import { hasBit, is, p } from "@elara-services/utils";
+import { discord, hasBit, is, p } from "@elara-services/utils";
 import {
     Client,
     Message,
@@ -177,7 +177,7 @@ export class Leveling extends Database {
                 });
             }
             if (is.number(xpToGive)) {
-                await this.#handleLevelups(
+                await this.handleLevelups(
                     voice.member,
                     voice.channel ?? old.channel,
                     xpToGive,
@@ -203,20 +203,31 @@ export class Leveling extends Database {
     }
 
     async #messageCreate(message: Message) {
-        if (
-            !message.inGuild() ||
-            message.author.bot ||
-            !message.guild.available
-        ) {
+        if (!message.inGuild() || !message.guild.available) {
             return;
         }
-        const member = message.member;
+        let member = message.member;
+        let author = message.author;
+        let isSlash = false;
+        if (author.bot && message.interaction) {
+            isSlash = true;
+            author = message.interaction.user;
+            member = await discord.member(message.guild, author.id, true);
+        }
+        if (author.bot) {
+            return;
+        }
         if (!member) {
             return;
         }
         const db = await this.getSettings(message.guildId);
         if (!db || !db.enabled) {
             return;
+        }
+        if (isSlash) {
+            if (!db.toggles.earnXPOnSlashCommands) {
+                return;
+            }
         }
         let xp = random(Math.floor(db.xp.min || 1), Math.floor(db.xp.max || 8));
         const multipliers = [];
@@ -243,10 +254,10 @@ export class Leveling extends Database {
         if (db.toggles.weekly.track === true) {
             await this.weekly.add(message.guildId, {
                 stats: { messages: 1 },
-                users: [{ messages: 1, userId: message.author.id }],
+                users: [{ messages: 1, userId: author.id }],
             });
         }
-        let user = await this.getUser(message.author.id, message.guildId);
+        let user = await this.getUser(author.id, message.guildId);
         if (!user || user.toggles.locked === true) {
             return;
         }
@@ -259,7 +270,7 @@ export class Leveling extends Database {
         let cool = getMinutes(db.cooldown);
         if (is.array(db.cooldowns)) {
             const hasCustom = db.cooldowns.find((c) =>
-                member.roles.cache.hasAny(...c.roles),
+                (member as GuildMember).roles.cache.hasAny(...c.roles),
             );
             if (hasCustom) {
                 cool = getMinutes(hasCustom.seconds);
@@ -292,10 +303,7 @@ export class Leveling extends Database {
         ) {
             return; // Ignore the user / XP earned in this channel.
         }
-        if (
-            is.array(db.ignore.users) &&
-            db.ignore.users.includes(message.author.id)
-        ) {
+        if (is.array(db.ignore.users) && db.ignore.users.includes(author.id)) {
             return; // Ignore if the user is ignored.
         }
         if (
@@ -304,23 +312,40 @@ export class Leveling extends Database {
         ) {
             return; // Ignore if the user has any of the ignore roles.
         }
-        return this.#handleLevelups(message.member, message.channel, xp, db);
+        return this.handleLevelups(member, message.channel, xp, db);
     }
 
-    async #handleLevelups(
+    /**
+     * This is only for internal use!
+     *
+     */
+    private async handleLevelups(
         member: GuildMember,
         currentChannel: TextBasedChannel | null,
         xp: number,
-        db: CachedOptions<Settings>,
+        db?: CachedOptions<Settings> | null,
         voiceMinutes?: number,
+        isLevelup?: boolean | null,
     ) {
+        if (!db) {
+            db = await this.getSettings(member.guild.id);
+        }
+        if (!db || !db.enabled) {
+            return null;
+        }
         let roles = [...member.roles.cache.keys()];
-        const level = await this.api.users.appendXP(
-            member.id,
-            member.guild.id,
-            xp,
-            voiceMinutes,
-        );
+        let level: boolean | null = false;
+        if (is.boolean(isLevelup)) {
+            level = isLevelup;
+        } else {
+            level = await this.api.users.appendXP(
+                member.id,
+                member.guild.id,
+                xp,
+                voiceMinutes,
+                true,
+            );
+        }
         const profile = await this.api.users.get(member.id, member.guild.id);
         if (!profile.status) {
             return;

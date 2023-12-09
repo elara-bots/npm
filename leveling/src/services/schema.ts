@@ -114,6 +114,7 @@ export const settings = new Schema<Settings>({
         onlyRegisteredLevels: t.boolean(false),
         stackRoles: t.boolean(false),
         resetOnLeave: t.boolean(false),
+        earnXPOnSlashCommands: t.boolean(false),
         weekly: {
             track: t.boolean(false),
         },

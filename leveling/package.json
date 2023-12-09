@@ -1,6 +1,6 @@
 {
   "name": "@elara-services/leveling",
-  "version": "1.0.5",
+  "version": "1.0.8",
   "description": "A package for XP/Leveling on Discord.",
   "main": "./dist/src/index.js",
   "author": "SUPERCHIEFYT (Elara-Discord-Bots, Elara-Services)",

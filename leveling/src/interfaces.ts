@@ -139,7 +139,8 @@ export type ServerToggleTypes =
     | "weeklyleaderboard"
     | "voice.xp"
     | "voice.unmutedRequired"
-    | "weekly.announce";
+    | "weekly.announce"
+    | "earnXPOnSlashCommands";
 export type UserToggles = "locked" | "pings" | "dms";
 export type MemberPresenceStatus =
     | "online"
@@ -260,6 +261,7 @@ export interface Settings {
         onlyRegisteredLevels: boolean;
         stackRoles: boolean;
         resetOnLeave: boolean;
+        earnXPOnSlashCommands: boolean;
         weekly: {
             track: boolean;
         };

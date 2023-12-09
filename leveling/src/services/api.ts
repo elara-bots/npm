@@ -39,6 +39,7 @@ import {
     incUserStat,
     save,
     tog,
+    xpFor,
 } from "../utils";
 
 const message = `Unable to find/create the user's profile.`;
@@ -183,6 +184,18 @@ export class API {
                         `${toggle(
                             data.announce.weekly.enabled,
                         )} weekly leaderboard announcements for ${this.#getServer(
+                            guildId,
+                        )}`,
+                    );
+                } else if (type === "earnXPOnSlashCommands") {
+                    data.toggles.earnXPOnSlashCommands = tog(
+                        data.toggles.earnXPOnSlashCommands,
+                    );
+                    await save(data);
+                    return status.success(
+                        `${toggle(
+                            data.toggles.earnXPOnSlashCommands,
+                        )} earning XP for \`/\` commands for ${this.#getServer(
                             guildId,
                         )}`,
                     );
@@ -1131,6 +1144,78 @@ export class API {
                     data: removed,
                 };
             },
+
+            users: {
+                get: async (guildId: string) => {
+                    const data = await this.#client.getSettings(guildId);
+                    if (!data) {
+                        return status.error(server_not_found);
+                    }
+                    const users = await this.#client.dbs.users
+                        .find({
+                            guildId,
+                        })
+                        .lean()
+                        .catch(() => []);
+                    if (!is.array(users)) {
+                        return status.error(
+                            `There is 0 users on the leaderboard for ${this.#getServer(
+                                guildId,
+                            )}`,
+                        );
+                    }
+                    return status.data(users);
+                },
+
+                count: async (guildId: string) => {
+                    const data = await this.#client.getSettings(guildId);
+                    if (!data) {
+                        return status.error(server_not_found);
+                    }
+                    const count = await this.#client.dbs.users
+                        .countDocuments({ guildId })
+                        .catch(() => 0);
+                    if (!is.number(count)) {
+                        return status.error(
+                            `No one has a leveling profile for ${this.#getServer(
+                                guildId,
+                            )}`,
+                        );
+                    }
+                    return status.data({ count });
+                },
+
+                reset: async (guildId: string) => {
+                    const data = await this.#client.getSettings(guildId);
+                    if (!data) {
+                        return status.error(server_not_found);
+                    }
+                    const count = await this.servers.users.count(guildId);
+                    if (!count.status) {
+                        return count;
+                    }
+                    const users = await this.servers.users.get(guildId);
+                    if (!users.status) {
+                        return users;
+                    }
+                    const deleted = await this.#client.dbs.users
+                        .deleteMany({
+                            guildId,
+                        })
+                        .catch(() => null);
+                    if (!deleted || !is.number(deleted.deletedCount)) {
+                        return status.error(
+                            `Unable to delete any leveling profiles in ${this.#getServer(
+                                guildId,
+                            )}`,
+                        );
+                    }
+                    return status.data({
+                        count: deleted.deletedCount,
+                        users: users.data,
+                    });
+                },
+            },
         };
     }
 
@@ -1260,7 +1345,9 @@ export class API {
                 userId: string,
                 guildId: string,
                 xp: number,
-                voiceMinutes?: number,
+                voiceMinutes = 0,
+                /** Do not use this option unless you don't want the levels to be announced for the XP added. */
+                handledInternally = false,
             ) => {
                 const data = await this.#client.getUser(userId, guildId);
                 if (!data) {
@@ -1272,9 +1359,30 @@ export class API {
                 data.xp += parseInt(String(xp), 10);
                 data.level = Math.floor(0.1 * Math.sqrt(data.xp));
                 await save(data);
-                return (
-                    Math.floor(0.1 * Math.sqrt((data.xp -= xp))) < data.level
-                );
+                const isLevelup =
+                    Math.floor(0.1 * Math.sqrt((data.xp -= xp))) < data.level;
+                if (!handledInternally) {
+                    const guild = this.#client.client.guilds.resolve(guildId);
+                    if (guild && guild.available) {
+                        const member = await discord.member(
+                            guild,
+                            userId,
+                            true,
+                        );
+                        if (member) {
+                            // @ts-ignore
+                            this.#client.handleLevelups(
+                                member,
+                                null,
+                                xp,
+                                null,
+                                undefined,
+                                isLevelup,
+                            );
+                        }
+                    }
+                }
+                return isLevelup;
             },
 
             /**
@@ -1290,7 +1398,7 @@ export class API {
                     return status.error(message);
                 }
                 data.level = level;
-                data.xp = level * level * 100;
+                data.xp = xpFor(level);
                 await save(data);
                 return status.success(
                     `${userId}'s level is now set to: ${level}`,
