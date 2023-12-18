@@ -37,9 +37,16 @@ export function proper(name: string, splitBy?: string) {
     return str;
 }
 
+export function hasBit(bitfield: number, bit: number) {
+    if ((bitfield & bit) === bit) {
+        return true;
+    }
+    return false;
+}
+
 export async function createBin(title: string, args: string, ext = "js", bin = "mine-f", priv = false) {
     const bins = {
-            mine: "https://haste.elara.services",
+            mine: "https://h.elara.workers.dev",
             haste: "https://hastebin.com",
             pizza: "https://haste.unbelievaboat.com",
         },
@@ -104,19 +111,22 @@ export const colors = {
 };
 
 export const env = {
-    get: (name: string, parseObj = false): string | object => {
+    get: <D extends object>(name: string, parseObj = false): string | D => {
         if (!process.env[name]) {
             return "";
         }
         const str = Buffer.from(process.env[name] as string, "base64").toString();
         if (parseObj) {
             try {
-                return JSON.parse(str) as object;
+                return JSON.parse(str) as D;
             } catch {
-                return {};
+                return {} as D;
             }
         }
         return str;
+    },
+    getObj: <D extends object>(name: string): D => {
+        return env.get<D>(name, true) as D;
     },
     parse: (data: string) => {
         return Buffer.from(data).toString("base64");
@@ -135,10 +145,10 @@ export const getKeys = <T extends object>(obj: T) => {
     return Object.keys(obj) as (keyof T)[];
 };
 
-export function generate(stringLength = 5) {
+export function generate(length = 5) {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     let str = "";
-    for (let i = 0; i < stringLength; i++) {
+    for (let i = 0; i < length; i++) {
         str += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return str;
@@ -306,4 +316,15 @@ export function resolveColor(color: string | number | number[] | undefined) {
         }
     }
     return color;
+}
+
+export function getNearest(n: number, maxNumber = 1000) {
+    if (n < 0) {
+        return 0;
+    }
+    return Math.ceil(n / maxNumber) * maxNumber;
+}
+
+export function getAverage(arr: number[]) {
+    return Math.floor(arr.reduce((a, b) => a + b) / arr.length);
 }

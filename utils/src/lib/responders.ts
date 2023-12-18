@@ -1,5 +1,5 @@
 import { Collection, SlashCommandBuilder as SBuild, SlashCommandSubcommandBuilder as SSBuild, type ChatInputCommandInteraction, type EmojiIdentifierResolvable, type InteractionDeferReplyOptions, type InteractionEditReplyOptions, type InteractionReplyOptions, type InteractionResponse, type Message, type MessageCreateOptions, type MessageEditOptions, type MessagePayload, type MessageReaction, type MessageReplyOptions } from "discord.js";
-import { getFilesList, sleep, DefaultColors, resolveColor, colors } from ".";
+import { getFilesList, sleep, DefaultColors, resolveColor, colors, error } from ".";
 import { EmbedBuilder } from "@discordjs/builders";
 
 export type TextBasedChannelSendOption = string | MessagePayload | MessageCreateOptions;
@@ -21,35 +21,35 @@ export function comment(description: string, color: keyof typeof DefaultColors |
     return em;
 }
 
-export function getInteractionResponder(interaction: ChatInputCommandInteraction, handleErrors = log) {
+export function getInteractionResponder(interaction: ChatInputCommandInteraction, handleErrors = error) {
     return {
         reply: async (options: InteractionReplyOptions): Promise<void | (InteractionResponse | Message)> => {
             if (interaction.deferred) {
                 if ("ephemeral" in options) {
                     delete options["ephemeral"];
                 }
-                return await interaction.editReply(options).catch(handleErrors);
+                return interaction.editReply(options).catch(handleErrors);
             }
-            return await interaction.reply(options).catch(handleErrors);
+            return interaction.reply(options).catch(handleErrors);
         },
         defer: async (options?: InteractionDeferReplyOptions): Promise<void | InteractionResponse> => {
             if (interaction.deferred) {
                 return;
             }
-            return await interaction.deferReply(options).catch(handleErrors);
+            return interaction.deferReply(options).catch(handleErrors);
         },
 
         edit: async (options: CommonInteractionEditReplyOptions): Promise<void | Message> => {
             if (!interaction.deferred) {
                 return;
             }
-            return await interaction.editReply(options).catch(handleErrors);
+            return interaction.editReply(options).catch(handleErrors);
         },
         send: async (options: TextBasedChannelSendOption): Promise<void | Message> => {
             if (!interaction.channel || !interaction.channel.isTextBased()) {
                 return;
             }
-            return await interaction.channel.send(options).catch(handleErrors);
+            return interaction.channel.send(options).catch(handleErrors);
         },
     };
 }
@@ -58,20 +58,20 @@ export function getMessageResponder(message: Message) {
     return {
         delete: async (timeout = 0) => {
             if (timeout <= 0) {
-                return message.delete().catch(log);
+                return message.delete().catch(error);
             }
             await sleep(timeout);
-            return message.delete().catch(log);
+            return message.delete().catch(error);
         },
 
         reply: async (options: MessageReplyOption): Promise<void | Message> => {
-            return await message.reply(options).catch(log);
+            return await message.reply(options).catch(error);
         },
         send: async (options: TextBasedChannelSendOption) => {
             if (!message.channel || !message.channel.isTextBased()) {
                 return;
             }
-            const sentMessage = await message.channel.send(options).catch(log);
+            const sentMessage = await message.channel.send(options).catch(error);
             if (!sentMessage) {
                 return sentMessage;
             }
@@ -79,19 +79,16 @@ export function getMessageResponder(message: Message) {
             return getMessageResponder(sentMessage);
         },
         react: async (options: EmojiIdentifierResolvable): Promise<void | MessageReaction> => {
-            return await message.react(options).catch(log);
+            return message.react(options).catch(error);
         },
         edit: async (options: MessageEditOption): Promise<void | Message> => {
-            return await message.edit(options).catch(log);
+            return message.edit(options).catch(error);
         },
         raw: message,
         args: message.content.split(/ +/g).slice(1),
     };
 }
 
-function log(e: unknown) {
-    console.warn(e);
-}
 export type getInteractionResponders = ReturnType<typeof getInteractionResponder>;
 export type getMessageResponders = ReturnType<typeof getMessageResponder>;
 
@@ -104,7 +101,7 @@ export function handleSubCommands<T extends ChatInputCommandInteraction, F>(inte
     const command = files.get(subCommandArg);
     if (!command) {
         return responder.reply({
-            content: `I was unable to find that sub command.`,
+            embeds: [comment(`I was unable to find that sub command`, "#FF0000", true)],
             ephemeral: true,
         });
     }

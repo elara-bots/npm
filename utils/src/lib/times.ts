@@ -9,6 +9,20 @@ export let times = {
     short: "",
 };
 
+export function log(...args: unknown[]) {
+    if (!times.timeZone) {
+        return console.log(...args);
+    }
+    return console.log(`[${new Date().toLocaleString("en-US", { timeZone: times.timeZone })}]: `, ...args);
+}
+
+export function error(...args: unknown[]) {
+    if (!times.timeZone) {
+        return console.error(...args);
+    }
+    return console.error(`[${new Date().toLocaleString("en-US", { timeZone: times.timeZone })}]: `, ...args);
+}
+
 export function getTimeFrom(time: DurationInputArg1, name: unitOfTime.DurationConstructor, date: Date | string) {
     return moment(date ? new Date(date) : new Date())
         .add(time, name)
@@ -32,7 +46,7 @@ export const ms = {
         seconds -= hours * (60 * 60);
         const minutes = Math.floor(seconds / 60);
         seconds -= minutes * 60;
-        return `${0 < days ? days + ` Day${days === 1 ? "" : "s"}, ` : ""}${hours === 0 ? "" : `${hours} Hour${hours === 1 ? "" : "s"}${(minutes && seconds) === 0 ? "" : ", "}`}${minutes !== 0 ? `${minutes} Minute${minutes === 1 ? "" : "s"}${seconds === 0 ? "" : ", "}` : ""}${seconds !== 0 ? `${seconds} Second${seconds === 1 ? "" : "s"}` : ""}`;
+        return `${0 < days ? days + ` Day${days === 1 ? "" : "s"}, ` : ""}${hours === 0 ? "" : `${hours} Hour${hours === 1 ? "" : "s"}${(minutes && seconds) === 0 ? "" : ", "}`}${minutes !== 0 ? `${minutes} Minute${minutes === 1 ? "" : "s"}${seconds === 0 ? "" : ", "}` : ""}${seconds !== 0 ? `${Math.floor(seconds)} Second${seconds === 1 ? "" : "s"}` : ""}`;
     },
 };
 

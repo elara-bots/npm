@@ -5,4 +5,5 @@ export * from "./getfiles";
 export * from "./parser";
 export * from "./permissions";
 export * from "./responders";
+export * from "./status";
 export * from "./times";

@@ -1,7 +1,13 @@
 import { Collection } from "@discordjs/collection";
-import { Channel, Client, EmbedBuilder, Guild, GuildMember, Message, MessageCreateOptions, MessagePayload, Role, SnowflakeGenerateOptions, SnowflakeUtil, User, type GuildBan, type PermissionResolvable } from "discord.js";
+import { Channel, Client, EmbedBuilder, Guild, GuildMember, Message, MessageCreateOptions, MessagePayload, Role, SnowflakeGenerateOptions, SnowflakeUtil, User, version, type GuildBan, type Invite, type PermissionResolvable } from "discord.js";
 import { is, sleep } from "./extra";
+import { checkChannelPerms } from "./permissions";
+import { status } from "./status";
 export type errorHandler = (e: Error) => unknown;
+
+export function isV13() {
+    return version.startsWith("13.");
+}
 
 export function commands(content: string, prefix: string) {
     const str = content.split(/ +/g);
@@ -288,3 +294,215 @@ export const limits = {
         name: 256,
     },
 };
+
+export async function react(message: Message, emojis: string[] | string) {
+    if (!checkChannelPerms(message.channel, message.client.user.id, 347200n)) {
+        return null;
+    }
+    if (is.array(emojis)) {
+        for (const e of emojis.reverse()) {
+            message.react(e).catch(() => null);
+        }
+        return true;
+    }
+    if (is.string(emojis)) {
+        return message
+            .react(emojis)
+            .then(() => true)
+            .catch(() => false);
+    }
+    return false;
+}
+
+export const Invites = {
+    cache: new Collection<string, string[]>(),
+    compare: (c: string[], s: string[]) => {
+        for (let i = 0; i < c.length; i++) {
+            if (c[i] !== s[i]) {
+                return c[i];
+            }
+        }
+        return "";
+    },
+
+    used: async (guild: Guild) => {
+        if (!guild?.members?.me?.permissions?.has?.(48n)) {
+            return null;
+        }
+        const f = (i: any) => `${i.code}|${i.uses ? i.uses : "♾"}|${i.inviter?.id ?? "None"}`;
+        const Cached = (invs: Collection<string, Invite>) => {
+            Invites.cache.set(guild.id, invs.map(f));
+            return null;
+        };
+        const invites = await guild.invites.fetch().catch(() => null);
+        if (!invites) {
+            return null;
+        }
+        const CachedInvites = Invites.cache.get(guild.id);
+        const currentInvites = invites.map(f);
+        if (!CachedInvites?.length) {
+            return Cached(invites);
+        }
+        if (CachedInvites.join(" ") === currentInvites.join(" ")) {
+            if (guild.features.includes("VANITY_URL") && guild.vanityURLCode) {
+                const owner = guild.members.resolve(guild.ownerId) || (await guild.members.fetch({ user: guild.ownerId }).catch(() => null)) || null;
+                return {
+                    code: guild.vanityURLCode,
+                    uses: `♾`,
+                    inviter: owner?.user ?? "[UNKNOWN_USER]",
+                };
+            }
+            if (invites.size) {
+                Cached(invites);
+            }
+            return null;
+        } else {
+            const used = Invites.compare(currentInvites, CachedInvites);
+            if (!is.string(used)) {
+                return Cached(invites);
+            }
+            const [code, uses, inviter] = used.split("|");
+            Cached(invites);
+            return {
+                code,
+                uses: uses === "Infinite" ? "♾" : uses,
+                inviter: await discord.user(guild.client, inviter, { fetch: true, mock: true }),
+            };
+        }
+    },
+
+    fetch: async (guild: Guild, users: string[], fetchInviters?: boolean, fetchUses?: boolean): Promise<{ status: false; message: string } | { status: true; data: FetchedMemberInvitesResponse }> => {
+        return new Promise(async (r) => {
+            if (!guild.features.includes("COMMUNITY")) {
+                return r(status.error(`Server ${guild.name} (${guild.id}) doesn't have "COMMUNITY" enabled so this cannot be used.`));
+            }
+            const body = {
+                limit: users.length,
+                and_query: { user_id: { or_query: users } },
+            };
+            let data: FetchedMemberInvitesResponse | Error = new Error(`Unable to fetch the members invites.`);
+            const fetch = async () => {
+                if (isV13()) {
+                    // @ts-ignore
+                    data = (await guild.client.api
+                        // @ts-ignore
+                        .guilds(guild.id)("members-search")
+                        .post({ data: body })
+                        // @ts-ignore
+                        .catch((e: Error) => e)) as FetchedMemberInvitesResponse | Error;
+                } else {
+                    data = (await guild.client.rest.post(`/guilds/${guild.id}/members-search`, { body }).catch((e: Error) => e)) as FetchedMemberInvitesResponse | Error;
+                }
+            };
+            await fetch();
+            if ("retry_after" in data) {
+                await sleep((data.retry_after as number) * 1000);
+                await fetch();
+            }
+            if (data instanceof Error) {
+                return r(status.error(data.message));
+            }
+            if (fetchUses === true && guild.members.me?.permissions.has(32n)) {
+                const invs = await guild.invites.fetch({ cache: false }).catch(() => null);
+                if (invs?.size) {
+                    // @ts-ignore
+                    data.members = data.members.map((c) => {
+                        const d = invs.find((i) => i.code === c.source_invite_code);
+                        c.uses = d?.uses || 0;
+                        c.notFound = d ? false : true;
+                        return c;
+                    });
+                } else {
+                    // @ts-ignore
+                    data.members = data.members.map((c) => {
+                        c.uses = 0;
+                        c.notFound = true;
+                        return c;
+                    });
+                }
+            } else {
+                // @ts-ignore
+                data.members = data.members.map((c) => {
+                    c.uses = 0;
+                    c.notFound = false;
+                    return c;
+                });
+            }
+            if (fetchInviters === true) {
+                // @ts-ignore
+                data.members = await Promise.all(
+                    // @ts-ignore
+                    data.members.map(async (c) => {
+                        if (c.join_source_type === 6) {
+                            c.inviter = await discord.user(guild.client, guild.ownerId, { fetch: true });
+                        } else if (c.inviter_id) {
+                            c.inviter = await discord.user(guild.client, c.inviter_id, { fetch: true });
+                        } else {
+                            c.inviter = null;
+                        }
+                        return c;
+                    }),
+                );
+            } else {
+                // @ts-ignore
+                data.members = data.members.map((c) => {
+                    c.inviter = null;
+                    return c;
+                });
+            }
+            return r(status.data<FetchedMemberInvitesResponse>(data));
+        });
+    },
+
+    format: async (guild: Guild, users: string[]): Promise<{ status: false; message: string } | { status: true; data: FetchedMemberInvitesResponse["members"] }> => {
+        const res = await Invites.fetch(guild, users, true, true);
+        if (!res.status) {
+            return { status: false, message: `Unable to find any info regarding that user.` };
+        }
+        return {
+            status: true,
+            data: res.data.members,
+        };
+    },
+};
+
+export interface FetchedMemberInvitesResponse {
+    guild_id: string;
+    members: {
+        member: {
+            avatar: string | null;
+            communication_disabled_until: string | null;
+            unusual_dm_activity_until: string | null;
+            flags: number;
+            joined_at: string | null;
+            nick: string | null;
+            pending: boolean;
+            premium_since: string | null;
+            roles: string[];
+            user: {
+                id: string;
+                username: string;
+                avatar: string | null;
+                discriminator: string | "0000" | "0";
+                public_flags: number;
+                premium_type?: number;
+                flags: number;
+                banner: string | null;
+                accent_color: string | null;
+                global_name: string | null;
+                avatar_decoration_data: object | null;
+                banner_color: string | null;
+            };
+            mute: boolean;
+            deaf: boolean;
+        };
+        source_invite_code: string | null;
+        notFound: boolean;
+        join_source_type: number;
+        uses: number;
+        inviter_id: string | null;
+        inviter?: User | null;
+    }[];
+    page_result_count: number;
+    total_result_count: number;
+}

@@ -21,7 +21,7 @@ export async function parser(obj: object = {}, options: ParserOptions = {}): Pro
         }
         r([p.guild.name, p.guild.server], guild.name);
         r([p.guild.icon], guild.iconURL() as string);
-        r([p.guild.banner], guild.bannerURL() as string);
+        r([p.guild.banner], (guild.banner ? guild.bannerURL() : "") as string);
         r([p.guild.splash], guild.discoverySplashURL() as string);
         r([p.guild.created], guild.createdAt.toLocaleString());
         r([p.guild.createdDiscordTimestamp], timeFormat(guild.createdAt, true, "f"));
@@ -35,7 +35,7 @@ export async function parser(obj: object = {}, options: ParserOptions = {}): Pro
         r([p.user.id], user.id);
         r([p.user.avatar], user.displayAvatarURL());
         r([p.user.accentColor], user.hexAccentColor || "N/A");
-        r([p.user.banner], user.bannerURL() || "");
+        r([p.user.banner], user.banner ? user.bannerURL() || "" : "");
         r([p.user.created], user.createdAt.toLocaleString());
         r([p.user.createdDiscordTimestamp], timeFormat(user.createdAt, true, "f"));
     }

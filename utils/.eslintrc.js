@@ -25,6 +25,7 @@ module.exports = {
         "@typescript-eslint/no-var-requires": 0,
         "object-shorthand": "error",
         "@typescript-eslint/no-explicit-any": 0,
+        "no-async-promise-executor": 0,
     },
     "ignorePatterns": [
         "dist/*",
