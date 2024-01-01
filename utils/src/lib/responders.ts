@@ -56,6 +56,15 @@ export function getInteractionResponder(interaction: ChatInputCommandInteraction
 
 export function getMessageResponder(message: Message) {
     return {
+        loading: async (str?: string) => {
+            return message
+                .reply({
+                    embeds: [comment(str || `Loading, one moment...`, colors.orange, true)],
+                    failIfNotExists: false,
+                })
+                .catch(error);
+        },
+
         delete: async (timeout = 0) => {
             if (timeout <= 0) {
                 return message.delete().catch(error);

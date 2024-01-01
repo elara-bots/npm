@@ -145,8 +145,11 @@ export const getKeys = <T extends object>(obj: T) => {
     return Object.keys(obj) as (keyof T)[];
 };
 
-export function generate(length = 5) {
-    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+export function generate(length = 5, includeNumbers = true) {
+    let chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    if (includeNumbers === true) {
+        chars += "0123456789";
+    }
     let str = "";
     for (let i = 0; i < length; i++) {
         str += chars.charAt(Math.floor(Math.random() * chars.length));

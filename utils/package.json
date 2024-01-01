@@ -1,6 +1,6 @@
 {
   "name": "@elara-services/utils",
-  "version": "1.3.5",
+  "version": "1.3.7",
   "description": "Random utilities for stuff ",
   "main": "./dist/index.js",
   "scripts": {
