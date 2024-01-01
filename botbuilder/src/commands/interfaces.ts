@@ -1,10 +1,10 @@
 import {
     buildSubCommand,
     getFilesList,
+    getInteractionResponders,
+    getMessageResponders,
     handleSubCommands,
     type SubCommand as Sub,
-    type getInteractionResponders,
-    type getMessageResponders,
 } from "@elara-services/utils";
 
 import type {
@@ -15,20 +15,41 @@ import type {
     SlashCommandBuilder as SBuild,
     UserContextMenuCommandInteraction,
 } from "discord.js";
-export type CachedInt = ChatInputCommandInteraction<"cached">;
-export type Locked = "owner" | "staff";
+export type CachedInt = ChatInputCommandInteraction;
+
+type IntOptions = {
+    roles?: string[];
+    users?: string[];
+    channels?: string[];
+};
+type OnlyOptions = {
+    guild?: boolean;
+    threads?: boolean;
+    text?: boolean;
+    voice?: boolean;
+    dms?: boolean;
+};
 
 interface Common<T> {
+    enabled?: boolean;
+    defer?: {
+        silent: boolean;
+    };
+    aliases?: string[];
+    locked?: IntOptions;
+    disabled?: IntOptions;
+    only?: OnlyOptions;
     execute: (
         interaction: T,
-        responder: getInteractionResponders
+        responder: getInteractionResponders,
     ) => Promise<unknown> | unknown;
+    pre?: (interaction: T, cmd: SlashCommand) => Promise<boolean> | boolean;
 }
 
 export interface SubCommand extends Sub, Common<CachedInt> {}
 
 export interface SlashCommand extends Common<CachedInt> {
-    command: SBuild | ((builder: SBuild) => SBuild);
+    command: Partial<SBuild> | ((builder: Partial<SBuild>) => Partial<SBuild>);
 }
 
 export interface UserContextMenuCommand
@@ -43,11 +64,16 @@ export interface MessageContextMenuCommand
 
 export interface PrefixCommand {
     name: string;
-    locked: Locked[];
+    enabled?: boolean;
+    aliases?: string[];
+    locked?: IntOptions;
+    disabled?: IntOptions;
+    only?: OnlyOptions;
     execute(
         message: Message,
-        responder: getMessageResponders
+        responder: getMessageResponders,
     ): Promise<unknown> | unknown;
+    pre?: (message: Message, cmd: PrefixCommand) => Promise<boolean> | boolean;
 }
 
 export { buildSubCommand, getFilesList, handleSubCommands };

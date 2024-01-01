@@ -7,8 +7,10 @@ import {
 } from "discord.js";
 import type { SlashCommand } from ".";
 
-
-export async function deployCommands(botToken: string, commands: Collection<string, SlashCommand>) {
+export async function deployCommands<T extends SlashCommand>(
+    botToken: string,
+    commands: Collection<string, T>,
+) {
     const body: RESTPostAPIChatInputApplicationCommandsJSONBody[] = [];
     for (const cmd of commands.values()) {
         if (
@@ -18,6 +20,7 @@ export async function deployCommands(botToken: string, commands: Collection<stri
         ) {
             continue;
         }
+        // @ts-ignore
         body.push(cmd.command.toJSON());
     }
     try {
@@ -34,5 +37,4 @@ export async function deployCommands(botToken: string, commands: Collection<stri
         // And of course, make sure you catch and log any errors!
         console.error(error);
     }
-
 }

@@ -4,7 +4,7 @@ import type { Event, WSEvent } from "./interfaces";
 
 export async function loadEvents(
     client: Client,
-    events: Collection<string, Event | WSEvent>
+    events: Collection<string, Event | WSEvent>,
 ) {
     for (const event of events.values()) {
         if (!event.enabled) {
