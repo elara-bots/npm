@@ -1,3 +1,4 @@
+import { REST } from "@discordjs/rest";
 import type {
     Channel,
     Client,
@@ -6,30 +7,34 @@ import type {
 import {
     _debug,
     addToQueue,
+    bannedUsernames,
     createWebhook,
     disabledLogging,
     sendQueue,
     throwError,
     webhooks,
-    type sendOptions,
-    bannedUsernames,
+    type sendOptions
 } from "..";
 
 export class GuildWebhook {
     public guild: Guild;
     private client: Client<true>;
+    private rest: REST;
     public constructor(guild: Guild) {
         if (!guild) {
             throwError(`You provided either no guild in the constructor`)
         }
         this.guild = guild;
         this.client = guild.client;
+        this.rest = new REST()
+        .setToken(guild.client.token);
     }
+
     fetchWebhookInfo(opt: {
         name?: string | null | undefined;
         icon?: string | null | undefined;
     } | null | undefined) {
-        let def = { username: this.guild.name, avatar_url: this.guild.icon ? this.guild.iconURL() : `${this.client.options.rest?.cdn}/emojis/847624594717671476.png` };
+        let def = { username: this.guild.name, avatar_url: this.guild.icon ? this.guild.iconURL() : `https://cdn.discordapp.com/emojis/847624594717671476.png` };
         if (opt) return { username: opt?.name || def.username, avatar_url: opt?.icon || def.avatar_url } 
         return def;
     }
@@ -47,7 +52,7 @@ export class GuildWebhook {
             hook = hooks.find(c => c.owner?.id === this.client.user.id && c.token);
         }
         if (!hook) {
-            hook = await createWebhook(this.client.rest, channel.id, `${this.client.user.username} Services`);
+            hook = await createWebhook(this.rest, channel.id, `${this.client.user.username} Services`);
         }
         if (!hook || !hook.token) {
             return null;

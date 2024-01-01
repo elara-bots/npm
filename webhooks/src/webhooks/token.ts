@@ -1,3 +1,4 @@
+import { REST } from "@discordjs/rest";
 import { getClientIdFromToken } from "@elara-services/utils";
 import {
     Routes,
@@ -11,7 +12,6 @@ import {
     channels,
     createWebhook,
     disabledLogging,
-    rest,
     sendQueue,
     throwError,
     webhooks,
@@ -26,6 +26,7 @@ export let defaultWebhookOptions = {
 
 export class Webhook {
     private clientId: string | undefined;
+    private rest: REST;
     public constructor(botToken: string) {
         if (!botToken || typeof botToken !== "string") {
             throwError(`You provided either no botToken in the constructor or it's not a string.`);
@@ -34,7 +35,8 @@ export class Webhook {
         if (!this.clientId || typeof this.clientId !== "string") {
             throwError(`You didn't provide a valid botToken.`);
         }
-        rest.setToken(botToken);
+        this.rest = new REST()
+        .setToken(botToken);
     }
 
     fetchWebhookInfo(opt: {
@@ -55,13 +57,13 @@ export class Webhook {
         if (w) {
             return w;
         }
-        const hooks: RESTGetAPIChannelWebhooksResult | unknown = await rest.get(Routes.channelWebhooks(channelId)).catch(() => null);
+        const hooks: RESTGetAPIChannelWebhooksResult | unknown = await this.rest.get(Routes.channelWebhooks(channelId)).catch(() => null);
         let hook = null;
         if (Array.isArray(hooks) && hooks.length) {
             hook = hooks.find(c => c.user?.id === this.clientId && c.token);
         }
         if (!hook) {
-            hook = await createWebhook(rest, channelId, defaultWebhookOptions.username);
+            hook = await createWebhook(this.rest, channelId, defaultWebhookOptions.username);
         }
         if (!hook || !hook.token) {
             return null;
@@ -105,7 +107,7 @@ export class Webhook {
             return _debug(`No content (${content?.length || 0}) or no embeds (${embeds.length || 0})`);
         }
         let threadId;
-        if (channel.parentId) {
+        if (channel.parentId && [10, 11, 12, 15, 16].includes(channel.type)) {
             threadId = channelId;
             finalChannelId = channel.parentId;
         }
@@ -137,7 +139,7 @@ export class Webhook {
             }
             return channel;
         }
-        const res = await rest.get(Routes.channel(channelId)).catch((e: unknown) => e) as APIChannel | Error;
+        const res = await this.rest.get(Routes.channel(channelId)).catch((e: unknown) => e) as APIChannel | Error;
         if (!res || res instanceof Error) {
             channels.set(channelId, { id: channelId, invalid: true, type: 0 });
             _debug(`ChannelId (${channelId}) had an error while fetching`, res);

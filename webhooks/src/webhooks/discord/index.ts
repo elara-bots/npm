@@ -1,8 +1,8 @@
 import { REST, makeURLSearchParams } from "@discordjs/rest";
-import { field, limits } from "@elara-services/utils";
+import { field, is, limits, resolveColor } from "@elara-services/utils";
 import type { APIActionRowComponent, APIEmbed, APIMessageActionRowComponent } from "discord-api-types/v10";
 import type { DiscordWebhookData, DiscordWebhookOptions } from "../../interfaces";
-import { defaultOptions, error, is, resolveColor, status, url, validateURL } from "./utils";
+import { defaultOptions, error, status, url, validateURL } from "./utils";
 const rest = new REST();
 
 export class DiscordWebhook {

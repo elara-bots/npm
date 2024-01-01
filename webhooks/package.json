@@ -1,6 +1,6 @@
 {
     "name": "@elara-services/webhooks",
-    "version": "2.1.7",
+    "version": "2.1.12",
     "description": "To send/create webhooks",
     "main": "./dist/src/index.js",
     "scripts": {
