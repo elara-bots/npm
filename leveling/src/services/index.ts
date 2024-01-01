@@ -6,6 +6,7 @@ import { Leveling } from "..";
 import type { Weekly, WeeklyData } from "../interfaces";
 import { isThisWeek } from "../utils";
 import * as schemas from "./schema";
+
 let connected = false;
 export class Database {
     #url: string;
@@ -17,12 +18,13 @@ export class Database {
     public constructor(
         url: string,
         public client: Client,
+        private dbName: string,
     ) {
         this.#url = url;
         this.#connect();
     }
 
-    public get weekly() {
+    private get weekly() {
         return {
             get: async (guildId: string, id?: string) => {
                 if (id) {
@@ -127,7 +129,7 @@ export class Database {
         };
     }
 
-    public async getUser(userId: string, guildId: string) {
+    private async getUser(userId: string, guildId: string) {
         let data = await this.dbs.users
             .findOne({ userId, guildId })
             .catch(() => null);
@@ -142,7 +144,7 @@ export class Database {
         return data;
     }
 
-    public async getSettings(guildId: string) {
+    private async getSettings(guildId: string) {
         let settings = await this.dbs.settings
             .findOne({ guildId })
             .catch(() => null);
@@ -163,13 +165,13 @@ export class Database {
         }
         connected = true;
         return connect(this.#url, {
-            dbName: "Leveling",
+            dbName: this.dbName || "Leveling",
             retryReads: true,
             retryWrites: true,
         });
     }
 
-    async handleWeeklyAnnounce(data: Weekly) {
+    private async handleWeeklyAnnounce(data: Weekly) {
         if (!data) {
             return;
         }

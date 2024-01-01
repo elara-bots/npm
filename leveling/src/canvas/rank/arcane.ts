@@ -1,5 +1,5 @@
-import { status } from "@elara-services/utils";
 import type { User } from "discord.js";
+import * as Canvas from "skia-canvas";
 import type {
     ArcaneUser,
     CachedOptions,
@@ -7,6 +7,8 @@ import type {
     Users,
 } from "../../interfaces";
 import { colors, getData, getUserAvatar } from "../../utils";
+import { is } from "@elara-services/utils";
+
 const defs = {
     progress: {
         first: "#008cff",
@@ -49,16 +51,6 @@ export async function arcane(
 }
 
 async function createArcaneRankProfile(user: ArcaneUser): CanvasResponse {
-    // @ts-ignore
-    const Canvas = await import("skia-canvas").catch(() => null);
-    if (!Canvas) {
-        return status.error(`Unable to find 'skia-canvas'`);
-    }
-
-    if (!Canvas.FontLibrary.has("Raleway")) {
-        Canvas.FontLibrary.use(`Raleway`, `./src/fonts/Raleway.ttf`);
-    }
-
     const canvas = new Canvas.Canvas(800, 200);
     const ctx = canvas.getContext("2d");
     if (user.background) {
@@ -213,23 +205,16 @@ function rectangle(
     stroke?: boolean,
 ) {
     return new Promise(async (resolve) => {
-        // @ts-ignore
-        const canvas = await import("skia-canvas").catch(() => null);
-        if (!canvas) {
-            return resolve(void 0);
-        }
         const img = typeof background === "string";
-
-        if (typeof stroke === "undefined") {
+        if (is.undefined(stroke)) {
             stroke = false;
         }
-        if (typeof radius === "undefined") {
+        if (is.undefined(radius)) {
             radius = 5;
         }
-        radius =
-            typeof radius === "number"
-                ? { tl: radius, tr: radius, br: radius, bl: radius }
-                : { tl: 0, tr: 0, br: 0, bl: 0 };
+        radius = is.number(radius)
+            ? { tl: radius, tr: radius, br: radius, bl: radius }
+            : { tl: 0, tr: 0, br: 0, bl: 0 };
 
         if (img) {
             ctx.save();
@@ -253,7 +238,7 @@ function rectangle(
 
         if (img) {
             ctx.clip();
-            const image = await canvas.loadImage(background).catch(() => null);
+            const image = await Canvas.loadImage(background).catch(() => null);
             if (image) {
                 ctx.drawImage(image, x, y, width, height);
             }

@@ -268,9 +268,10 @@ export async function fetchAllUsers(
  * @private
  */
 export function getData(db: CachedOptions<Users>) {
+    const current = db.xp - xpFor(db.level);
     return {
         xp: {
-            current: db.xp - xpFor(db.level),
+            current: current > 1 ? current : 0,
             required: xpFor(db.level + 1) - xpFor(db.level),
         },
         level: db.level,

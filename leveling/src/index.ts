@@ -1,4 +1,5 @@
 import { discord, hasBit, is, p } from "@elara-services/utils";
+import type { APIEmbed } from "discord-api-types/v10";
 import {
     Client,
     Message,
@@ -7,7 +8,6 @@ import {
     type GuildMember,
     type PartialGuildMember,
 } from "discord.js";
-import type { APIEmbed } from "discord-api-types/v10";
 import { EventEmitter } from "events";
 import type { CachedOptions, Settings, UserCache, Users } from "./interfaces";
 import { Database } from "./services";
@@ -38,8 +38,9 @@ export class Leveling extends Database {
     public constructor(
         public client: Client,
         mongodbURI: string,
+        dbName = "Leveling",
     ) {
-        super(mongodbURI, client);
+        super(mongodbURI, client, dbName);
     }
 
     /**
@@ -58,6 +59,7 @@ export class Leveling extends Database {
             member: GuildMember,
             profile: Users & { _id: string },
             server: Settings & { _id: string },
+            level: number,
         ) => unknown,
     ) {
         return this.#events.on("level", listener);
@@ -71,6 +73,7 @@ export class Leveling extends Database {
             member: GuildMember,
             profile: Users & { _id: string },
             server: Settings & { _id: string },
+            xp: number,
         ) => unknown,
     ) {
         return this.#events.on("xp", listener);
@@ -111,6 +114,7 @@ export class Leveling extends Database {
         ) {
             return;
         }
+        // @ts-ignore
         const db = await this.getSettings(voice.guild.id);
         if (!db || !db.enabled || !db.toggles.voice) {
             return;
@@ -141,6 +145,7 @@ export class Leveling extends Database {
         ) {
             return;
         }
+        // @ts-ignore
         const user = await this.getUser(voice.member.user.id, voice.guild.id);
         if (!user || user.toggles.locked) {
             return;
@@ -171,6 +176,7 @@ export class Leveling extends Database {
         }
         if (old.channelId && !voice.channelId) {
             if (db.toggles.weekly.track && is.number(voiceMinutes)) {
+                // @ts-ignore
                 await this.weekly.add(voice.member.guild.id, {
                     stats: { voice: voiceMinutes },
                     users: [{ userId: voice.member.id, voice: voiceMinutes }],
@@ -192,6 +198,7 @@ export class Leveling extends Database {
     }
 
     async #guildMemberRemove(m: GuildMember | PartialGuildMember) {
+        // @ts-ignore
         const db = await this.getSettings(m.guild.id);
         if (!db || !db.enabled || !db.toggles.resetOnLeave) {
             return;
@@ -220,6 +227,7 @@ export class Leveling extends Database {
         if (!member) {
             return;
         }
+        // @ts-ignore
         const db = await this.getSettings(message.guildId);
         if (!db || !db.enabled) {
             return;
@@ -238,7 +246,7 @@ export class Leveling extends Database {
                 }
                 if (
                     m.channels.includes(message.channelId) ||
-                    m.channels.includes(message.channel.parentId || "")
+                    m.channels.includes(message.channel?.parentId || "")
                 ) {
                     multipliers.push(m.multiplier);
                 }
@@ -252,11 +260,13 @@ export class Leveling extends Database {
             xp *= multi;
         }
         if (db.toggles.weekly.track === true) {
+            // @ts-ignore
             await this.weekly.add(message.guildId, {
                 stats: { messages: 1 },
                 users: [{ messages: 1, userId: author.id }],
             });
         }
+        // @ts-ignore
         let user = await this.getUser(author.id, message.guildId);
         if (!user || user.toggles.locked === true) {
             return;
@@ -278,7 +288,7 @@ export class Leveling extends Database {
         }
         if (find) {
             const time = Date.now() - find.date;
-            if (time < find.cooldown) {
+            if (time < cool) {
                 this.#events.emit("cooldown", message, find);
                 return;
             }
@@ -298,7 +308,7 @@ export class Leveling extends Database {
         if (
             is.array(db.ignore.channels) &&
             db.ignore.channels.some((c) =>
-                [message.channelId, message.channel.parentId].includes(c),
+                [message.channelId, message.channel?.parentId].includes(c),
             )
         ) {
             return; // Ignore the user / XP earned in this channel.
@@ -328,6 +338,7 @@ export class Leveling extends Database {
         isLevelup?: boolean | null,
     ) {
         if (!db) {
+            // @ts-ignore
             db = await this.getSettings(member.guild.id);
         }
         if (!db || !db.enabled) {
@@ -375,9 +386,16 @@ export class Leveling extends Database {
             return await str(options);
         };
         if (level === true) {
-            this.#events.emit("xp", member, profile.data, db.toJSON());
-            this.#events.emit("level", member, profile.data, db.toJSON());
+            this.#events.emit("xp", member, profile.data, db.toJSON(), xp);
+            this.#events.emit(
+                "level",
+                member,
+                profile.data,
+                db.toJSON(),
+                profile.data.level,
+            );
             if (db.toggles.weekly.track) {
+                // @ts-ignore
                 await this.weekly.add(member.guild.id, {
                     stats: { xp },
                     users: [{ level: 1, userId: member.id, xp }],
@@ -447,8 +465,9 @@ export class Leveling extends Database {
                     .catch(() => null);
             }
         } else {
-            this.#events.emit("xp", member, profile.data, db.toJSON());
+            this.#events.emit("xp", member, profile.data, db.toJSON(), xp);
             if (db.toggles.weekly.track) {
+                // @ts-ignore
                 await this.weekly.add(member.guild.id, {
                     stats: { xp },
                     users: [{ userId: member.id, xp }],

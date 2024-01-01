@@ -1,4 +1,4 @@
-import { status } from "@elara-services/utils";
+import * as canvas from "canvacord";
 import type { User } from "discord.js";
 import type {
     CachedOptions,
@@ -12,17 +12,8 @@ export async function canvacord(
     user: User,
     db: CachedOptions<Users>,
     rank: number,
-    memberStatus?: MemberPresenceStatus,
+    memberStatus?: Exclude<MemberPresenceStatus, "offline">,
 ): CanvasResponse {
-    if (memberStatus === "offline") {
-        memberStatus = "invisible";
-    }
-    const canvas = await import("canvacord").catch(() => null);
-    if (!canvas) {
-        return status.error(
-            `Unable to find 'canvacord', make sure you have it installed!`,
-        );
-    }
     canvas.Font.loadDefault();
     const { level, xp } = getData(db);
 
