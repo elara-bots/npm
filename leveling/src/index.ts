@@ -25,6 +25,8 @@ export type * from "./services";
 export type * from "./services/api";
 export * from "./utils";
 
+const cached = new Set();
+
 export class Leveling extends Database {
     /**
      * The manager to configure the leveling data ()
@@ -414,6 +416,10 @@ export class Leveling extends Database {
             if (db.toggles.onlyRegisteredLevels === true && !find) {
                 return;
             }
+            if (cached.has(`${profile.data.level}:${member.id}`)) {
+                return;
+            }
+            cached.add(`${profile.data.level}:${member.id}`);
             if (db.announce.channel.enabled) {
                 const channel =
                     member.guild.channels.resolve(

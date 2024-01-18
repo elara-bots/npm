@@ -1,4 +1,10 @@
-import { discord, getEntries, is, snowflakes } from "@elara-services/utils";
+import {
+    discord,
+    getEntries,
+    is,
+    log,
+    snowflakes,
+} from "@elara-services/utils";
 import { Client } from "discord.js";
 import moment from "moment";
 import { connect, model } from "mongoose";
@@ -6,6 +12,7 @@ import { Leveling } from "..";
 import type { Weekly, WeeklyData } from "../interfaces";
 import { isThisWeek } from "../utils";
 import * as schemas from "./schema";
+import { name, version } from "../../package.json";
 
 let connected = false;
 export class Database {
@@ -168,6 +175,12 @@ export class Database {
             dbName: this.dbName || "Leveling",
             retryReads: true,
             retryWrites: true,
+        }).then(() => {
+            log(
+                `[${name}, v${version}]: [MONGODB]: Connected to ${
+                    this.dbName || "Leveling"
+                }`,
+            );
         });
     }
 
