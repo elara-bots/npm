@@ -4,3 +4,4 @@ test.js
 .env
 dist/
 docs/
+test.ts
