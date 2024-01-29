@@ -4,6 +4,9 @@ import { timeFormat } from "./times";
 export async function parser(obj: object = {}, options: ParserOptions = {}): Promise<object> {
     let str = JSON.stringify(obj);
     const r = (names: string[], s: string) => {
+        if (names.some((c) => c.includes("_"))) {
+            names = [...names, ...names.map((c) => c.replace(/_/gi, ".")), ...names.map((c) => c.replace(/_/gi, "-")), ...names.map((c) => c.replace(/_/gi, ";")), ...names.map((c) => c.replace(/_/gi, ":"))];
+        }
         str = str.replace(new RegExp(names.join("|"), "gi"), s);
     };
     if (options.member) {

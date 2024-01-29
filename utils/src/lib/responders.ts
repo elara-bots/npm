@@ -1,11 +1,35 @@
-import { Collection, SlashCommandBuilder as SBuild, SlashCommandSubcommandBuilder as SSBuild, type ChatInputCommandInteraction, type EmojiIdentifierResolvable, type InteractionDeferReplyOptions, type InteractionEditReplyOptions, type InteractionReplyOptions, type InteractionResponse, type Message, type MessageCreateOptions, type MessageEditOptions, type MessagePayload, type MessageReaction, type MessageReplyOptions } from "discord.js";
-import { getFilesList, sleep, DefaultColors, resolveColor, colors, error } from ".";
 import { EmbedBuilder } from "@discordjs/builders";
+import {
+    APIModalInteractionResponseCallbackData,
+    Collection,
+    InteractionDeferUpdateOptions,
+    JSONEncodable,
+    ModalComponentData,
+    RepliableInteraction,
+    SlashCommandBuilder as SBuild,
+    SlashCommandSubcommandBuilder as SSBuild,
+    type ChatInputCommandInteraction,
+    type EmojiIdentifierResolvable,
+    type InteractionDeferReplyOptions,
+    type InteractionEditReplyOptions,
+    type InteractionReplyOptions,
+    type InteractionResponse,
+    type Message,
+    type MessageCreateOptions,
+    type MessageEditOptions,
+    type MessagePayload,
+    type MessageReaction,
+    type MessageReplyOptions,
+    InteractionUpdateOptions,
+} from "discord.js";
+import { DefaultColors, colors, error, getFilesList, resolveColor, sleep } from ".";
 
 export type TextBasedChannelSendOption = string | MessagePayload | MessageCreateOptions;
 
 export type CommonInteractionEditReplyOptions = string | MessagePayload | InteractionEditReplyOptions;
 
+// @see Parameters<ButtonInteraction["update"]>
+export type CommonInteractionUpdateOptions = string | MessagePayload | InteractionUpdateOptions;
 export type MessageReplyOption = string | MessagePayload | MessageReplyOptions;
 export type MessageEditOption = string | MessagePayload | MessageEditOptions;
 export function embed(): EmbedBuilder {
@@ -21,7 +45,7 @@ export function comment(description: string, color: keyof typeof DefaultColors |
     return em;
 }
 
-export function getInteractionResponder(interaction: ChatInputCommandInteraction, handleErrors = error) {
+export function getInteractionResponder(interaction: RepliableInteraction, handleErrors = error) {
     return {
         reply: async (options: InteractionReplyOptions): Promise<void | (InteractionResponse | Message)> => {
             if (interaction.deferred) {
@@ -51,6 +75,41 @@ export function getInteractionResponder(interaction: ChatInputCommandInteraction
             }
             return interaction.channel.send(options).catch(handleErrors);
         },
+
+        update: async (options: CommonInteractionUpdateOptions): Promise<void | InteractionResponse> => {
+            if (!interaction.isButton() && !interaction.isAnySelectMenu()) {
+                return;
+            }
+            return interaction.update(options).catch(() => void null);
+        },
+
+        deleteReply: async (timeout = 0): Promise<void | InteractionResponse> => {
+            if (timeout > 0) {
+                await sleep(timeout);
+            }
+            return interaction.deleteReply().catch(() => void null);
+        },
+        deferUpdate: async (options?: InteractionDeferUpdateOptions): Promise<void | InteractionResponse> => {
+            if (!interaction.isButton() && !interaction.isModalSubmit() && !interaction.isAnySelectMenu()) {
+                return;
+            }
+            if (interaction.deferred) {
+                // If it's already deferred, ignore.
+                return;
+            }
+            return interaction.deferUpdate(options).catch(() => void null);
+        },
+
+        followUp: async (options: InteractionReplyOptions): Promise<void | Message> => {
+            return interaction.followUp(options).catch(() => void null);
+        },
+        showModal: async (options: APIModalInteractionResponseCallbackData | ModalComponentData | JSONEncodable<APIModalInteractionResponseCallbackData>) => {
+            if (!interaction.isAnySelectMenu() && !interaction.isButton() && !interaction.isCommand()) {
+                return;
+            }
+            return interaction.showModal(options).catch(() => void null);
+        },
+        raw: interaction,
     };
 }
 

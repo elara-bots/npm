@@ -1,4 +1,4 @@
-import { is } from "./extra";
+import { is } from "./is";
 
 export const v13Permissions = {
     basic: ["EMBED_LINKS", "SEND_MESSAGES", "VIEW_CHANNEL", "READ_MESSAGE_HISTORY"],

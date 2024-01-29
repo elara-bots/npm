@@ -1,8 +1,43 @@
 import { Collection } from "@discordjs/collection";
-import { Channel, Client, EmbedBuilder, Guild, GuildMember, Message, MessageCreateOptions, MessagePayload, Role, SnowflakeGenerateOptions, SnowflakeUtil, User, version, type GuildBan, type Invite, type PermissionResolvable } from "discord.js";
-import { is, sleep } from "./extra";
+import {
+    ActionRowBuilder,
+    Application,
+    ButtonBuilder,
+    ButtonStyle,
+    CategoryChannel,
+    Channel,
+    Client,
+    Colors,
+    ComponentType,
+    EmbedBuilder,
+    ForumChannel,
+    Guild,
+    GuildMember,
+    InteractionEditReplyOptions,
+    Message,
+    MessageActionRowComponentBuilder,
+    MessageCreateOptions,
+    MessagePayload,
+    RepliableInteraction,
+    Role,
+    SnowflakeGenerateOptions,
+    SnowflakeUtil,
+    TextBasedChannel,
+    TextChannel,
+    ThreadChannel,
+    User,
+    VoiceChannel,
+    version,
+    type GuildBan,
+    type Interaction,
+    type Invite,
+    type PermissionResolvable,
+} from "discord.js";
+import { sleep } from "./extra";
+import { is } from "./is";
 import { checkChannelPerms } from "./permissions";
-import { status } from "./status";
+import { get, status } from "./status";
+import { time } from "./times";
 export type errorHandler = (e: Error) => unknown;
 
 export function isV13() {
@@ -10,7 +45,19 @@ export function isV13() {
 }
 
 export function commands(content: string, prefix: string) {
-    const str = content.split(/ +/g);
+    if (!is.string(content)) {
+        return {
+            name: "",
+            args: [],
+            hasPrefix() {
+                return false;
+            },
+            isCommand() {
+                return false;
+            },
+        };
+    }
+    const str = content?.split(/ +/g) || "";
     const name = str[0].slice(prefix.length).toLowerCase();
     return {
         name,
@@ -399,17 +446,34 @@ export const Invites = {
                 await sleep((data.retry_after as number) * 1000);
                 await fetch();
             }
-            if (data instanceof Error) {
-                return r(status.error(data.message));
+            if (data instanceof Error || !is.array(data)) {
+                return r(status.error(data?.message || "Unknown Issue while fetching it."));
             }
+            // @ts-ignore
+            data.members = data.members.map((c: FetchedMemberInvitesResponse["members"][0]) => {
+                const types = {
+                    1: "bot",
+                    2: "integration",
+                    3: "server_discovery",
+                    5: "normal",
+                    6: "vanity",
+                };
+                // @ts-ignore
+                c.joinType = types[c.join_source_type as keyof typeof types] || "unknown";
+            });
             if (fetchUses === true && guild.members.me?.permissions.has(32n)) {
                 const invs = await guild.invites.fetch({ cache: false }).catch(() => null);
                 if (invs?.size) {
                     // @ts-ignore
                     data.members = data.members.map((c) => {
-                        const d = invs.find((i) => i.code === c.source_invite_code);
-                        c.uses = d?.uses || 0;
-                        c.notFound = d ? false : true;
+                        if ("source_invite_code" in c && c.source_invite_code) {
+                            const d = invs.find((i) => i.code === c.source_invite_code);
+                            c.uses = d?.uses || 0;
+                            c.notFound = d ? false : true;
+                        } else {
+                            c.uses = 0;
+                            c.notFound = false;
+                        }
                         return c;
                     });
                 } else {
@@ -435,7 +499,13 @@ export const Invites = {
                     data.members.map(async (c) => {
                         if (c.join_source_type === 6) {
                             c.inviter = await discord.user(guild.client, guild.ownerId, { fetch: true });
-                        } else if (c.inviter_id) {
+                        } else if (
+                            c.inviter_id &&
+                            ![
+                                1, // Bot Invite
+                                5, // Normal invite.
+                            ].includes(c.join_source_type)
+                        ) {
                             c.inviter = await discord.user(guild.client, c.inviter_id, { fetch: true });
                         } else {
                             c.inviter = null;
@@ -456,7 +526,7 @@ export const Invites = {
 
     format: async (guild: Guild, users: string[]): Promise<{ status: false; message: string } | { status: true; data: FetchedMemberInvitesResponse["members"] }> => {
         const res = await Invites.fetch(guild, users, true, true);
-        if (!res.status) {
+        if (!res.status || !is.array(res?.data?.members)) {
             return { status: false, message: `Unable to find any info regarding that user.` };
         }
         return {
@@ -501,8 +571,150 @@ export interface FetchedMemberInvitesResponse {
         join_source_type: number;
         uses: number;
         inviter_id: string | null;
+        joinType?: "bot" | "server_discovery" | "normal" | "vanity" | "integration" | "unknown";
         inviter?: User | null;
     }[];
     page_result_count: number;
     total_result_count: number;
+}
+
+export const dis = {
+    application: (app: any): app is Application => {
+        return app instanceof Application;
+    },
+
+    user: (user: any): user is User => {
+        return user instanceof User;
+    },
+
+    member: (member: any): member is GuildMember => {
+        return member instanceof GuildMember;
+    },
+
+    guild: (guild: any): guild is Guild => {
+        return guild instanceof Guild;
+    },
+
+    role: (role: any): role is Role => {
+        return role instanceof Role;
+    },
+
+    client: (client: any): client is Client => {
+        return client instanceof Client;
+    },
+
+    channels: {
+        text: (channel: any): channel is TextChannel => {
+            return channel instanceof TextChannel;
+        },
+
+        voice: (channel: any): channel is VoiceChannel => {
+            return channel instanceof VoiceChannel;
+        },
+
+        thread: (channel: any): channel is ThreadChannel => {
+            return channel instanceof ThreadChannel;
+        },
+
+        forum: (channel: any): channel is ForumChannel => {
+            return channel instanceof ForumChannel;
+        },
+
+        category: (channel: any): channel is CategoryChannel => {
+            return channel instanceof CategoryChannel;
+        },
+    },
+};
+
+export function embedComment(str: string, color: keyof typeof Colors | number = "Red", components: ActionRowBuilder<MessageActionRowComponentBuilder>[] = [], files: InteractionEditReplyOptions["files"] = []) {
+    return {
+        content: "",
+        embeds: [new EmbedBuilder().setDescription(str).setColor(typeof color === "number" ? color : Colors[color])],
+        components,
+        files,
+    };
+}
+
+export async function getConfirmPrompt(channelOrInteraction: TextBasedChannel | RepliableInteraction, user: User, str: string, timer = get.secs(30)) {
+    let msg: Message | null;
+    const options = {
+        embeds: [
+            {
+                author: { name: user.displayName, icon_url: user.displayAvatarURL() },
+                title: `Prompt`,
+                description: str,
+                color: Colors.Orange,
+                fields: [{ name: "\u200b", value: `> Expires ${time.countdown(timer)}` }],
+                footer: {
+                    text: `ID: ${user.id}`,
+                },
+            },
+        ],
+        components: [new ActionRowBuilder<ButtonBuilder>().addComponents(new ButtonBuilder().setCustomId(`prompt:confirm`).setLabel(`Confirm`).setStyle(ButtonStyle.Success), new ButtonBuilder().setCustomId(`prompt:cancel`).setLabel(`Cancel`).setStyle(ButtonStyle.Danger))],
+    };
+    if ("deferred" in channelOrInteraction) {
+        if (channelOrInteraction.deferred) {
+            msg = await channelOrInteraction.editReply(options).catch(() => null);
+        } else {
+            msg = await channelOrInteraction
+                .reply({
+                    fetchReply: true,
+                    ...options,
+                })
+                .catch(() => null);
+        }
+    } else {
+        msg = await channelOrInteraction.send(options).catch(() => null);
+    }
+    if (!msg) {
+        return null;
+    }
+    const col = await msg
+        .awaitMessageComponent({
+            filter: (i) => i.user.id === user.id && i.customId.startsWith("prompt:"),
+            time: timer,
+            componentType: ComponentType.Button,
+        })
+        .catch(() => null);
+    if (!col) {
+        await msg.edit(embedComment(`Cancelled`)).catch(() => null);
+        return null;
+    }
+    if (!col.customId.includes("confirm")) {
+        await col.update(embedComment(`Cancelled`)).catch(() => null);
+        return null;
+    }
+    await col.deferUpdate().catch(() => null);
+    return col;
+}
+
+export async function awaitComponent(
+    messageOrChannel: Message | TextBasedChannel,
+    options: {
+        custom_ids: { id: string; includes?: boolean }[];
+        user?: User;
+        time?: number;
+    },
+) {
+    const filter = (i: Interaction) => {
+        if (!("customId" in i)) {
+            return false;
+        }
+        if (options.user) {
+            if (options.user.id !== i.user.id) {
+                return false;
+            }
+        }
+        return options.custom_ids.some((c) => (c.includes ? i.customId.includes(c.id) : i.customId === c.id));
+    };
+    const col = await messageOrChannel
+        .awaitMessageComponent({
+            filter,
+            time: options.time ?? get.secs(30),
+        })
+        .catch(() => null);
+    if (!col) {
+        return null;
+    }
+    return col;
 }

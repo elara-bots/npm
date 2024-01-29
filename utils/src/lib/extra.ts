@@ -1,5 +1,4 @@
 import { SDK } from "@elara-services/sdk";
-import { Application, CategoryChannel, Client, ForumChannel, Guild, GuildMember, Role, TextChannel, ThreadChannel, User, VoiceChannel } from "discord.js";
 export const services = new SDK();
 
 export function sleep(timeout?: number) {
@@ -145,118 +144,53 @@ export const getKeys = <T extends object>(obj: T) => {
     return Object.keys(obj) as (keyof T)[];
 };
 
-export function generate(length = 5, includeNumbers = true) {
-    let chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    if (includeNumbers === true) {
-        chars += "0123456789";
+export function generate(
+    length: number = 10,
+    options?: {
+        upperLetters?: boolean;
+        lowerLetters?: boolean;
+        numbers?: boolean;
+        symbols?: boolean;
+    },
+): string {
+    let upperLetters = options?.upperLetters ?? true;
+    let lowerLetters = options?.lowerLetters ?? true;
+    let numbers = options?.numbers ?? true;
+    let symbols = options?.symbols ?? false;
+
+    if (!length || length <= 0) {
+        length = 10;
     }
-    let str = "";
+    if (!upperLetters && !lowerLetters && !numbers && !symbols) {
+        upperLetters = true;
+        lowerLetters = true;
+        numbers = false;
+        symbols = false;
+    }
+
+    let charatters: string = "";
+
+    if (upperLetters) {
+        charatters += "ABCDEFGHIJKLMNOPQRSTUWXYZ";
+    }
+    if (lowerLetters) {
+        charatters += "abcdefghijklmnpqrstuwxyz";
+    }
+    if (numbers) {
+        charatters += "1234567890";
+    }
+    if (symbols) {
+        charatters += "!@#$%^&*.()";
+    }
+
+    let code: string = "";
+
     for (let i = 0; i < length; i++) {
-        str += chars.charAt(Math.floor(Math.random() * chars.length));
+        code += charatters.charAt(Math.floor(Math.random() * charatters.length));
     }
-    return str;
+
+    return code;
 }
-
-export const is = {
-    string: (name: any, checkEmpty = true): name is string => {
-        if (typeof name === "string") {
-            if (checkEmpty && !name) {
-                return false;
-            }
-            return true;
-        }
-        return false;
-    },
-
-    number: (num: any, checkEmpty = true): num is number => {
-        if (typeof num === "number" && !isNaN(num)) {
-            if (checkEmpty && num <= 0) {
-                return false;
-            }
-            return true;
-        }
-        return false;
-    },
-
-    boolean: (bool: any): bool is boolean => {
-        return typeof bool === "boolean";
-    },
-
-    array: <T>(arr: T[] | unknown, checkEmpty = true): arr is T[] => {
-        if (Array.isArray(arr)) {
-            if (checkEmpty && !arr.length) {
-                return false;
-            }
-            return true;
-        }
-        return false;
-    },
-
-    object: (obj: any): obj is object => {
-        return typeof obj === "object";
-    },
-
-    error: (err: any): err is Error => {
-        return err instanceof Error;
-    },
-
-    undefined: (und: any): und is undefined => {
-        return typeof und === "undefined" || und === undefined;
-    },
-
-    null: (name: any): name is null => {
-        return name === null;
-    },
-    promise: (promise: any): promise is Promise<any> => {
-        return promise instanceof Promise;
-    },
-
-    application: (app: any): app is Application => {
-        return app instanceof Application;
-    },
-
-    user: (user: any): user is User => {
-        return user instanceof User;
-    },
-
-    member: (member: any): member is GuildMember => {
-        return member instanceof GuildMember;
-    },
-
-    guild: (guild: any): guild is Guild => {
-        return guild instanceof Guild;
-    },
-
-    role: (role: any): role is Role => {
-        return role instanceof Role;
-    },
-
-    client: (client: any): client is Client => {
-        return client instanceof Client;
-    },
-
-    channels: {
-        text: (channel: any): channel is TextChannel => {
-            return channel instanceof TextChannel;
-        },
-
-        voice: (channel: any): channel is VoiceChannel => {
-            return channel instanceof VoiceChannel;
-        },
-
-        thread: (channel: any): channel is ThreadChannel => {
-            return channel instanceof ThreadChannel;
-        },
-
-        forum: (channel: any): channel is ForumChannel => {
-            return channel instanceof ForumChannel;
-        },
-
-        category: (channel: any): channel is CategoryChannel => {
-            return channel instanceof CategoryChannel;
-        },
-    },
-};
 
 export function decodeHTML(str: string): string {
     return String(str)

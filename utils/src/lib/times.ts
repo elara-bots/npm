@@ -50,7 +50,7 @@ export const ms = {
     },
 };
 
-export function getTimeLeft(date: Date | string, type: string) {
+export function getTimeLeft(date: Date | string, type: string): boolean {
     return (
         moment
             .duration(new Date(date).getTime() - new Date().getTime())
@@ -61,7 +61,7 @@ export function getTimeLeft(date: Date | string, type: string) {
     );
 }
 
-export function getTimeRemaining(date: Date | string, type: string, reverse = false) {
+export function getTimeRemaining(date: Date | string, type: string, reverse = false): string {
     return (
         moment
             .duration(reverse ? new Date(date).getTime() - new Date().getTime() : new Date().getTime() - new Date(date).getTime())
