@@ -1,7 +1,7 @@
 {
   "name": "@elara-services/botbuilder",
-  "version": "2.1.4",
-  "description": "",
+  "version": "3.0.0",
+  "description": "A package to help you build a discord.js bot better, mainly used for github.com/elara-bots/TS-Bot",
   "main": "./dist/index.js",
   "author": "SUPERCHIEFYT (Elara-Discord-Bots, Elara-Services)",
   "license": "ISC",
@@ -33,7 +33,7 @@
     "typescript": "^5.2.2"
   },
   "dependencies": {
-    "@elara-services/utils": "^1.3.7"
+    "@elara-services/utils": "^1.3.17"
   },
   "peerDependencies": {
     "discord.js": "*"

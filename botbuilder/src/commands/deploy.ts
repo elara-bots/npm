@@ -1,17 +1,20 @@
-import type { Collection } from "@elara-services/utils";
-import {
-    REST,
-    Routes,
-    type APIUser,
-    type RESTPostAPIChatInputApplicationCommandsJSONBody,
-} from "discord.js";
-import type { SlashCommand } from ".";
+import { XOR, is, Collection } from "@elara-services/utils";
+import { REST, Routes, type APIUser } from "discord.js";
+import type {
+    MessageContextMenuCommand,
+    SlashCommand,
+    UserContextMenuCommand,
+} from ".";
 
-export async function deployCommands<T extends SlashCommand>(
+export async function deployCommands<
+    T extends SlashCommand,
+    S extends XOR<UserContextMenuCommand, MessageContextMenuCommand>,
+>(
     botToken: string,
     commands: Collection<string, T>,
+    subCommands?: Collection<string, S>,
 ) {
-    const body: RESTPostAPIChatInputApplicationCommandsJSONBody[] = [];
+    const body: any[] = [];
     for (const cmd of commands.values()) {
         if (
             !("command" in cmd) ||
@@ -20,8 +23,37 @@ export async function deployCommands<T extends SlashCommand>(
         ) {
             continue;
         }
+        if (is.array(cmd.aliases)) {
+            for (const alias of cmd.aliases) {
+                // @ts-ignore
+                const clone = cmd.command.toJSON();
+                clone.name = alias;
+                body.push(clone);
+            }
+        }
         // @ts-ignore
         body.push(cmd.command.toJSON());
+    }
+    if (subCommands && subCommands.size) {
+        for (const cmd of subCommands.values()) {
+            if (
+                !("command" in cmd) ||
+                !("toJSON" in cmd.command) ||
+                !("execute" in cmd)
+            ) {
+                continue;
+            }
+            if (is.array(cmd.aliases)) {
+                for (const alias of cmd.aliases) {
+                    // @ts-ignore
+                    const clone = cmd.command.toJSON();
+                    clone.name = alias;
+                    body.push(clone);
+                }
+            }
+            // @ts-ignore
+            body.push(cmd.command.toJSON());
+        }
     }
     try {
         const rest = new REST({ version: "10" }).setToken(botToken);

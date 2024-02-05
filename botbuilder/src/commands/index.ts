@@ -1,11 +1,26 @@
-import { Collection, GuildMember, Interaction, Message } from "discord.js";
-import { PrefixCommand, SlashCommand } from "./interfaces";
 import {
     commands,
-    getInteractionResponder,
-    getMessageResponder,
+    embedComment,
+    getFilesList,
     is,
+    log,
+    XOR,
 } from "@elara-services/utils";
+import {
+    ChatInputCommandInteraction,
+    Collection,
+    GuildMember,
+    Interaction,
+    Message,
+    SlashCommandBuilder,
+} from "discord.js";
+import {
+    MessageContextMenuCommand,
+    PrefixCommand,
+    SlashCommand,
+    SubCommand,
+    UserContextMenuCommand,
+} from "./interfaces";
 
 export * from "./deploy";
 export * from "./interfaces";
@@ -84,7 +99,7 @@ export async function handleMessageCommand<
             if (!message.member) {
                 return;
             }
-            if (!message.member.roles.cache.hasAll(...cmd.locked.roles)) {
+            if (!message.member.roles.cache.hasAny(...cmd.locked.roles)) {
                 return;
             }
         }
@@ -106,7 +121,7 @@ export async function handleMessageCommand<
             if (!message.member) {
                 return;
             }
-            if (message.member.roles.cache.hasAll(...cmd.disabled.roles)) {
+            if (message.member.roles.cache.hasAny(...cmd.disabled.roles)) {
                 return;
             }
         }
@@ -118,7 +133,7 @@ export async function handleMessageCommand<
         }
     }
 
-    return cmd.execute(message, getMessageResponder(message));
+    return cmd.execute(message);
 }
 
 export async function handleInteractionCommand<
@@ -141,11 +156,40 @@ export async function handleInteractionCommand<
             c.command.name === i.commandName ||
             c.aliases?.includes(i.commandName),
     );
-    if (!cmd) {
+    return handleCommands(i, cmd, pre, alwaysDefer);
+}
+
+export async function handleCommands<
+    I extends Interaction,
+    C extends SlashCommand,
+>(
+    i: I,
+    cmd: C | undefined,
+    pre?: (i: I, cmd: C) => Promise<boolean> | boolean,
+    alwaysDefer?: { silent: boolean },
+) {
+    if (!i.isRepliable()) {
         return;
     }
-    if (cmd.enabled === false) {
+    if (!("commandName" in i)) {
         return;
+    }
+    const reply = (content: string) => {
+        if (i.deferred) {
+            return i.editReply(embedComment(content)).catch(log);
+        }
+        return i
+            .reply({
+                ...embedComment(content),
+                ephemeral: true,
+            })
+            .catch(log);
+    };
+    if (!cmd) {
+        return reply(`Unable to find (${i.commandName}) command.`);
+    }
+    if (cmd.enabled === false) {
+        return reply(`Command (${i.commandName}) isn't enabled.`);
     }
     if (is.object(alwaysDefer)) {
         await i
@@ -171,19 +215,23 @@ export async function handleInteractionCommand<
     }
     if (is.object(cmd.only)) {
         if (cmd.only.guild && !i.guild) {
-            return;
+            return reply(`This command can only be used in a server.`);
         }
         if (cmd.only.text && !i.channel?.isTextBased()) {
-            return;
+            return reply(
+                `This command can only be used in a text-based channel.`,
+            );
         }
         if (cmd.only.dms && i.guild) {
-            return;
+            return reply(
+                `This command can only be used in Direct Messages (DM)`,
+            );
         }
         if (cmd.only.threads && !i.channel?.isThread()) {
-            return;
+            return reply(`This command can only be used in thread channels.`);
         }
         if (cmd.only.voice && !i.channel?.isVoiceBased()) {
-            return;
+            return reply(`This command can only be used in voice channels.`);
         }
     }
     const cs = [
@@ -199,21 +247,25 @@ export async function handleInteractionCommand<
             is.array(cmd.locked.channels) &&
             !cmd.locked.channels.some((c) => cs.includes(c))
         ) {
-            return;
+            return reply(`You can't use the command in this channel.`);
         }
         if (is.array(cmd.locked.roles)) {
             if (!(i.member instanceof GuildMember)) {
-                return;
+                return reply(
+                    `You don't have any roles that has access to this command.`,
+                );
             }
-            if (!i.member.roles.cache.hasAll(...cmd.locked.roles)) {
-                return;
+            if (!i.member.roles.cache.hasAny(...cmd.locked.roles)) {
+                return reply(
+                    `You don't have any roles that has access to this command.`,
+                );
             }
         }
         if (
             is.array(cmd.locked.users) &&
             !cmd.locked.users.includes(i.user.id)
         ) {
-            return;
+            return reply(`You don't have access to this command.`);
         }
     }
     if (is.object(cmd.disabled)) {
@@ -221,23 +273,75 @@ export async function handleInteractionCommand<
             is.array(cmd.disabled.channels) &&
             cmd.disabled.channels.some((c) => cs.includes(c))
         ) {
-            return;
+            return reply(`You can't use the command in this channel.`);
         }
         if (is.array(cmd.disabled.roles)) {
             if (!(i.member instanceof GuildMember)) {
-                return;
+                return reply(
+                    `You have a role that doesn't have access to this command.`,
+                );
             }
-            if (i.member.roles.cache.hasAll(...cmd.disabled.roles)) {
-                return;
+            if (i.member.roles.cache.hasAny(...cmd.disabled.roles)) {
+                return reply(
+                    `You have a role that doesn't have access to this command.`,
+                );
             }
         }
         if (
             is.array(cmd.disabled.users) &&
             cmd.disabled.users.includes(i.user.id)
         ) {
-            return;
+            return reply(`You don't have access to this command.`);
         }
     }
     // @ts-ignore
-    return cmd.execute(i, getInteractionResponder(i));
+    return cmd.execute(i);
+}
+
+export function handleSubCommands<T extends ChatInputCommandInteraction, F>(
+    interaction: T,
+    files: F,
+    pre?: (i: Interaction, cmd: SubCommand) => Promise<boolean> | boolean,
+    alwaysDefer?: { silent: boolean },
+) {
+    const subCommandArg = interaction.options.getSubcommand();
+    if (!(files instanceof Collection)) {
+        return;
+    }
+    return handleCommands(
+        interaction,
+        files.get(subCommandArg),
+        pre,
+        alwaysDefer,
+    );
+}
+
+export function buildSubCommand<T extends SubCommand>(
+    builder:
+        | SlashCommandBuilder
+        | ((builder: SlashCommandBuilder) => SlashCommandBuilder),
+    commands: object,
+) {
+    const command =
+        typeof builder === "function"
+            ? builder(new SlashCommandBuilder())
+            : builder;
+    const subCommands = getFilesList<T>(commands);
+    if (subCommands.size) {
+        for (const subCommand of subCommands.values()) {
+            if (!subCommand) {
+                throw new Error("Unable to create slash command");
+            }
+            command.addSubcommand(subCommand.subCommand);
+        }
+    }
+    return command;
+}
+
+export function buildCommand<
+    O extends
+        | XOR<SlashCommand, SubCommand>
+        | XOR<UserContextMenuCommand, MessageContextMenuCommand>,
+>(options: O): O {
+    return options;
 }

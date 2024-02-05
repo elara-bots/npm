@@ -1,11 +1,4 @@
-import {
-    buildSubCommand,
-    getFilesList,
-    getInteractionResponders,
-    getMessageResponders,
-    handleSubCommands,
-    type SubCommand as Sub,
-} from "@elara-services/utils";
+import { getFilesList, type SubCommand as Sub } from "@elara-services/utils";
 
 import type {
     ChatInputCommandInteraction,
@@ -39,14 +32,11 @@ interface Common<T> {
     locked?: IntOptions;
     disabled?: IntOptions;
     only?: OnlyOptions;
-    execute: (
-        interaction: T,
-        responder: getInteractionResponders,
-    ) => Promise<unknown> | unknown;
+    execute: (interaction: T) => Promise<unknown> | unknown;
     pre?: (interaction: T, cmd: SlashCommand) => Promise<boolean> | boolean;
 }
 
-export interface SubCommand extends Sub, Common<CachedInt> {}
+export interface SubCommand extends Sub, Omit<Common<CachedInt>, "aliases"> {}
 
 export interface SlashCommand extends Common<CachedInt> {
     command: Partial<SBuild> | ((builder: Partial<SBuild>) => Partial<SBuild>);
@@ -69,11 +59,8 @@ export interface PrefixCommand {
     locked?: IntOptions;
     disabled?: IntOptions;
     only?: OnlyOptions;
-    execute(
-        message: Message,
-        responder: getMessageResponders,
-    ): Promise<unknown> | unknown;
+    execute(message: Message): Promise<unknown> | unknown;
     pre?: (message: Message, cmd: PrefixCommand) => Promise<boolean> | boolean;
 }
 
-export { buildSubCommand, getFilesList, handleSubCommands };
+export { getFilesList };
