@@ -91,21 +91,21 @@ export class Leveling extends Database {
         this.#listening = true;
         const intents = getClientIntents(this.client);
         if (hasBit(intents, 512 /* Guild Messages */)) {
-            this.client.on("messageCreate", (m) => void this.#messageCreate(m));
+            this.client.on("messageCreate", (m) => void this.messageCreate(m));
         }
         if (hasBit(intents, 2 /* Guild Members */)) {
             this.client.on("guildMemberRemove", (m) =>
-                this.#guildMemberRemove(m),
+                this.guildMemberRemove(m),
             );
         }
         if (hasBit(intents, 128 /* Guild Voice States */)) {
             this.client.on("voiceStateUpdate", (o, n) =>
-                this.#voiceStateUpdate(o, n),
+                this.voiceStateUpdate(o, n),
             );
         }
     }
 
-    async #voiceStateUpdate(old: VoiceState, voice: VoiceState) {
+    public async voiceStateUpdate(old: VoiceState, voice: VoiceState) {
         if (
             !old ||
             !voice ||
@@ -199,7 +199,7 @@ export class Leveling extends Database {
         await user.save().catch(() => null);
     }
 
-    async #guildMemberRemove(m: GuildMember | PartialGuildMember) {
+    public async guildMemberRemove(m: GuildMember | PartialGuildMember) {
         // @ts-ignore
         const db = await this.getSettings(m.guild.id);
         if (!db || !db.enabled || !db.toggles.resetOnLeave) {
@@ -211,7 +211,7 @@ export class Leveling extends Database {
         return;
     }
 
-    async #messageCreate(message: Message) {
+    public async messageCreate(message: Message) {
         if (!message.inGuild() || !message.guild.available) {
             return;
         }
