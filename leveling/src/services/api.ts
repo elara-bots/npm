@@ -1127,9 +1127,15 @@ export class API {
                     users: [],
                 };
                 const [data, weekly, users] = await Promise.all([
-                    this.#client.dbs.settings.findOne(o).catch(() => null),
-                    this.#client.dbs.weekly.find(o).catch(() => []),
-                    this.#client.dbs.users.find(o).catch(() => []),
+                    this.#client.dbs.settings
+                        .findOne(o)
+                        .catch(() => null) as Promise<CachedOptions<Settings>>,
+                    this.#client.dbs.weekly.find(o).catch(() => []) as Promise<
+                        CachedOptions<Weekly>[]
+                    >,
+                    this.#client.dbs.users.find(o).catch(() => []) as Promise<
+                        CachedOptions<Users>[]
+                    >,
                 ]);
                 if (data) {
                     removed.data = data;
@@ -1141,7 +1147,8 @@ export class API {
                     removed.users = users;
                 }
                 await Promise.all([
-                    data?.deleteOne().catch(() => null),
+                    // @ts-ignore
+                    data?.deleteOne()?.catch(() => null),
                     this.#client.dbs.users
                         .deleteMany({ guildId })
                         .catch(() => null),
@@ -1248,6 +1255,7 @@ export class API {
                     if (!data) {
                         return status.error(message);
                     }
+                    // @ts-ignore
                     data.stats = incUserStat(data, type, count);
                     await save(data);
                     return status.success(
@@ -1271,6 +1279,7 @@ export class API {
                     if (!data) {
                         return status.error(message);
                     }
+                    // @ts-ignore
                     data.stats = incUserStat(data, type, count);
                     await save(data);
                     return status.success(
@@ -1365,6 +1374,7 @@ export class API {
                     return null;
                 }
                 if (is.number(voiceMinutes)) {
+                    // @ts-ignore
                     data.stats = incUserStat(data, "voice", voiceMinutes);
                 }
                 data.xp += parseInt(String(xp), 10);
@@ -1771,6 +1781,7 @@ export class API {
         try {
             return await RankProfiles[type](
                 user,
+                // @ts-ignore
                 db,
                 await this.users.position(userId, guildId),
                 memberStatus,

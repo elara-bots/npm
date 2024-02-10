@@ -110,13 +110,6 @@ export async function save(db: { save: () => Promise<unknown> }) {
 export function tog(bool: boolean) {
     return bool ? false : true;
 }
-
-/**
- * @private
- */
-export function getMinutes(seconds = 60) {
-    return seconds * 1000;
-}
 /**
  * @private
  */

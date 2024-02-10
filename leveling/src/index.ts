@@ -1,4 +1,4 @@
-import { discord, hasBit, is, p } from "@elara-services/utils";
+import { discord, get, hasBit, is, p } from "@elara-services/utils";
 import type { APIEmbed } from "discord-api-types/v10";
 import {
     Client,
@@ -14,7 +14,6 @@ import { Database } from "./services";
 import { API } from "./services/api";
 import {
     getClientIntents,
-    getMinutes,
     getVoiceMultiplier,
     incUserStat,
     parser,
@@ -94,13 +93,15 @@ export class Leveling extends Database {
             this.client.on("messageCreate", (m) => void this.messageCreate(m));
         }
         if (hasBit(intents, 2 /* Guild Members */)) {
-            this.client.on("guildMemberRemove", (m) =>
-                this.guildMemberRemove(m),
+            this.client.on(
+                "guildMemberRemove",
+                (m) => void this.guildMemberRemove(m),
             );
         }
         if (hasBit(intents, 128 /* Guild Voice States */)) {
-            this.client.on("voiceStateUpdate", (o, n) =>
-                this.voiceStateUpdate(o, n),
+            this.client.on(
+                "voiceStateUpdate",
+                (o, n) => void this.voiceStateUpdate(o, n),
             );
         }
     }
@@ -189,6 +190,7 @@ export class Leveling extends Database {
                     voice.member,
                     voice.channel ?? old.channel,
                     xpToGive,
+                    // @ts-ignore
                     db,
                     voiceMinutes,
                 );
@@ -273,19 +275,20 @@ export class Leveling extends Database {
         if (!user || user.toggles.locked === true) {
             return;
         }
+        // @ts-ignore
         user.stats = incUserStat(user, "messages");
         user = await user.save().catch(() => null);
         if (!user) {
             return;
         }
         const find = user.cooldowns.find((c) => c.name === "xp");
-        let cool = getMinutes(db.cooldown);
+        let cool = get.secs(db.cooldown || 60);
         if (is.array(db.cooldowns)) {
             const hasCustom = db.cooldowns.find((c) =>
                 (member as GuildMember).roles.cache.hasAny(...c.roles),
             );
             if (hasCustom) {
-                cool = getMinutes(hasCustom.seconds);
+                cool = get.secs(hasCustom.seconds || 60);
             }
         }
         if (find) {
@@ -324,6 +327,7 @@ export class Leveling extends Database {
         ) {
             return; // Ignore if the user has any of the ignore roles.
         }
+        // @ts-ignore
         return this.handleLevelups(member, message.channel, xp, db);
     }
 

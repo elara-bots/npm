@@ -9,10 +9,11 @@ import { Client } from "discord.js";
 import moment from "moment";
 import { connect, model } from "mongoose";
 import { Leveling } from "..";
+import { name, version } from "../../package.json";
 import type { Weekly, WeeklyData } from "../interfaces";
 import { isThisWeek } from "../utils";
+import { caches } from "./cache";
 import * as schemas from "./schema";
-import { name, version } from "../../package.json";
 
 let connected = false;
 export class Database {
@@ -151,7 +152,14 @@ export class Database {
         return data;
     }
 
-    private async getSettings(guildId: string) {
+    private async getSettings(guildId: string, force = false) {
+        if (!force) {
+            const cache = caches.settings.get(guildId);
+            if (cache) {
+                return cache;
+            }
+        }
+
         let settings = await this.dbs.settings
             .findOne({ guildId })
             .catch(() => null);
@@ -163,6 +171,8 @@ export class Database {
         if (!settings) {
             return null;
         }
+        // @ts-ignore
+        caches.settings.set(guildId, settings);
         return settings;
     }
 
