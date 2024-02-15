@@ -219,27 +219,40 @@ export class Leveling extends Database {
         }
         let member = message.member;
         let author = message.author;
-        let isSlash = false;
-        if (author.bot && message.interaction) {
-            isSlash = true;
-            author = message.interaction.user;
-            member = await discord.member(message.guild, author.id, true);
-        }
-        if (author.bot) {
-            return;
-        }
-        if (!member) {
-            return;
-        }
         // @ts-ignore
         const db = await this.getSettings(message.guildId);
         if (!db || !db.enabled) {
             return;
         }
-        if (isSlash) {
+        if (author.bot) {
+            if (!message.interaction) {
+                return;
+            }
             if (!db.toggles.earnXPOnSlashCommands) {
                 return;
             }
+            author = message.interaction.user;
+            member = await discord.member(message.guild, author.id, true);
+        }
+        if (!member) {
+            return;
+        }
+        if (
+            is.array(db.ignore.channels) &&
+            db.ignore.channels.some((c) =>
+                [message.channelId, message.channel?.parentId].includes(c),
+            )
+        ) {
+            return; // Ignore the user / XP earned in this channel.
+        }
+        if (is.array(db.ignore.users) && db.ignore.users.includes(author.id)) {
+            return; // Ignore if the user is ignored.
+        }
+        if (
+            is.array(db.ignore.roles) &&
+            member?.roles.cache.hasAny(...db.ignore.roles)
+        ) {
+            return; // Ignore if the user has any of the ignore roles.
         }
         let xp = random(Math.floor(db.xp.min || 1), Math.floor(db.xp.max || 8));
         const multipliers = [];
@@ -263,6 +276,11 @@ export class Leveling extends Database {
         if (multi > 0) {
             xp *= multi;
         }
+        // @ts-ignore
+        let user = await this.getUser(author.id, message.guildId);
+        if (!user || user.toggles.locked === true) {
+            return;
+        }
         if (db.toggles.weekly.track === true) {
             // @ts-ignore
             await this.weekly.add(message.guildId, {
@@ -271,21 +289,12 @@ export class Leveling extends Database {
             });
         }
         // @ts-ignore
-        let user = await this.getUser(author.id, message.guildId);
-        if (!user || user.toggles.locked === true) {
-            return;
-        }
-        // @ts-ignore
         user.stats = incUserStat(user, "messages");
-        user = await user.save().catch(() => null);
-        if (!user) {
-            return;
-        }
         const find = user.cooldowns.find((c) => c.name === "xp");
         let cool = get.secs(db.cooldown || 60);
         if (is.array(db.cooldowns)) {
-            const hasCustom = db.cooldowns.find((c) =>
-                (member as GuildMember).roles.cache.hasAny(...c.roles),
+            const hasCustom = db.cooldowns.find(
+                (c) => member?.roles.cache.hasAny(...c.roles),
             );
             if (hasCustom) {
                 cool = get.secs(hasCustom.seconds || 60);
@@ -295,6 +304,7 @@ export class Leveling extends Database {
             const time = Date.now() - find.date;
             if (time < cool) {
                 this.#events.emit("cooldown", message, find);
+                await user.save().catch(() => null);
                 return;
             }
             find.cooldown = cool;
@@ -309,23 +319,6 @@ export class Leveling extends Database {
         user = await user.save().catch(() => null);
         if (!user) {
             return;
-        }
-        if (
-            is.array(db.ignore.channels) &&
-            db.ignore.channels.some((c) =>
-                [message.channelId, message.channel?.parentId].includes(c),
-            )
-        ) {
-            return; // Ignore the user / XP earned in this channel.
-        }
-        if (is.array(db.ignore.users) && db.ignore.users.includes(author.id)) {
-            return; // Ignore if the user is ignored.
-        }
-        if (
-            is.array(db.ignore.roles) &&
-            member.roles.cache.hasAny(...db.ignore.roles)
-        ) {
-            return; // Ignore if the user has any of the ignore roles.
         }
         // @ts-ignore
         return this.handleLevelups(member, message.channel, xp, db);
@@ -367,7 +360,20 @@ export class Leveling extends Database {
         if (!profile.status) {
             return;
         }
-        const find = db.levels.find((c) => c.level === profile.data.level);
+        let find: Settings["levels"][0] | undefined;
+
+        if (is.array(db.levels)) {
+            for (const level of db.levels.sort((a, b) => b.level - a.level)) {
+                if (profile.data.level === level.level) {
+                    find = level;
+                    break;
+                }
+                if (profile.data.level >= level.level) {
+                    find = level;
+                    break;
+                }
+            }
+        }
         const allLevelRoles = db.levels
             .filter((c) => c.roles.add.length)
             .flatMap((c) => c.roles.add);
@@ -409,7 +415,9 @@ export class Leveling extends Database {
             }
             if (find) {
                 if (member.guild.members.me?.permissions.has(268435456n)) {
-                    roles = roles.filter((c) => !find.roles.remove.includes(c));
+                    roles = roles.filter(
+                        (c) => !find?.roles.remove.includes(c),
+                    );
                     if (!db.toggles.stackRoles) {
                         roles = roles.filter((c) => !allLevelRoles.includes(c));
                     }

@@ -1,6 +1,5 @@
 import { Schema } from "mongoose";
 import type { Settings, Users, Weekly } from "../interfaces";
-import { caches } from "./cache";
 
 const t = {
     string: (def = "") => ({ type: String, default: def }),
@@ -125,24 +124,6 @@ export const settings = new Schema<Settings>({
         },
     },
 });
-
-settings
-    .post("save", (doc, next) => {
-        // @ts-ignore
-        caches.settings.set(doc.guildId, doc);
-        return next();
-    })
-    .post("deleteOne", function (next) {
-        const id = (this.getQuery()?._id || "").toString();
-        if (id) {
-            for (const u of caches.settings.values()) {
-                if (u._id === id) {
-                    caches.settings.delete(u.guildId);
-                }
-            }
-        }
-        return next();
-    });
 
 export const weekly = new Schema<Weekly>({
     guildId: t.string(),

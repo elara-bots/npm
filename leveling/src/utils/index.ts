@@ -35,9 +35,9 @@ export function incUserStat(
     );
     if (find) {
         if (remove) {
-            find.count -= count;
+            find.count = Math.floor(find.count - count);
         } else {
-            find.count += count;
+            find.count = Math.floor(find.count + count);
         }
     } else {
         user.stats.push({
