@@ -159,10 +159,12 @@ module.exports = class Tickets {
         const msg = await int.message.fetch(true).catch(() => null);
         const file = msg?.attachments.find((c) => c.name.endsWith(".txt"));
         if (!file) {
-            return int.followUp({
-                ...embedComment(`Unable to find the .txt file.`),
-                ephemeral: true,
-            }).catch(() => null);
+            return int
+                .followUp({
+                    ...embedComment(`Unable to find the .txt file.`),
+                    ephemeral: true,
+                })
+                .catch(() => null);
         }
         const components = int.message.components.slice(0, 1);
         components.push({
@@ -243,7 +245,7 @@ module.exports = class Tickets {
                     },
                 ],
             })
-            .then(() => {
+            .then((m) => {
                 if (user) {
                     user.send({
                         embeds: [
@@ -266,6 +268,20 @@ module.exports = class Tickets {
                                 footer: {
                                     text: `${this.str("TICKET_ID")} ${channel.name.split("-")[1]}`,
                                 },
+                            },
+                        ],
+                        components: [
+                            {
+                                type: 1,
+                                components: [
+                                    {
+                                        type: 2,
+                                        style: 5,
+                                        label: this.str("TRANSCRIPT"),
+                                        emoji: { id: "792290922749624320" },
+                                        url: `https://view.elara.workers.dev/tickets?url=${m.attachments?.find?.((c) => c.filename.includes(".txt"))?.url}`,
+                                    },
+                                ],
                             },
                         ],
                         files: [

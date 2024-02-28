@@ -1,6 +1,5 @@
 exports.discordView = function (messages) {
-    return `
-    <!DOCTYPE html>
+    return `<!DOCTYPE html>
 <head>
     <title>Discord Viewer</title>
     <link href="https://cdn.discordapp.com/emojis/880708306761564220.png" rel="icon" />
@@ -58,14 +57,12 @@ exports.discordView = function (messages) {
     <div id="load">
         <div id="icon"></div>
         <br>
-        <h3 style="min-height: 110%; display: flex; justify-content: center; align-items: center;">Loading, one moment
-            please.</h3>
+        <h3 style="min-height: 110%; display: flex; justify-content: center; align-items: center;">Loading, one moment please.</h3>
     </div>
     <discord-messages id="messages">${messages}</discord-messages>
     <br>
     <br>
 </body>
 
-</html>
-    `;
+</html>`;
 };

@@ -44,6 +44,7 @@ const { Client } = require("discord.js"),
                 ]
             },
             webhook: { // [OPTIONAL]
+                channelId: "", // The channel ID to use for the logs (can be used instead of using a webhook id, token and threadId)
                 id: "", // The webhook ID for this ticket's open and closed logs. 
                 token: "", // The webhook Token for this ticket's open and closed logs.
                 username: "Webhook Username Here", // The webhook username for this ticket's logs.

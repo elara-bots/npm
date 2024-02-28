@@ -345,8 +345,8 @@ exports.webhook = (options) => {
 };
 
 /**
- * @param {import("@elara-services/tickets").TicketOptions} options 
- * @param {string} username 
+ * @param {import("@elara-services/tickets").TicketOptions} options
+ * @param {string} username
  */
 exports.getWebhookInfo = async (options, username = "Tickets") => {
     if (options.webhook?.channelId) {
