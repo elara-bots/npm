@@ -3,9 +3,10 @@ const {
         Interactions: { modal },
     } = require("@elara-services/packages"),
     { Collection, version } = require("discord.js"),
-    { DiscordWebhook: Webhook } = require("@elara-services/webhooks"),
+    { DiscordWebhook: Webhook, Webhook: BotHook } = require("@elara-services/webhooks"),
     defLang = require("../languages/en-US"),
     pack = require("../package.json");
+const { discordView } = require("./html");
 
 exports.getString = (name, lang = "en-US") => {
     if (!lang) {
@@ -205,6 +206,13 @@ exports.displayMessages = (channel, messages = [], ticketID, type, str) => {
     ].join(" ");
 };
 
+/**
+ * @description Generates an HTML page string to use.
+ */
+exports.generateHTMLPage = (channel, messages = [], ticketID, type, str) => {
+    return discordView(exports.displayMessages(channel, messages, ticketID, type, str));
+};
+
 exports.defs = {
     modals: {
         reason: (customId, str) =>
@@ -336,7 +344,22 @@ exports.webhook = (options) => {
     });
 };
 
-exports.getWebhookInfo = (options, username = "Tickets") => {
+/**
+ * @param {import("@elara-services/tickets").TicketOptions} options 
+ * @param {string} username 
+ */
+exports.getWebhookInfo = async (options, username = "Tickets") => {
+    if (options.webhook?.channelId) {
+        const channel = options.client.channels.resolve(options.webhook.channelId);
+        if (channel) {
+            const hook = await new BotHook(options.client.token).fetch(channel.isThread() ? channel.parentId : channel.id);
+            if (hook) {
+                options.webhook.id = hook.id;
+                options.webhook.token = hook.token;
+                options.webhook.threadId = channel.isThread() ? channel.id : undefined;
+            }
+        }
+    }
     return {
         id: options.webhook?.id,
         token: options.webhook?.token,

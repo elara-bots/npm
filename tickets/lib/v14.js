@@ -28,6 +28,9 @@ module.exports = class Tickets extends base {
             }
         }
         if (int.isButton() || int.type === InteractionType.ModalSubmit) {
+            if (int.customId.startsWith("transcript")) {
+                return this.handleTicketButton(int);
+            }
             let { guild, channel, member, customId } = int,
                 category = guild?.channels?.resolve?.(this.options.ticket?.category || channel?.parentId);
             if (!guild?.available || !channel || !member || !category) {
@@ -491,21 +494,24 @@ module.exports = class Tickets extends base {
             }
         }
         if (this.options.ticket?.supportCommentThread === true) {
-            await channel.threads
+            const thread = await channel.threads
                 .create({
                     name: this.str("SUPPORT_TALK"),
                     invitable: false,
                     type: 12,
-                    startMessage: !this.getSupportIds.empty
-                        ? {
-                              content: `${this.getSupportIds.roles.length ? this.getSupportIds.roles.map((c) => `<@&${c}>`).join(" ") : ""}${this.getSupportIds.users.length ? `${this.getSupportIds.roles.length ? ` | ` : ""}${this.getSupportIds.users.map((c) => `<@${c}>`).join(" ")}` : ""}`,
-                          }
-                        : undefined,
                 })
                 .catch((e) => this._debug(e));
+            if (thread && !this.getSupportIds.empty) {
+                await thread
+                    .send({
+                        content: `${this.getSupportIds.roles.length ? this.getSupportIds.roles.map((c) => `<@&${c}>`).join(" ") : ""}${this.getSupportIds.users.length ? `${this.getSupportIds.roles.length ? ` | ` : ""}${this.getSupportIds.users.map((c) => `<@${c}>`).join(" ")}` : ""}`,
+                    })
+                    .catch((e) => this._debug(e));
+            }
         }
-        if (this.webhookOptions.id && this.webhookOptions.token) {
-            webhook(this.webhookOptions)
+        const webOpt = await this.webhookOptions;
+        if (webOpt.id && webOpt.token) {
+            webhook(webOpt)
                 .embed(
                     embed(`${de.user} ${this.str("USER")}: ${member.user.toString()} \`@${member.user.tag}\` (${member.id})\n${de.channel} ${this.str("CHANNEL")}: \`#${channel.name}\` (${channel.id})`, {
                         title: this.str("OPEN_TICKET_TITLE"),

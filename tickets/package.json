@@ -1,6 +1,6 @@
 {
   "name": "@elara-services/tickets",
-  "version": "4.0.8",
+  "version": "4.1.3",
   "description": "Helper for tickets",
   "main": "index.js",
   "types": "index.d.ts",
@@ -11,15 +11,25 @@
   "repository": {
     "url": "https://github.com/elara-bots/npm/tree/main/tickets"
   },
+  "funding": [
+    {
+      "type": "patreon",
+      "url": "https://patreon.com/elaraservices"
+    },
+    {
+      "type": "paypal",
+      "url": "https://paypal.me/superchiefyt"
+    }
+  ],
   "scripts": {
     "lint": "eslint .",
     "pf": "prettier --write **/**/*.js",
     "pc": "prettier --check **/**/*.js"
   },
   "dependencies": {
-    "@elara-services/packages": "^6.0.8",
-    "@elara-services/utils": "^1.3.1",
-    "@elara-services/webhooks": "^2.1.10"
+    "@elara-services/packages": "^6.0.9",
+    "@elara-services/utils": "^1.3.25",
+    "@elara-services/webhooks": "^2.1.18"
   },
   "devDependencies": {
     "eslint": "8.20.0",

@@ -1,10 +1,15 @@
-const { getWebhookInfo, displayMessages, de, webhook, getString } = require("./util");
+const { getWebhookInfo, displayMessages, de, getString, generateHTMLPage } = require("./util");
 const {
     Interactions: { button },
+    ButtonStyle,
 } = require("@elara-services/packages");
-const { is, status, isV13 } = require("@elara-services/utils");
+const { is, status, isV13, embedComment, log } = require("@elara-services/utils");
 const { WebhookClient } = require("discord.js");
+const { name, version, funding } = require("../package.json");
 const required = ["client", "prefix", "encryptToken"];
+const moment = require("moment");
+
+let showed = false;
 
 module.exports = class Tickets {
     /**
@@ -20,6 +25,10 @@ module.exports = class Tickets {
             }
         }
         this.options = options;
+        if (!showed && options.suppressPatreon !== true) {
+            log(`[${name}, ${version}]: Thanks for using the package, if you want to support the packages created: ${funding.map((c) => c.url).join(" or ")}`);
+            showed = true;
+        }
     }
 
     get prefix() {
@@ -140,6 +149,34 @@ module.exports = class Tickets {
             emoji: options.emoji,
         });
     }
+
+    /**
+     *
+     * @param {import("discord.js").ButtonInteraction} int
+     */
+    async handleTicketButton(int) {
+        await int.deferUpdate().catch(() => null);
+        const msg = await int.message.fetch(true).catch(() => null);
+        const file = msg?.attachments.find((c) => c.name.endsWith(".txt"));
+        if (!file) {
+            return int.followUp({
+                ...embedComment(`Unable to find the .txt file.`),
+                ephemeral: true,
+            }).catch(() => null);
+        }
+        const components = int.message.components.slice(0, 1);
+        components.push({
+            type: 1,
+            components: [
+                button({
+                    title: `${this.str("TRANSCRIPT_VIEW")} (${moment().format("MM DD YYYY h:m:s")})`,
+                    emoji: { id: "1059556038761787433" },
+                    url: `https://view.elara.workers.dev/tickets?url=${file.url}`,
+                }),
+            ],
+        });
+        return int.editReply({ components }).catch(console.log);
+    }
     /**
      * @param {object} opts
      * @param {import("discord.js").GuildMember} opts.member
@@ -149,7 +186,7 @@ module.exports = class Tickets {
      * @param {string} opts.reason
      */
     async closeTicket({ member, messages, channel, guild, user, reason } = {}) {
-        const { id, token, username, avatar: avatarURL, threadId } = this.webhookOptions;
+        const { id, token, username, avatar: avatarURL, threadId } = await this.webhookOptions;
         if (!id || !token) {
             return;
         }
@@ -187,24 +224,26 @@ module.exports = class Tickets {
                         name: `${this.str("TRANSCRIPT")}.txt`,
                         attachment: Buffer.from(displayMessages(channel, messages.reverse(), channel.name.split("-")[1], this.options.prefix, (name) => this.str(name, this?.options?.lang))),
                     },
+                    {
+                        name: `${this.str("TRANSCRIPT")}.html`,
+                        attachment: Buffer.from(generateHTMLPage(channel, messages.reverse(), channel.name.split("-")[1], this.options.prefix, (name) => this.str(name, this?.options?.lang))),
+                    },
+                ],
+                components: [
+                    {
+                        type: 1,
+                        components: [
+                            button({
+                                id: `transcript`,
+                                label: this.str("TRANSCRIPT"),
+                                emoji: { id: `792290922749624320` },
+                                style: ButtonStyle.SECONDARY,
+                            }),
+                        ],
+                    },
                 ],
             })
-            .then((m) => {
-                let components = [
-                    {
-                        type: 2,
-                        style: 5,
-                        label: this.str("TRANSCRIPT"),
-                        emoji: { id: "792290922749624320" },
-                        url: `https://view.elara.workers.dev/tickets?url=${Array.isArray(m.attachments) ? m.attachments?.[0]?.url : m.attachments?.first?.()?.url ?? "URL_NOT_FOUND"}`,
-                    },
-                ];
-                embeds[0].description += `\n${de.transcript} ${this.str("TRANSCRIPT")}: [${this.str("VIEW_HERE")}](${components[0].url})`;
-                webhook(this.webhookOptions)
-                    .embeds(embeds)
-                    .button({ type: 1, components })
-                    .edit(m.id)
-                    .catch((e) => this._debug(e));
+            .then(() => {
                 if (user) {
                     user.send({
                         embeds: [
@@ -229,7 +268,12 @@ module.exports = class Tickets {
                                 },
                             },
                         ],
-                        components: [{ type: 1, components }],
+                        files: [
+                            {
+                                name: `${this.str("TRANSCRIPT")}.html`,
+                                attachment: Buffer.from(generateHTMLPage(channel, messages.reverse(), channel.name.split("-")[1], this.options.prefix, (name) => this.str(name, this?.options?.lang))),
+                            },
+                        ],
                     }).catch((e) => this._debug(e));
                 }
             })

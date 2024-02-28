@@ -32,6 +32,7 @@ module.exports = {
     NO_CHANNEL_CREATE: `${x} I was unable to create the ticket channel, if this keeps happening contact one of the staff members via their DMs!`,
     NO_CHANNEL_DELETE: `${x} I was unable to delete the channel and close the ticket.`,
     NO_BAN_PERMS_USER: `${x} You need (Ban Members) in this server to complete this action!`,
+    TRANSCRIPT_VIEW: `View Transcript`,
     TICKET_BLOCKED: `${x} You can't create tickets, if you believe this is a mistake contact one of the staff members.`,
     FORM_RESPONSES: "Form Responses",
     TOTAL_MESSAGES: "Total Messages",

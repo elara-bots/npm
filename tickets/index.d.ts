@@ -1,8 +1,18 @@
 declare module "@elara-services/tickets" {
-    
+
     import type { Client, MessageOptions, GuildMember, Guild, User, TextBasedChannel, Message, Interaction } from "discord.js";
 
     export type Langs = "en-US";
+
+    export interface TicketModalQuestion {
+        label: string;
+        style: 1 | 2;
+        placeholder?: string;
+        value?: string;
+        required?: boolean;
+        min_length?: number;
+        max_length?: number;
+    }
 
     export interface TicketOptions {
         client: Client;
@@ -10,6 +20,7 @@ declare module "@elara-services/tickets" {
         encryptToken: string;
         lang?: Langs;
         debug?: boolean;
+        suppressPatreon?: boolean;
         appeals?: {
             enabled?: boolean;
             sendBanResults?: boolean;
@@ -24,17 +35,10 @@ declare module "@elara-services/tickets" {
         modal?: {
             enabled?: boolean;
             title?: string;
-            questions?: {
-                label: string;
-                style: 1 | 2;
-                placeholder?: string;
-                value?: string;
-                required?: boolean;
-                min_length?: number;
-                max_length?: number;
-            }[]
+            questions?: TicketModalQuestion[]
         };
         webhook?: {
+            channelId?: string;
             id?: string;
             token?: string;
             threadId?: string;
@@ -123,6 +127,11 @@ declare module "@elara-services/tickets" {
 
         private _debug(...args: unknown[]): unknown;
 
+        public get manage(): {
+            add(channelId: string, userId: string, permType: "member" | "mod"): Promise<{ status: boolean, message: string }>;
+            remove(channelId: string, userId: string): Promise<{ status: boolean, message: string }>;
+        };
+
         public get webhookOptions(): {
             id: string | undefined;
             token: string | undefined;
@@ -141,7 +150,7 @@ declare module "@elara-services/tickets" {
         public button(options: { style: 1 | 2 | 3 | 4 | 5 | number, id?: string, label?: string, emoji?: { name?: string, id?: string } }): { type: number, custom_id: string, style: number, label?: string, emoji?: { name?: string, id?: string } }
         public closeTicket(options: {
             member: GuildMember,
-            guild: Guild, 
+            guild: Guild,
             user: User,
             messages: Message[],
             channel: TextBasedChannel
