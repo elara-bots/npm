@@ -1,6 +1,6 @@
 {
   "name": "@elara-services/tickets",
-  "version": "4.2.0",
+  "version": "4.3.0",
   "description": "Helper for tickets",
   "main": "index.js",
   "types": "index.d.ts",
@@ -28,7 +28,7 @@
   },
   "dependencies": {
     "@elara-services/packages": "^6.0.9",
-    "@elara-services/utils": "^1.3.25",
+    "@elara-services/utils": "^1.4.0",
     "@elara-services/webhooks": "^2.1.18"
   },
   "devDependencies": {

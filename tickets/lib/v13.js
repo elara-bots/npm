@@ -5,7 +5,7 @@ const {
     } = require("discord.js"),
     base = require("./base"),
     { de, code, fetchMessages, hasTicket, embed, webhook, getAppealServer, perms, defs } = require("./util"),
-    { generate, parser, discord } = require("@elara-services/utils"),
+    { generate, parser, discord, is } = require("@elara-services/utils"),
     {
         Interactions: { button },
     } = require("@elara-services/packages");
@@ -114,9 +114,25 @@ module.exports = class Tickets extends base {
                             }
                         }
                     }
+                    const hasEmbeds = this.options.ticket?.close?.confirm?.embeds;
                     let embs = await Promise.all(
-                        (
-                            this.options.ticket?.close?.confirm?.embeds || [
+                        (hasEmbeds.length
+                            ? hasEmbeds
+                            : [
+                                  embed(undefined, {
+                                      description: this.str("TICKET_CLOSE_CONFIRM"),
+                                      title: `INFO`,
+                                      color: 0xff000,
+                                      guild,
+                                      str: (name) => this.str(name, this?.options?.lang),
+                                  }),
+                              ]
+                        ).map((c) => parser(c, { guild, member, user: member.user })),
+                    );
+                    const content = this.options.ticket?.close?.confirm?.content || ``;
+                    if (!is.array(embs) && !is.string(content)) {
+                        embs = [
+                            await parser(
                                 embed(undefined, {
                                     description: this.str("TICKET_CLOSE_CONFIRM"),
                                     title: `INFO`,
@@ -124,10 +140,14 @@ module.exports = class Tickets extends base {
                                     guild,
                                     str: (name) => this.str(name, this?.options?.lang),
                                 }),
-                            ]
-                        ).map((c) => parser(c, { guild, member, user: member.user })),
-                    );
-                    const content = this.options.ticket?.close?.confirm?.content || ``;
+                                {
+                                    guild,
+                                    member,
+                                    user: member.user,
+                                },
+                            ),
+                        ];
+                    }
                     return send({
                         ephemeral: true,
                         content,

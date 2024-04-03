@@ -1,7 +1,7 @@
 const { EmbedBuilder: MessageEmbed, InteractionType, ChannelType, ComponentType } = require("discord.js"),
     base = require("./base"),
     { de, code, fetchMessages, hasTicket, embed, webhook, getAppealServer, perms, defs } = require("./util"),
-    { generate, parser, discord } = require("@elara-services/utils"),
+    { generate, parser, discord, is } = require("@elara-services/utils"),
     {
         Interactions: { button },
     } = require("@elara-services/packages");
@@ -110,15 +110,44 @@ module.exports = class Tickets extends base {
                             }
                         }
                     }
+                    const hasEmbeds = this.options.ticket?.close?.confirm?.embeds;
+                    let embs = await Promise.all(
+                        (hasEmbeds.length
+                            ? hasEmbeds
+                            : [
+                                  embed(undefined, {
+                                      description: this.str("TICKET_CLOSE_CONFIRM"),
+                                      title: `INFO`,
+                                      color: 0xff000,
+                                      guild,
+                                      str: (name) => this.str(name, this?.options?.lang),
+                                  }),
+                              ]
+                        ).map((c) => parser(c, { guild, member, user: member.user })),
+                    );
+                    const content = this.options.ticket?.close?.confirm?.content || ``;
+                    if (!is.array(embs) && !is.string(content)) {
+                        embs = [
+                            await parser(
+                                embed(undefined, {
+                                    description: this.str("TICKET_CLOSE_CONFIRM"),
+                                    title: `INFO`,
+                                    color: 0xff000,
+                                    guild,
+                                    str: (name) => this.str(name, this?.options?.lang),
+                                }),
+                                {
+                                    guild,
+                                    member,
+                                    user: member.user,
+                                },
+                            ),
+                        ];
+                    }
                     return send({
                         ephemeral: true,
-                        embeds: [
-                            embed(this.str("TICKET_CLOSE_CONFIRM"), {
-                                color: 0xff000,
-                                guild,
-                                str: (name) => this.str(name, this?.options?.lang),
-                            }),
-                        ],
+                        content,
+                        embeds: [embs],
                         components: [
                             {
                                 type: 1,
@@ -127,7 +156,7 @@ module.exports = class Tickets extends base {
                                         title: this.str("TICKET_CLOSE_CONFIRM_BUTTON"),
                                         style: 3,
                                         emoji: { id: "807031399563264030" },
-                                        id: `${this.prefix}:close:confirm:${code(channel.topic?.split?.(`ID: `)?.[1], "d", this.options.encryptToken)}${this.options?.ticket?.closeReason ? `:modal_submit` : ""}`,
+                                        id: `${this.prefix}:close:confirm:${code(channel.topic?.split?.("ID: ")?.[1], "d", this.options.encryptToken)}${this.options?.ticket?.closeReason ? `:modal_submit` : ""}`,
                                     }),
                                 ],
                             },
