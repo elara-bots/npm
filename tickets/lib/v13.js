@@ -114,9 +114,9 @@ module.exports = class Tickets extends base {
                             }
                         }
                     }
-                    const hasEmbeds = this.options.ticket?.close?.confirm?.embeds;
+                    const hasEmbeds = this.options.ticket?.close?.confirm?.embeds || [];
                     let embs = await Promise.all(
-                        (hasEmbeds.length
+                        (hasEmbeds?.length
                             ? hasEmbeds
                             : [
                                   embed(undefined, {
@@ -129,7 +129,7 @@ module.exports = class Tickets extends base {
                               ]
                         ).map((c) => parser(c, { guild, member, user: member.user })),
                     );
-                    const content = this.options.ticket?.close?.confirm?.content || ``;
+                    const content = this.options.ticket?.close?.confirm?.content || undefined;
                     if (!is.array(embs) && !is.string(content)) {
                         embs = [
                             await parser(
