@@ -3,13 +3,12 @@ const {
     Interactions: { button },
     ButtonStyle,
 } = require("@elara-services/packages");
-const { is, status, isV13, embedComment, log } = require("@elara-services/utils");
+const { is, status, isV13, embedComment, log, emitPackageMessage } = require("@elara-services/utils");
 const { WebhookClient } = require("discord.js");
 const { name, version, funding } = require("../package.json");
+const { inspect } = require("util");
 const required = ["client", "prefix", "encryptToken"];
 const moment = require("moment");
-
-let showed = false;
 
 module.exports = class Tickets {
     /**
@@ -25,9 +24,10 @@ module.exports = class Tickets {
             }
         }
         this.options = options;
-        if (!showed && options.suppressPatreon !== true) {
-            log(`[${name}, ${version}]: Thanks for using the package, if you want to support the packages created: ${funding.map((c) => c.url).join(" or ")}`);
-            showed = true;
+        if (options.suppressPatreon !== true) {
+            emitPackageMessage(`${name} - thanks`, () => {
+                log(`[${name}, v${version}]: Thanks for using the package!`, `Please support the packages via ${funding.map((c) => c.url).join(" OR ")}`);
+            });
         }
     }
 
@@ -130,7 +130,7 @@ module.exports = class Tickets {
             return null;
         }
         if (this.options?.debug) {
-            console.log(...args);
+            log(inspect(...args, true, 50));
         }
         return null;
     }

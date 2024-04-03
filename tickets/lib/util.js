@@ -323,9 +323,9 @@ exports.hasTicket = ({ userId, guild, token, prefix } = {}) => {
     return guild.channels.cache.filter((c) => [0, "GUILD_TEXT"].includes(c.type) && c.topic && exports.code(c.topic.split("ID: ")[1], "d", token) === userId && c.name?.match?.(new RegExp(prefix, "gi"))).size ? true : false;
 };
 
-exports.embed = (content, { color, title, guild, footer, author, str } = {}) => ({
+exports.embed = (content, { color, title, guild, footer, author, str, description } = {}) => ({
     title: title || str("INFO"),
-    description: content,
+    description: content || description,
     color: color || 0xff0000,
     timestamp: new Date(),
     footer,

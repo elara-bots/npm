@@ -62,6 +62,7 @@ declare module "@elara-services/tickets" {
             }
         }
     }
+    
 
     interface LangFile {
         NO_BAN_PERMS_USER_IN_APPEAL_SERVER(server: Guild): string;

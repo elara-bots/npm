@@ -151,7 +151,7 @@ module.exports = class Tickets extends base {
                     return send({
                         ephemeral: true,
                         content,
-                        embeds: [embs],
+                        embeds: embs,
                         components: [
                             {
                                 type: 1,
