@@ -9,7 +9,7 @@ import { APIEmbed } from "discord.js";
 
 export interface sendOptions {
     content?: string | null;
-    embeds?: EmbedBuilder[];
+    embeds?: EmbedBuilder[] | APIEmbed[];
     components?: ActionRowBuilder<AnyComponentBuilder>[];
     disableMentions?: string | "all";
     webhook?: {
@@ -17,6 +17,11 @@ export interface sendOptions {
         icon?: string | null;
     };
     files?: RawFile[]
+    allowed_mentions?: {
+        parse?: string[];
+        roles?: string[];
+        users?: string[];
+    }
 }
 
 export interface CachedChannel {
@@ -26,6 +31,8 @@ export interface CachedChannel {
     guildId?: string;
     parentId?: string;
 }
+
+export type CachedOptionType = "channels" | "webhooks";
 
 export interface CachedWebhook {
     id: string;
@@ -45,4 +52,5 @@ export interface DiscordWebhookData {
     embeds: APIEmbed[];
     components: APIActionRowComponent<APIMessageActionRowComponent>[];
     thread_id: string | undefined;
+    allowed_mentions: sendOptions['allowed_mentions'];
 }

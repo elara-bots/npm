@@ -1,11 +1,28 @@
-import { Collection } from "@discordjs/collection";
 import { REST } from "@discordjs/rest";
 import { Routes, type APIWebhook } from "discord-api-types/v10";
-import { log, type CachedChannel, type CachedWebhook } from ".";
+import { Redis } from "ioredis";
+import { log } from ".";
 import { name, version } from "../package.json";
+import { MemoryCache } from "./webhooks/cache/memory";
+import { RedisCache } from "./webhooks/cache/redis";
 
-export const webhooks: Collection<string, CachedWebhook> = new Collection();
-export const channels: Collection<string, CachedChannel> = new Collection();
+export const caching = {
+    type: "memory" as "redis" | "memory",
+    setType: (type: "redis" | "memory", redis?: Redis) => {
+        if (type === "redis") {
+            if (!redis) {
+                throw new Error(`You provided the 'redis' type but no redis `);
+            }
+            caching.type = "redis";
+            caching.handler = new RedisCache(redis);
+            return caching;
+        }
+        caching.handler = new MemoryCache();
+        caching.type = type;
+        return caching;
+    },
+    handler: new MemoryCache() as RedisCache | MemoryCache,
+}
 export let buttonIds: Function | null = null;
 export let debugLogging: boolean = false;
 export let disabledLogging: string[] = [];
@@ -24,7 +41,7 @@ export async function createWebhook(client: REST, id: string = "", name: string)
             }
         )) as APIWebhook;
         if (res.id && res.token) {
-            webhooks.set(id, { id: res.id, token: res.token });
+            await caching.handler.set(id, { id: res.id, token: res.token }, "webhooks");
             return res;
         }
         return null;

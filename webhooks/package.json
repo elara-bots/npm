@@ -1,6 +1,6 @@
 {
     "name": "@elara-services/webhooks",
-    "version": "2.1.12",
+    "version": "3.0.0",
     "description": "To send/create webhooks",
     "main": "./dist/src/index.js",
     "scripts": {
@@ -21,10 +21,13 @@
     "dependencies": {
         "@discordjs/builders": "*",
         "@discordjs/rest": "*",
-        "@elara-services/utils": "*",
+        "@elara-services/utils": "^1.4.0",
         "discord-api-types": "*"
     },
     "peerDependencies": {
         "discord.js": "*"
+    },
+    "optionalDependencies": {
+        "ioredis": "^5.3.2"
     }
 }

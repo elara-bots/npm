@@ -1,7 +1,7 @@
 import { REST, makeURLSearchParams } from "@discordjs/rest";
 import { field, is, limits, resolveColor } from "@elara-services/utils";
 import type { APIActionRowComponent, APIEmbed, APIMessageActionRowComponent } from "discord-api-types/v10";
-import type { DiscordWebhookData, DiscordWebhookOptions } from "../../interfaces";
+import type { DiscordWebhookData, DiscordWebhookOptions, sendOptions } from "../../interfaces";
 import { defaultOptions, error, status, url, validateURL } from "./utils";
 const rest = new REST();
 
@@ -22,8 +22,14 @@ export class DiscordWebhook {
             embeds: [],
             content: undefined,
             components: [],
-            thread_id: options.threadId || undefined
+            thread_id: options.threadId || undefined,
+            allowed_mentions: undefined,
         }
+    }
+
+    setAllowedMentions(opt: sendOptions['allowed_mentions']) {
+        this.data.allowed_mentions = opt;
+        return this;
     }
 
     field(name: string = "\u200b", value: string = "\u200b", inline: boolean = false) {

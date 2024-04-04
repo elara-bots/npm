@@ -1,20 +1,20 @@
 import { REST } from "@discordjs/rest";
-import { getClientIdFromToken } from "@elara-services/utils";
+import { get, getClientIdFromToken } from "@elara-services/utils";
 import {
     Routes,
     type APIChannel,
     type RESTGetAPIChannelWebhooksResult,
 } from "discord-api-types/v10";
 import {
+    CachedWebhook,
     _debug,
     addToQueue,
     bannedUsernames,
-    channels,
+    caching,
     createWebhook,
     disabledLogging,
     sendQueue,
     throwError,
-    webhooks,
     type CachedChannel,
     type sendOptions
 } from "..";
@@ -53,7 +53,7 @@ export class Webhook {
         if (!channelId) {
             return null;
         }
-        const w = webhooks.get(channelId);
+        const w = await caching.handler.get<CachedWebhook>(`${channelId}_${this.clientId}`, "webhooks");
         if (w) {
             return w;
         }
@@ -68,11 +68,8 @@ export class Webhook {
         if (!hook || !hook.token) {
             return null;
         }
-        const data = {
-            id: hook.id,
-            token: hook.token,
-        };
-        webhooks.set(channelId, data);
+        const data = { id: hook.id, token: hook.token };
+        await caching.handler.set(`${channelId}_${this.clientId}`, data, "webhooks");
         return data;
     }
 
@@ -88,12 +85,13 @@ export class Webhook {
             return _debug(`'channel.guildId' (${channel.guildId}) is ignored`, disabledLogging.includes(channel.guildId));
         }
         let finalChannelId = channelId;
-        let { content, embeds, username, avatar_url: avatarURL, files, components } = {
+        let { content, embeds, username, avatar_url: avatarURL, files, components, allowed_mentions } = {
             ...this.fetchWebhookInfo(opt.webhook),
             embeds: (opt.embeds && Array.isArray(opt.embeds)) ? opt.embeds : [], 
             content: opt.content ?? null,
             components: opt.components ?? [],
-            files: opt.files ?? undefined
+            files: opt.files ?? undefined,
+            allowed_mentions: opt.allowed_mentions || undefined,
         }
         const inc = (arr: string[], includes: boolean) => arr.some(c =>  includes ? username.toLowerCase().includes(c) : username.toLowerCase() === c);
         if (inc(bannedUsernames.includes, true) || inc(bannedUsernames.equals, false)) {
@@ -117,7 +115,7 @@ export class Webhook {
         }
         if (queue === true) {
             return addToQueue(finalChannelId, `${hook.id}/${hook.token}`, {
-                embeds, components, webhook: { name: username, icon: avatarURL }, files
+                embeds, components, content, webhook: { name: username, icon: avatarURL }, files, allowed_mentions,
             }, threadId);
         }
         return sendQueue(hook.id, hook.token, {
@@ -125,13 +123,15 @@ export class Webhook {
             files,
             threadId,
             username,
+            content,
             avatarURL,
             channelId,
+            allowed_mentions,
         }, shouldTransformComponents);
     }
 
     private async fetchChannel(channelId: string): Promise<CachedChannel | null> {
-        const channel = channels.get(channelId);
+        const channel = await caching.handler.get<CachedChannel>(channelId, "channels");
         if (channel) {
             if (channel.invalid) {
                 _debug(`'fetchChannel' the 'channel' is invalid, ignoring`);
@@ -141,7 +141,7 @@ export class Webhook {
         }
         const res = await this.rest.get(Routes.channel(channelId)).catch((e: unknown) => e) as APIChannel | Error;
         if (!res || res instanceof Error) {
-            channels.set(channelId, { id: channelId, invalid: true, type: 0 });
+            await caching.handler.set(channelId, { id: channelId, invalid: true, type: 0 }, "channels", get.hrs(2));
             _debug(`ChannelId (${channelId}) had an error while fetching`, res);
             return null;
         }
@@ -156,7 +156,7 @@ export class Webhook {
         if ("parent_id" in res) {
             data.parentId = res.parent_id as string;
         }
-        channels.set(channelId, data);
+        await caching.handler.set(channelId, data, "channels", get.mins(15));
         return data;
     }
 }

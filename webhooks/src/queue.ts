@@ -1,9 +1,9 @@
 import { embedLength } from "@discordjs/builders";
 import { makeURLSearchParams, type RawFile } from "@discordjs/rest";
-import { chunk } from "@elara-services/utils";
-import { Routes, type APIMessage } from "discord-api-types/v10";
+import { chunk, is } from "@elara-services/utils";
+import { APIEmbed, Routes, type APIMessage } from "discord-api-types/v10";
 import { ActionRowBuilder, EmbedBuilder } from "discord.js";
-import { _debug, getComponents, rest, throwError, webhooks } from ".";
+import { _debug, caching, getComponents, rest, sendOptions, throwError } from ".";
 export const queue: QueueOptions[] = [];
 export const disabled: string[] = [];
 export let queueInterval: NodeJS.Timer | null = null;
@@ -35,7 +35,8 @@ export async function run() {
         return;
     }
     let channels: Record<string, {
-        embeds: EmbedBuilder[];
+        embeds: any;
+        content?: string | null | undefined;
         components: ActionRowBuilder[];
         files: RawFile[];
         channelId: string;
@@ -43,9 +44,10 @@ export async function run() {
         name?: string | undefined;
         icon?: string | undefined;
         threadId: string | undefined;
+        allowed_mentions?: sendOptions['allowed_mentions'];
     }> = {};
     for (const que of queue.filter(c => !disabled.includes(c.channelId))) {
-        let { channelId, webhook, threadId, opts: { embeds, components, webhook: wb, files } } = que;
+        let { channelId, webhook, threadId, opts: { embeds, components, webhook: wb, files, content, allowed_mentions } } = que;
         if (!webhook) {
             _debug(`No 'webhook' url found, ignoring.`);
             continue;
@@ -67,16 +69,23 @@ export async function run() {
         if (channels[cName]) {
             channels[cName].embeds.push(...embeds);
             channels[cName].components.push(...components);
+            if (is.string(content) && content !== "undefined") {
+                if (is.string(channels[cName].content)) {
+                    channels[cName].content = `${channels[cName].content}\n${content}`.slice(0, 2000);
+                } else {
+                    channels[cName].content = content;
+                }
+            }
         } else {
-            channels[cName] = { channelId, webhook, name: wb?.name || "", icon: wb?.icon || "", files, embeds, components, threadId };
+            channels[cName] = { allowed_mentions: allowed_mentions || undefined, content: content || "", channelId, webhook, name: wb?.name || "", icon: wb?.icon || "", files, embeds, components, threadId };
         }
     }
     queue.length = 0;
     for (const channel of Object.keys(channels)) {
         let ch = channels[channel],
             [id, token] = ch.webhook.split("/");
-        if (!webhooks.has(ch.channelId) || !ch.embeds.length) { 
-            _debug(`channelId was found in the ignored webhooks collection (${webhooks.has(ch.channelId)}) or there is no embeds (${ch.embeds.length})`);
+        if (!ch.embeds.length) { 
+            _debug(`There is no embeds (${ch.embeds.length})`);
             delete channels[channel]; 
             continue; 
         }
@@ -90,22 +99,24 @@ export async function run() {
             let res = await new Promise(async (resolve) => {
                 const toJSON = (e: any) => "toJSON" in e ? e.toJSON() : e;
                 let length = send.map(embed => embedLength(toJSON(embed))).reduce((a, b) => a + b, 0);
-                const sendQ = (embeds: EmbedBuilder | EmbedBuilder[]) => sendQueue(id, token, {
+                const sendQ = (embeds: EmbedBuilder | EmbedBuilder[] | APIEmbed | APIEmbed[]) => sendQueue(id, token, {
                     embeds: Array.isArray(embeds) ? embeds.map(c => toJSON(c)) : [ toJSON(embeds) ],
                     avatarURL: ch.icon,
+                    content: ch.content,
                     username: ch.name,
                     files: ch.files,
                     components: Array.isArray(ch.components) ? ch.components.map(c => toJSON(c)) : ch.components,
                     threadId: ch.threadId,
-                    channelId: ch.channelId
+                    channelId: ch.channelId,
+                    allowed_mentions: ch.allowed_mentions,
                 })
                 if (length >= 6000) {
                     for (const embed of send) {
-                        sendQ(embed);
+                        sendQ(embed as any);
                     }
                     resolve(true);
                 } else {
-                    resolve(await sendQ(send));
+                    resolve(await sendQ(send as any));
                 }
             });
             if (!res) {
@@ -118,8 +129,8 @@ export async function run() {
 }
 
 
-export async function sendQueue(id: string, token: string, { embeds, username, avatarURL, threadId, components, files, channelId }: QueueSendOptions, shouldTransformComponents = true) {
-    await rest.post(
+export async function sendQueue(id: string, token: string, { embeds, content, username, avatarURL, threadId, components, files, channelId, allowed_mentions }: QueueSendOptions, shouldTransformComponents = true) {
+    return await rest.post(
         Routes.webhook(id, token),
         {
             query: makeURLSearchParams({
@@ -128,18 +139,23 @@ export async function sendQueue(id: string, token: string, { embeds, username, a
             }),
             body: {
                 username, avatar_url: avatarURL,
+                content: is.string(content) && content !== "undefined" ? content : "",
                 components: shouldTransformComponents ? getComponents(components || []) : components || undefined,
-                embeds
+                embeds,
+                allowed_mentions,
             },
             auth: false,
             files,
         }
     )
-    .then((m) => handlers.afterWebhookSent(m as APIMessage))
+    .then((m) => {
+        handlers.afterWebhookSent(m as APIMessage)
+        return m as APIMessage;
+    })
     .catch((e: unknown) => {
         if (channelId) {
             _debug(`[WEBHOOK:CACHE:DELETED]: for channelId (${channelId})`);
-            webhooks.delete(channelId);
+            caching.handler.remove(channelId, "webhooks");
         }
         handlers.errorWebhookSend(e, {
             username,
@@ -149,7 +165,9 @@ export async function sendQueue(id: string, token: string, { embeds, username, a
             embeds,
             components,
             files,
+            allowed_mentions
         });
+        return null;
     });
 }
 
@@ -168,10 +186,16 @@ export interface QueueSendOptions {
     embeds: unknown[] | undefined;
     files: RawFile[] | undefined;
     components: unknown[] | undefined;
+    content?: string | null | undefined;
     username?: string | undefined;
     avatarURL?: string | undefined;
     threadId: string | undefined;
     channelId: string | undefined;
+    allowed_mentions?: {
+        parse?: string[];
+        users?: string[];
+        roles?: string[];
+    }
 }
 
 export interface QueueOptions {
@@ -180,8 +204,10 @@ export interface QueueOptions {
     threadId: string | undefined;
     opts: {
         files?: RawFile[] | undefined;
-        embeds?: EmbedBuilder[] | undefined;
+        embeds?: EmbedBuilder[] | APIEmbed[] | undefined;
         components?: ActionRowBuilder[] | undefined;
+        content?: string | null | undefined;
+        allowed_mentions?: sendOptions['allowed_mentions'];
         webhook?: {
             name?: string | undefined;
             icon?: string | undefined;
