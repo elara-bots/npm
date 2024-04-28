@@ -1,0 +1,101 @@
+import {
+    ButtonStyle,
+    MessageType,
+    StickerFormatType,
+} from "discord-api-types/v10";
+
+export const SystemJoinMessages = [
+    "%user% just joined the server - glhf!",
+    "%user% just joined. Everyone, look busy!",
+    "%user% just joined. Can I get a heal?",
+    "%user% joined your party.",
+    "%user% joined. You must construct additional pylons.",
+    "Ermagherd. %user% is here.",
+    "Welcome, %user%. Stay awhile and listen.",
+    "Welcome, %user%. We were expecting you ( ͡° ͜ʖ ͡°)",
+    "Welcome, %user%. We hope you brought pizza.",
+    "Welcome %user%. Leave your weapons by the door.",
+    "A wild %user% appeared.",
+    "Swoooosh. %user% just landed.",
+    "Brace yourselves. %user% just joined the server.",
+    "%user% just joined... or did they?",
+    "%user% just arrived. Seems OP - please nerf.",
+    "%user% just slid into the server.",
+    "A %user% has spawned in the server.",
+    "Big %user% showed up!",
+    "Where’s %user%? In the server!",
+    "%user% hopped into the server. Kangaroo!!",
+    "%user% just showed up. Hold my beer.",
+    "Challenger approaching - %user% has appeared!",
+    "It's a bird! It's a plane! Nevermind, it's just %user%.",
+    "It's %user%! Praise the sun! \\\\[T]/",
+    "Never gonna give %user% up. Never gonna let %user% down.",
+    "%user% has joined the battle bus.",
+    "Cheers, love! %user%'s here!",
+    "Hey! Listen! %user% has joined!",
+    "We've been expecting you %user%",
+    "It's dangerous to go alone, take %user%!",
+    "%user% has joined the server! It's super effective!",
+    "Cheers, love! %user% is here!",
+    "%user% is here, as the prophecy foretold.",
+    "%user% has arrived. Party's over.",
+    "Ready player %user%",
+    "%user% is here to kick butt and chew bubblegum. And %user% is all out of gum.",
+    "Hello. Is it %user% you're looking for?",
+    "%user% has joined. Stay a while and listen!",
+    "Roses are red, violets are blue, %user% joined this server with you",
+];
+
+const MessageTypes = {
+    DEFAULT: 0,
+    RECIPIENT_ADD: 1,
+    RECIPIENT_REMOVE: 2,
+    CALL: 3,
+    CHANNEL_NAME_CHANGE: 4,
+    CHANNEL_ICON_CHANGE: 5,
+    CHANNEL_PINNED_MESSAGE: 6,
+    USER_JOIN: 7,
+    GUILD_BOOST: 8,
+    GUILD_BOOST_TIER_1: 9,
+    GUILD_BOOST_TIER_2: 10,
+    GUILD_BOOST_TIER_3: 11,
+    CHANNEL_FOLLOW_ADD: 12,
+    GUILD_DISCOVERY_DISQUALIFIED: 14,
+    GUILD_DISCOVERY_REQUALIFIED: 15,
+    GUILD_DISCOVERY_GRACE_PERIOD_INITIAL_WARNING: 16,
+    GUILD_DISCOVERY_GRACE_PERIOD_FINAL_WARNING: 17,
+    THREAD_CREATED: 18,
+    REPLY: 19,
+    CHAT_INPUT_COMMAND: 20,
+    THREAD_STARTER_MESSAGE: 21,
+    GUILD_INVITE_REMINDER: 22,
+    CONTEXT_MENU_COMMAND: 23,
+    AUTO_MODERATION_ACTION: 24,
+    ROLE_SUBSCRIPTION_PURCHASE: 25,
+    INTERACTION_PREMIUM_UPSELL: 26,
+    STAGE_START: 27,
+    STAGE_END: 28,
+    STAGE_SPEAKER: 29,
+    STAGE_TOPIC: 31,
+    GUILD_APPLICATION_PREMIUM_SUBSCRIPTION: 32,
+};
+
+export function convertV13MessageType(type: string): MessageType {
+    return (
+        MessageTypes[type as keyof typeof MessageTypes] || MessageTypes.DEFAULT
+    );
+}
+export const styles = {
+    [ButtonStyle.Success]: "success",
+    [ButtonStyle.Secondary]: "secondary",
+    [ButtonStyle.Primary]: "primary",
+    [ButtonStyle.Danger]: "destructive",
+    [ButtonStyle.Link]: "secondary",
+};
+
+export const StickerTypes = {
+    [StickerFormatType.APNG]: "apng",
+    [StickerFormatType.GIF]: "gif",
+    [StickerFormatType.Lottie]: "json",
+    [StickerFormatType.PNG]: "png",
+};
