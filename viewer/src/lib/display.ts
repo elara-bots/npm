@@ -1,5 +1,6 @@
 import {
     XOR,
+    formatNumber,
     hasBit,
     is,
     make,
@@ -17,6 +18,7 @@ import {
     MessageType,
     StickerFormatType,
 } from "discord-api-types/v10";
+import { writeFileSync } from "fs";
 import { createHTMLPage } from "./html";
 import type {
     Color,
@@ -32,7 +34,6 @@ import {
     convertV13MessageType,
     styles,
 } from "./utils";
-import { writeFileSync } from "fs";
 
 export const create = {
     file: (
@@ -56,6 +57,81 @@ export const create = {
         );
     },
 
+    withHeaderMessage: (
+        header: {
+            message: Partial<XOR<APIMessage, MinMessage>>;
+            guildName?: string;
+            options?: MessageOptions;
+        },
+        messages: string[] | string,
+        htmlPage?: HTMLPageOptions
+    ) => {
+        return createHTMLPage(
+            `<discord-messages>
+            ${create.message(header.message, header.guildName, header.options)}
+            </discord-messages>${
+                is.array(messages)
+                    ? messages.join("")
+                    : `<discord-messages>${messages}</discord-messages>`
+            }`,
+            htmlPage
+        );
+    },
+
+    bulkMessages: (
+        messages: string[] | string,
+        options: {
+            users: {
+                count: number;
+                id: string;
+                username: string;
+                discriminator?: string;
+                color?: Color;
+            }[];
+            guildName: string;
+            username?: string;
+            avatar_url?: string;
+            color?: Color;
+        },
+        htmlPage?: HTMLPageOptions
+    ) => {
+        return create.withHeaderMessage(
+            {
+                message: {
+                    content: `<strong>Messages: </strong>${formatNumber(
+                        options.users
+                            .map((c) => c.count)
+                            .reduce((a, b) => a + b, 0)
+                            .toLocaleString()
+                    )}<br><strong>Users</strong><br>${options.users
+                        .map(
+                            (c) =>
+                                `[${formatNumber(c.count || 0)}]: ${create.role(
+                                    `${c.username}${
+                                        c.discriminator
+                                            ? c.discriminator !== "0"
+                                                ? `#${c.discriminator}`
+                                                : ""
+                                            : ""
+                                    }`,
+                                    c.color || `#ffffff`
+                                )} (${c.id})` as string
+                        )
+                        .join("<br>")}`,
+                },
+                guildName: options.guildName,
+                options: {
+                    bot: true,
+                    verified: true,
+                    username: options.username,
+                    avatar_url: options.avatar_url,
+                },
+            },
+            messages,
+            htmlPage
+        );
+    },
+
     ticket: (
         messages: string[] | string,
         options: {
@@ -75,9 +151,9 @@ export const create = {
         str: (str: string) => string = (str) => proper(str),
         htmlPage?: HTMLPageOptions
     ) => {
-        return createHTMLPage(
-            `<discord-messages>${create.message(
-                {
+        return create.withHeaderMessage(
+            {
+                message: {
                     content: `${str("TOTAL_MESSAGES")}: ${options.users
                         .map((c) => c.count)
                         .reduce((a, b) => a + b, 0)
@@ -97,8 +173,8 @@ export const create = {
                         )
                         .join("<br>")}`,
                 },
-                "Ticket Server",
-                {
+                guildName: "Ticket Server",
+                options: {
                     bot: true,
                     verified: true,
                     username:
@@ -109,10 +185,9 @@ export const create = {
                     avatar_url:
                         options.avatar_url ||
                         `https://cdn.discordapp.com/emojis/847397714677334066.png`,
-                }
-            )}</discord-messages> ${
-                is.array(messages) ? messages.join(" ") : messages
-            }`,
+                },
+            },
+            messages,
             htmlPage || {
                 name: `Ticket Logs`,
                 icon: `https://cdn.discordapp.com/emojis/847397714677334066.png`,

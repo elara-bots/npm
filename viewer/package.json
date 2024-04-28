@@ -1,8 +1,8 @@
 {
   "name": "@elara-services/viewer",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "description": "A package to create a Discord message viewer.",
-  "main": "./dist/src/index.js",
+  "main": "./dist/index.js",
   "author": "SUPERCHIEFYT (Elara-Discord-Bots, Elara-Services)",
   "license": "ISC",
   "scripts": {
