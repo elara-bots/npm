@@ -3,12 +3,12 @@ import { Files } from "./files";
 import { Issues } from "./issues";
 
 export type * from "./files";
-export type * from "./interfaces";
+export type * from "./types";
 
 export class GitHub {
     public client: Octokit;
-    public files: Files;
-    public issues: Issues;
+    public readonly files: Files;
+    public readonly issues: Issues;
     public constructor(private token: string, debug?: boolean) {
         this.client = new Octokit({
             auth: token,

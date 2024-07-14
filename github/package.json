@@ -1,6 +1,6 @@
 {
   "name": "@elara-services/github",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "A misc github package for stuff idk",
   "main": "./dist/src/index.js",
   "author": "SUPERCHIEFYT (Elara-Discord-Bots, Elara-Services)",

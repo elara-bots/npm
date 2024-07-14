@@ -1,7 +1,8 @@
 import { fetch } from "@elara-services/fetch";
 import { Octokit } from "@octokit/rest";
 import { name, version } from "../package.json";
-import { FileCreateOptions } from "./interfaces";
+import { FileCreateOptions } from "./types";
+import { createURL } from "./utils";
 
 export class Files {
     public constructor(private client: Octokit) {}
@@ -29,11 +30,7 @@ export class Files {
                 branch: options.repo.branch,
             })
             .catch((e) => new Error(e));
-        const url = `https://github.com/${options.repo.owner}/${
-            options.repo.repo
-        }/tree/${options.repo.branch || "main"}/${encodeURIComponent(
-            options.path
-        )}`;
+        const url = createURL(options.repo, encodeURIComponent(options.path));
         if (c instanceof Error) {
             if (c.message.includes(`"sha" wasn't supplied`)) {
                 throw new Error(`File (${url}) already exists!`);
