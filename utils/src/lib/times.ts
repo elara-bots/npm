@@ -23,10 +23,8 @@ export function error(...args: unknown[]) {
     return console.error(`[${new Date().toLocaleString("en-US", { timeZone: times.timeZone })}]: `, ...args);
 }
 
-export function getTimeFrom(time: DurationInputArg1, name: unitOfTime.DurationConstructor, date: Date | string) {
-    return moment(date ? new Date(date) : new Date())
-        .add(time, name)
-        .toISOString();
+export function getTimeFrom(amount: DurationInputArg1, unit: unitOfTime.DurationConstructor, date: Date | string = new Date()) {
+    return moment(new Date(date)).add(amount, unit).toISOString();
 }
 
 export const ms = {

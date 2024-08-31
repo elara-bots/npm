@@ -1,5 +1,9 @@
-import { fetch } from "@elara-services/fetch";
-import type { Emoji } from "discord.js";
+import type { Emoji, PartialEmoji } from "discord.js";
+import { is } from "./is";
+import { make } from "./utils";
+
+const getTwemojiURL = (name: string) => `https://cdn.jsdelivr.net/gh/twitter/twemoji@v12.1.4/assets/72x72/${name}.png`;
+const twemoji = /^(?:\d\ufe0f?\u20e3|\p{Emoji_Presentation})$/giu;
 
 export function getUnicodeEmoji(emoji: string | null) {
     if (!emoji) {
@@ -26,29 +30,23 @@ export function getUnicodeEmoji(emoji: string | null) {
     return r.join("-");
 }
 
-export async function getDiscordEmoji(emoji: Emoji | null) {
+export function getDiscordEmoji(emoji: Emoji | PartialEmoji | null) {
     if (!emoji) {
         return null;
     }
     if (!emoji.id) {
-        const emote = getUnicodeEmoji(emoji.name);
-        if (!emote) {
+        if (!twemoji.test(emoji.name || "")) {
             return null;
         }
-        const url = `https://cdn.jsdelivr.net/gh/twitter/twemoji@v12.1.4/assets/72x72/${emote}.png`;
-        const res = await fetch(url)
-            .timeout(5000)
-            .header("User-Agent", `Services v${Math.floor(Math.random() * 5000)}`)
-            .send()
-            .catch(() => ({ statusCode: 500 }));
-        if (res?.statusCode !== 200) {
+        const emote = getUnicodeEmoji(emoji.name);
+        if (!emote) {
             return null;
         }
         return {
             name: emoji.name,
             id: null,
             animated: false,
-            url,
+            url: getTwemojiURL(emote),
             raw: emoji.name,
         };
     }
@@ -56,7 +54,55 @@ export async function getDiscordEmoji(emoji: Emoji | null) {
         name: emoji.name,
         id: emoji.id,
         animated: emoji.animated,
-        url: `https://cdn.discordapp.com/emojis/${emoji.id}${emoji.animated ? ".gif" : ".png"}`,
+        url: make.emojiURL(emoji.id, emoji.animated ? "gif" : "png"),
         raw: `<${emoji.animated ? "a" : ""}:${emoji.name}:${emoji.id}>`,
     };
+}
+
+export function getDiscordIdFromEmoji(str: string) {
+    if (!str.startsWith("<") && !str.endsWith(">")) {
+        return "";
+    }
+    return str.split(">")[0].split(":")[2];
+}
+
+export function getDiscordEmojis(str: string) {
+    const matches = str.match(/<(?<animated>a)?:(?<name>\w{2,32}):(?<id>\d{17,21})>/gim);
+    const twemojiMatches = str.match(twemoji);
+    const emojis: {
+        name: string;
+        url: string;
+        animated: boolean;
+        matching: string;
+    }[] = [];
+    if (matches?.length) {
+        for (const e of matches) {
+            const id = getDiscordIdFromEmoji(e);
+            if (!is.string(id)) {
+                continue;
+            }
+            const animated = e.startsWith("<a:") ? true : false;
+            emojis.push({
+                name: "unknown",
+                url: make.emojiURL(id, animated ? "gif" : "png"),
+                animated,
+                matching: e,
+            });
+        }
+    }
+    if (twemojiMatches?.length) {
+        for (const e of twemojiMatches) {
+            const em = getUnicodeEmoji(e);
+            if (!em) {
+                continue;
+            }
+            emojis.push({
+                name: e,
+                url: getTwemojiURL(em),
+                animated: false,
+                matching: e,
+            });
+        }
+    }
+    return emojis;
 }

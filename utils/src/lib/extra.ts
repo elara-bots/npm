@@ -1,5 +1,19 @@
 import { SDK } from "@elara-services/sdk";
+import { is } from "./is";
 export const services = new SDK();
+
+// eslint-disable-next-line prefer-const
+export let binDefs = {
+    viewer: `https://view.elara.workers.dev`,
+};
+// eslint-disable-next-line prefer-const
+export let bins = {
+    mine: "https://h.elara.workers.dev",
+    haste: "https://h.s8n.workers.dev", // Default haste server, since hastebin.com requires a bin-key now.
+    pizza: "https://haste.unbelievaboat.com",
+};
+
+export type Bins = keyof typeof bins;
 
 export function sleep(timeout?: number) {
     return new Promise((r) => setTimeout(r, timeout));
@@ -43,46 +57,38 @@ export function hasBit(bitfield: number, bit: number) {
     return false;
 }
 
-export async function createBin(title: string, args: string, ext = "js", bin = "mine-f", priv = false) {
-    const bins = {
-            mine: "https://h.elara.workers.dev",
-            haste: "https://hastebin.com",
-            pizza: "https://haste.unbelievaboat.com",
-        },
-        fetch = async (args: string, url: string, backup: string) => {
-            if (!services) {
-                return;
-            }
-            let res = await services.haste.post(args, {
-                extension: ext ?? "js",
-                url,
-            });
-            if (!res.status) {
-                res = await services.haste.post(args, {
-                    extension: ext ?? "js",
-                    url: backup,
-                });
-            }
-            return res.status ? res.url : `Unable to create any paste link.`;
-        };
-    switch (bin) {
-        case "mine":
-        case "haste":
-        case "pizza":
-            return fetch(args, bins[bin], bin === "mine" ? bins.haste : bins.mine);
-        case "mine-f": {
-            const b = await services.paste.post(title, args, priv);
-            if (!b.status) {
-                return fetch(args, bins.mine, bins.haste);
-            }
-            if (["messages", "discord"].includes(ext)) {
-                return `https://my.elara.services/${ext}/${b.id}`;
-            }
-            return `https://my.elara.services/b/v/${b.id}`;
+export async function createBin(title: string, args: string, ext = "js", bin: Bins | "mine-f" | "custom" = "mine-f", priv = false) {
+    const fetch = async (args: string, url: string, backup: string) => {
+        if (!services) {
+            return null;
         }
-        default:
-            return fetch(args, bin.match(/http(s)?:\/\//i) ? bin : bins.mine, bins.mine);
+        let res = await services.haste.post(args, {
+            extension: ext ?? "js",
+            url,
+        });
+        if (!res.status) {
+            res = await services.haste.post(args, {
+                extension: ext ?? "js",
+                url: backup,
+            });
+        }
+        return res.status ? res.url : `Unable to create any paste link.`;
+    };
+    if (bin === "mine-f") {
+        const b = await services.paste.post(title, args, priv);
+        if (!b.status) {
+            return fetch(args, bins.mine, bins.haste);
+        }
+        if (["messages", "discord"].includes(ext)) {
+            return `${binDefs.viewer}/${ext}/${b.id}`;
+        }
+        return `${binDefs.viewer}/bin/${b.id}`;
     }
+    const binUrl = bins[bin as Bins];
+    if (is.string(binUrl)) {
+        return fetch(args, binUrl, bin === "mine" ? bins.haste : bins.mine);
+    }
+    return fetch(args, bin.match(/http(s)?:\/\//i) ? bin : bins.mine, bins.mine);
 }
 
 export function shuffle(array: unknown[]) {
@@ -124,25 +130,16 @@ export const env = {
         }
         return str;
     },
-    getObj: <D extends object>(name: string): D => {
-        return env.get<D>(name, true) as D;
-    },
-    parse: (data: string) => {
-        return Buffer.from(data).toString("base64");
-    },
+    getObj: <D extends object>(name: string): D => env.get<D>(name, true) as D,
+    parse: (data: string) => Buffer.from(data).toString("base64"),
 };
 
 export type Entries<T> = {
     [K in keyof T]: [K, T[K]];
 }[keyof T][];
 
-export const getEntries = <T extends object>(obj: T) => {
-    return Object.entries(obj) as Entries<T>;
-};
-
-export const getKeys = <T extends object>(obj: T) => {
-    return Object.keys(obj) as (keyof T)[];
-};
+export const getEntries = <T extends object>(obj: T) => Object.entries(obj) as Entries<T>;
+export const getKeys = <T extends object>(obj: T) => Object.keys(obj) as (keyof T)[];
 
 export function generate(
     length: number = 10,
@@ -264,4 +261,9 @@ export function getNearest(n: number, maxNumber = 1000) {
 
 export function getAverage(arr: number[]) {
     return Math.floor(arr.reduce((a, b) => a + b) / arr.length);
+}
+
+export function convertiOSShit(str: string) {
+    // Fuck you Apple
+    return str.replace(/’/g, "'").replace(/“|”/g, '"');
 }

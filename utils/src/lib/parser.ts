@@ -15,12 +15,12 @@ export async function parser(obj: object = {}, options: ParserOptions = {}): Pro
     }
     if (options.guild) {
         const { guild } = options;
-        const owner = await guild.fetchOwner().catch(() => null);
+        const owner = guild.client.users.resolve(guild.ownerId) || (await guild.client.users.fetch(guild.ownerId, { cache: true }).catch(() => null));
         if (owner) {
-            r([p.owner.username], owner.user.username);
+            r([p.owner.username], owner.username);
             r([p.owner.mention, p.owner.user], owner.toString());
             r([p.owner.id], owner.id);
-            r([p.owner.avatar], owner.user.displayAvatarURL());
+            r([p.owner.avatar], owner.displayAvatarURL());
         }
         r([p.guild.name, p.guild.server], guild.name);
         r([p.guild.icon], guild.iconURL() as string);

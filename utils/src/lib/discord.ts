@@ -1,4 +1,7 @@
 import { Collection } from "@discordjs/collection";
+import { REST, makeURLSearchParams } from "@discordjs/rest";
+import { DiscordSnowflake } from "@sapphire/snowflake";
+import { Routes, type APIMessage } from "discord-api-types/v10";
 import {
     ActionRowBuilder,
     Application,
@@ -8,7 +11,6 @@ import {
     Channel,
     Client,
     Colors,
-    ComponentType,
     EmbedBuilder,
     ForumChannel,
     Guild,
@@ -20,61 +22,47 @@ import {
     MessagePayload,
     RepliableInteraction,
     Role,
-    SnowflakeGenerateOptions,
-    SnowflakeUtil,
     TextBasedChannel,
     TextChannel,
     ThreadChannel,
     User,
     VoiceChannel,
     version,
+    type ButtonInteraction,
+    type ChannelSelectMenuInteraction,
+    type ComponentEmojiResolvable,
+    type FetchChannelOptions,
     type GuildBan,
     type Interaction,
     type Invite,
+    type MentionableSelectMenuInteraction,
     type PermissionResolvable,
+    type RoleSelectMenuInteraction,
+    type StringSelectMenuInteraction,
+    type UserSelectMenuInteraction,
 } from "discord.js";
-import { sleep } from "./extra";
+import { chunk, colors, shuffle, sleep } from "./extra";
 import { is } from "./is";
+import { XOR } from "./jobs";
 import { checkChannelPerms } from "./permissions";
+import { comment } from "./responders";
 import { get, status } from "./status";
-import { time } from "./times";
+import { log, time } from "./times";
+import { field, snowflakes } from "./utils";
 export type errorHandler = (e: Error) => unknown;
 
 export function isV13() {
     return version.startsWith("13.");
 }
 
-export function commands(content: string, prefix: string) {
-    if (!is.string(content)) {
-        return {
-            name: "",
-            args: [],
-            hasPrefix() {
-                return false;
-            },
-            isCommand() {
-                return false;
-            },
-        };
+export function createREST(client: string | REST | Client) {
+    if (client instanceof Client) {
+        if (client.rest instanceof REST) {
+            return client.rest;
+        }
+        client = client.token as string;
     }
-    const str = content?.split(/ +/g) || "";
-    const name = str[0].slice(prefix.length).toLowerCase();
-    return {
-        name,
-        args: str.slice(1),
-        hasPrefix() {
-            if (content.toLowerCase().startsWith(prefix)) {
-                return true;
-            }
-            return false;
-        },
-        isCommand(commandName: string) {
-            if (commandName === name) {
-                return true;
-            }
-            return false;
-        },
-    };
+    return is.string(client) ? new REST().setToken(client) : client;
 }
 
 export function canTakeActionAgainstMember(mod: GuildMember, member: GuildMember, permissions: PermissionResolvable[]) {
@@ -91,6 +79,39 @@ export function canTakeActionAgainstMember(mod: GuildMember, member: GuildMember
         return false;
     }
     return true;
+}
+
+export async function fetchMessages(botTokenOrREST: string | REST, channelId: string, limit = 50, before?: string, after?: string) {
+    const rest = createREST(botTokenOrREST);
+    const getMessages = async (limit = 100, _before?: string | boolean, _after?: string) => {
+        return (await rest
+            .get(Routes.channelMessages(channelId), {
+                query: makeURLSearchParams({ limit, before: _before || undefined, after: _after || undefined }),
+            })
+            .catch(() => [])) as APIMessage[];
+    };
+    if (limit && limit > 100) {
+        let logs: APIMessage[] = [];
+        const get = async (_before?: string | boolean, _after?: string): Promise<APIMessage[]> => {
+            const messages = await getMessages(100, _before || undefined, _after || undefined);
+            if (limit <= messages.length) {
+                return _after
+                    ? messages
+                          .slice(messages.length - limit, messages.length)
+                          .map((message) => message)
+                          .concat(logs)
+                    : logs.concat(messages.slice(0, limit).map((message) => message));
+            }
+            limit -= messages.length;
+            logs = _after ? messages.map((message) => message).concat(logs) : logs.concat(messages.map((message) => message));
+            if (messages.length < 100) {
+                return logs;
+            }
+            return get((_before || !_after) && messages[messages.length - 1].id, _after && messages[0].id);
+        };
+        return get(before, after);
+    }
+    return await getMessages(limit, before, after);
 }
 
 export async function fetchAllGuildBans(
@@ -186,21 +207,28 @@ export const discord = {
         }
         return guild.roles.fetch(matches[1], { cache: true }).catch(() => null);
     },
-    channel: async (client: Client, id: string, guildToSearch: Guild | null = null): Promise<Channel | null> => {
+    channel: async <D extends Channel>(client: Client, id: string, guildToSearch: Guild | null = null, options?: FetchChannelOptions): Promise<D | null> => {
         if (!client || !is.string(id)) {
             return null;
         }
         const hm = id.match(/^(?:<#?)?([0-9]+)>?$/);
         if (!hm) {
             if (guildToSearch) {
-                return guildToSearch.channels.cache.find((c) => c.name.includes(id)) ?? null;
+                const find = guildToSearch?.channels?.cache?.find?.((c) => c.name.includes(id));
+                if (find) {
+                    return find as D;
+                }
             }
             return null;
         }
         if (client.channels.cache.has(hm[1])) {
-            return client.channels.resolve(hm[1]);
+            return client.channels.resolve(hm[1]) as D;
         }
-        return (await client.channels.fetch(hm[1]).catch(() => {})) || null;
+        const c = await client.channels.fetch(hm[1], options).catch(() => null);
+        if (!c) {
+            return null;
+        }
+        return c as D;
     },
     member: async (guild: Guild, args: string, fetch = false, withPresences = true): Promise<GuildMember | null> => {
         if (!guild || !is.string(args)) {
@@ -219,6 +247,11 @@ export const discord = {
                         withPresences,
                     })
                     .catch(() => null);
+                if (m instanceof Collection) {
+                    return m.first() ?? null;
+                } else if (m) {
+                    return m ?? null;
+                }
             }
             if (!m) {
                 return null;
@@ -275,6 +308,70 @@ export const discord = {
                 return null;
             });
         },
+        /**
+         * @description Fetch messages in the channelId provided.
+         * @note If the 'limit' is above 100, the bot will continue to fetch messages until the limit provided. (it will stop once there is no more messages to fetch in the channel)
+         * @note Be careful with going above 100 limit, the bot will chunk the requests per-100 messages, meaning if you fetch 1000 messages, that's 10 requests the bot has to do)
+         * @note The bot will follow the ratelimits Discord provides, so if you provide a large limit it will take longer for the function to return anything. (Example: 10k messages takes around ~2 minutes to complete)
+         */
+        fetchBulk: async (client: Client, channelId: string, limit = 50): Promise<Message[] | null> => {
+            const messages = await fetchMessages(client.rest instanceof REST ? client.rest : (client.token as string), channelId, limit);
+            if (!is.array(messages)) {
+                return null;
+            }
+            // @ts-ignore
+            return messages.map((c) => new Message(client, c));
+        },
+        delete: async (clientOrToken: Client | string, channelId: string, messageId: string) => {
+            if (!channelId || !messageId) {
+                throw new Error(`You didn't provide a channelId or a messageId`);
+            }
+            const rest = createREST(clientOrToken);
+            return await rest.delete(Routes.channelMessage(channelId, messageId));
+        },
+
+        /**
+         * @description Bulk delete messages in a channel.
+         * @note ignore.errors will ignore all errors while trying to bulkDelete, the 'errors' array sent will be empty.
+         * @note ignore.old will remove message IDs before trying to bulkDelete, the returned 'old' field will provide the message IDs that is older than 2 weeks.
+         */
+        bulkDelete: async (clientOrToken: Client | string, channelId: string, messages: string[], ignore: { errors?: boolean; old?: boolean } = { errors: true, old: true }) => {
+            const old = messages.filter((c) => Date.now() - DiscordSnowflake.timestampFrom(c) > 1_209_600_000);
+            if (ignore?.old === true) {
+                messages = messages.filter((c) => !old.includes(c));
+            }
+            if (messages.length < 2) {
+                throw new Error(`Min messages to delete is 2, you provided ${messages.length}`);
+            }
+
+            const rest = createREST(clientOrToken);
+            const success: string[] = [];
+            const errors: { messages: string[]; error: Error }[] = [];
+            const del = async (c: string[] = []) => {
+                const r = await rest
+                    .post(Routes.channelBulkDelete(channelId), {
+                        body: { messages: c },
+                    })
+                    .catch((e) => {
+                        if (ignore?.errors === true) {
+                            return null;
+                        }
+                        errors.push({ messages: c, error: new Error(e || "Unknown Error while trying to bulkDelete") });
+                        return null;
+                    });
+                if (r) {
+                    success.push(...c);
+                }
+                return true;
+            };
+            if (messages.length > 100) {
+                const chunked = chunk(messages, 100);
+                await Promise.all(chunked.map((c) => del(c)));
+            } else {
+                await del(messages);
+            }
+            return { success, errors, old };
+        },
     },
 };
 
@@ -290,9 +387,6 @@ export function setMobileStatusIcon(deviceType: "iOS" | "Android" = "iOS") {
     require("@discordjs/ws").DefaultWebSocketManagerOptions.identifyProperties.browser = `Discord ${deviceType}`;
 }
 
-export function field(name = "\u200b", value = "\u200b", inline = false) {
-    return { name, value, inline };
-}
 export function lazyField(embed: EmbedBuilder, name = "\u200b", value = "\u200b", inline = false) {
     if ("addFields" in embed) {
         return embed.addFields(field(name, value, inline));
@@ -300,47 +394,12 @@ export function lazyField(embed: EmbedBuilder, name = "\u200b", value = "\u200b"
     return field(name, value, inline);
 }
 
-export function getClientIdFromToken(token: string) {
-    return Buffer.from(token.split(".")[0], "base64").toString();
-}
-
-export const snowflakes = {
-    get: (id: string) => {
-        return SnowflakeUtil.deconstruct(id);
-    },
-    generate: (options?: SnowflakeGenerateOptions) => {
-        return SnowflakeUtil.generate(options);
-    },
-};
-
 export async function deleteMessage(message: Message, timeout = 5000) {
     if (timeout <= 0) {
         return message.delete().catch(() => null);
     }
     return sleep(timeout).then(() => message.delete().catch(() => null));
 }
-
-export const limits = {
-    audit: 512,
-    content: 2000,
-    embeds: {
-        max: 10,
-        characters: 6000,
-    },
-    title: 256,
-    description: 4096,
-    fields: 25,
-    field: {
-        name: 256,
-        value: 1024,
-    },
-    footer: {
-        text: 2048,
-    },
-    author: {
-        name: 256,
-    },
-};
 
 export async function react(message: Message, emojis: string[] | string) {
     if (!checkChannelPerms(message.channel, message.client.user.id, 347200n)) {
@@ -359,6 +418,27 @@ export async function react(message: Message, emojis: string[] | string) {
             .catch(() => false);
     }
     return false;
+}
+
+export type InviteResponseData<D> = { status: false; message: string } | { status: true; data: D };
+export interface MakeInviteClientOptions {
+    search: object;
+    fetch?: {
+        inviters?: boolean;
+        uses?: boolean;
+    };
+}
+
+export interface FormatInvitedBy {
+    // Total number of people invited by the user.
+    invited: number;
+    // Total uses for all invites that the user has.
+    uses: number;
+    codes: {
+        type: Exclude<FetchedMemberInvite["joinType"], "bot" | "integration">;
+        code: string;
+    }[];
+    members: FetchedMemberInvite[];
 }
 
 export const Invites = {
@@ -418,15 +498,26 @@ export const Invites = {
         }
     },
 
-    fetch: async (guild: Guild, users: string[], fetchInviters?: boolean, fetchUses?: boolean): Promise<{ status: false; message: string } | { status: true; data: FetchedMemberInvitesResponse }> => {
+    /**
+     * [WARNING]:
+     * - This uses an endpoint not documented and can be restricted to bots at any time by Discord.
+     * - Due to caching on Discord's end an entry for a user might not show up for a few minutes to an hour+ (THIS CAN'T BE CHANGED)
+     */
+    query: async (guild: Guild, options: MakeInviteClientOptions): Promise<InviteResponseData<FetchedMemberInvitesResponse>> => {
         return new Promise(async (r) => {
             if (!guild.features.includes("COMMUNITY")) {
                 return r(status.error(`Server ${guild.name} (${guild.id}) doesn't have "COMMUNITY" enabled so this cannot be used.`));
             }
-            const body = {
-                limit: users.length,
-                and_query: { user_id: { or_query: users } },
-            };
+            let fetchInviters = true;
+            let fetchUses = true;
+            if (is.object(options.fetch)) {
+                if (is.boolean(options.fetch.inviters)) {
+                    fetchInviters = options.fetch.inviters;
+                }
+                if (is.boolean(options.fetch.uses)) {
+                    fetchUses = options.fetch.uses;
+                }
+            }
             let data: FetchedMemberInvitesResponse | Error = new Error(`Unable to fetch the members invites.`);
             const fetch = async () => {
                 if (isV13()) {
@@ -434,11 +525,11 @@ export const Invites = {
                     data = (await guild.client.api
                         // @ts-ignore
                         .guilds(guild.id)("members-search")
-                        .post({ data: body })
+                        .post({ data: options.search })
                         // @ts-ignore
                         .catch((e: Error) => e)) as FetchedMemberInvitesResponse | Error;
                 } else {
-                    data = (await guild.client.rest.post(`/guilds/${guild.id}/members-search`, { body }).catch((e: Error) => e)) as FetchedMemberInvitesResponse | Error;
+                    data = (await guild.client.rest.post(`/guilds/${guild.id}/members-search`, { body: options.search }).catch((e: Error) => e)) as FetchedMemberInvitesResponse | Error;
                 }
             };
             await fetch();
@@ -524,7 +615,100 @@ export const Invites = {
         });
     },
 
-    format: async (guild: Guild, users: string[]): Promise<{ status: false; message: string } | { status: true; data: FetchedMemberInvitesResponse["members"] }> => {
+    /**
+     * [WARNING]:
+     * - This uses an endpoint not documented and can be restricted to bots at any time by Discord.
+     * - Due to caching on Discord's end an entry for a user might not show up for a few minutes to an hour+ (THIS CAN'T BE CHANGED)
+     */
+    fetch: async (guild: Guild, users: string[], fetchInviters?: boolean, fetchUses?: boolean): Promise<InviteResponseData<FetchedMemberInvitesResponse>> => {
+        return new Promise(async (r) => {
+            return r(
+                await Invites.query(guild, {
+                    search: {
+                        limit: users.length,
+                        and_query: { user_id: { or_query: users } },
+                    },
+                    fetch: {
+                        inviters: fetchInviters,
+                        uses: fetchUses,
+                    },
+                }),
+            );
+        });
+    },
+
+    /**
+     * [WARNING]:
+     * - This uses an endpoint not documented and can be restricted to bots at any time by Discord.
+     * - Due to caching on Discord's end an entry for a user might not show up for a few minutes to an hour+ (THIS CAN'T BE CHANGED)
+     */
+    by: async (guild: Guild, user: string | string[], limit = 500): Promise<InviteResponseData<FetchedMemberInvitesResponse>> => {
+        return new Promise(async (r) => {
+            return r(
+                await Invites.query(guild, {
+                    search: {
+                        limit,
+                        and_query: {
+                            inviter_id: {
+                                or_query: is.array(user) ? user : [user],
+                            },
+                        },
+                    },
+                    fetch: {
+                        inviters: true,
+                        uses: true,
+                    },
+                }),
+            );
+        });
+    },
+    /**
+     * [WARNING]:
+     * - This uses an endpoint not documented and can be restricted to bots at any time by Discord.
+     * - Due to caching on Discord's end an entry for a user might not show up for a few minutes to an hour+ (THIS CAN'T BE CHANGED)
+     */
+    formatBy: async (guild: Guild, user: string | string[], limit = 500): Promise<InviteResponseData<Collection<string, FormatInvitedBy>>> => {
+        return new Promise(async (r) => {
+            const list = is.array(user) ? user : [user];
+            const data = await Invites.query(guild, {
+                search: {
+                    limit,
+                    and_query: {
+                        inviter_id: {
+                            or_query: list,
+                        },
+                    },
+                },
+                fetch: {
+                    inviters: true,
+                    uses: true,
+                },
+            });
+            if (!data.status) {
+                return r(data);
+            }
+            const users = new Collection<string, FormatInvitedBy>();
+            for (const id of list) {
+                const l = data.data.members.filter((c) => c.inviter_id === id && c.source_invite_code && !c.notFound);
+                users.set(id, {
+                    invited: l.length || 0,
+                    uses: l.map((c) => c.uses || 0).reduce((a, b) => a + b, 0) || 0,
+                    codes: l.map((c) => ({
+                        type: (c.joinType || "normal") as Exclude<FetchedMemberInvite["joinType"], "bot" | "integration">,
+                        code: c.source_invite_code as string,
+                    })),
+                    members: l || [],
+                });
+            }
+            return r(status.data(users));
+        });
+    },
+    /**
+     * [WARNING]:
+     * - This uses an endpoint not documented and can be restricted to bots at any time by Discord.
+     * - Due to caching on Discord's end an entry for a user might not show up for a few minutes to an hour+ (THIS CAN'T BE CHANGED)
+     */
+    format: async (guild: Guild, users: string[]): Promise<InviteResponseData<FetchedMemberInvitesResponse["members"]>> => {
         const res = await Invites.fetch(guild, users, true, true);
         if (!res.status || !is.array(res?.data?.members)) {
             return { status: false, message: `Unable to find any info regarding that user.` };
@@ -538,44 +722,46 @@ export const Invites = {
 
 export interface FetchedMemberInvitesResponse {
     guild_id: string;
-    members: {
-        member: {
-            avatar: string | null;
-            communication_disabled_until: string | null;
-            unusual_dm_activity_until: string | null;
-            flags: number;
-            joined_at: string | null;
-            nick: string | null;
-            pending: boolean;
-            premium_since: string | null;
-            roles: string[];
-            user: {
-                id: string;
-                username: string;
-                avatar: string | null;
-                discriminator: string | "0000" | "0";
-                public_flags: number;
-                premium_type?: number;
-                flags: number;
-                banner: string | null;
-                accent_color: string | null;
-                global_name: string | null;
-                avatar_decoration_data: object | null;
-                banner_color: string | null;
-            };
-            mute: boolean;
-            deaf: boolean;
-        };
-        source_invite_code: string | null;
-        notFound: boolean;
-        join_source_type: number;
-        uses: number;
-        inviter_id: string | null;
-        joinType?: "bot" | "server_discovery" | "normal" | "vanity" | "integration" | "unknown";
-        inviter?: User | null;
-    }[];
+    members: FetchedMemberInvite[];
     page_result_count: number;
     total_result_count: number;
+}
+
+export interface FetchedMemberInvite {
+    member: {
+        avatar: string | null;
+        communication_disabled_until: string | null;
+        unusual_dm_activity_until: string | null;
+        flags: number;
+        joined_at: string | null;
+        nick: string | null;
+        pending: boolean;
+        premium_since: string | null;
+        roles: string[];
+        user: {
+            id: string;
+            username: string;
+            avatar: string | null;
+            discriminator: string | "0000" | "0";
+            public_flags: number;
+            premium_type?: number;
+            flags: number;
+            banner: string | null;
+            accent_color: string | null;
+            global_name: string | null;
+            avatar_decoration_data: object | null;
+            banner_color: string | null;
+        };
+        mute: boolean;
+        deaf: boolean;
+    };
+    source_invite_code: string | null;
+    notFound: boolean;
+    join_source_type: number;
+    uses: number;
+    inviter_id: string | null;
+    joinType?: "bot" | "server_discovery" | "normal" | "vanity" | "integration" | "unknown";
+    inviter?: User | null;
 }
 
 export const dis = {
@@ -643,14 +829,32 @@ export async function getConfirmPrompt(channelOrInteraction: TextBasedChannel | 
                 author: { name: user.displayName, icon_url: user.displayAvatarURL() },
                 title: `Prompt`,
                 description: str,
-                color: Colors.Orange,
+                color: colors.orange,
                 fields: [{ name: "\u200b", value: `> Expires ${time.countdown(timer)}` }],
                 footer: {
                     text: `ID: ${user.id}`,
                 },
             },
         ],
-        components: [new ActionRowBuilder<ButtonBuilder>().addComponents(new ButtonBuilder().setCustomId(`prompt:confirm`).setLabel(`Confirm`).setStyle(ButtonStyle.Success), new ButtonBuilder().setCustomId(`prompt:cancel`).setLabel(`Cancel`).setStyle(ButtonStyle.Danger))],
+        components: [
+            {
+                type: 1,
+                components: [
+                    {
+                        type: 2,
+                        custom_id: `prompt:confirm`,
+                        label: "Confirm",
+                        style: 3,
+                    },
+                    {
+                        type: 2,
+                        custom_id: `prompt:cancel`,
+                        label: "Cancel",
+                        style: 4,
+                    },
+                ],
+            },
+        ],
     };
     if ("deferred" in channelOrInteraction) {
         if (channelOrInteraction.deferred) {
@@ -671,38 +875,58 @@ export async function getConfirmPrompt(channelOrInteraction: TextBasedChannel | 
     }
     const col = await msg
         .awaitMessageComponent({
-            filter: (i) => i.user.id === user.id && i.customId.startsWith("prompt:"),
+            filter: (i) => i.user.id === user.id && i.customId.startsWith("prompt:") && i.isButton(),
             time: timer,
-            componentType: ComponentType.Button,
         })
         .catch(() => null);
     if (!col) {
-        await msg.edit(embedComment(`Cancelled`)).catch(() => null);
+        await msg
+            .edit({
+                embeds: [comment(`Cancelled`, colors.red, true)],
+            })
+            .catch(() => null);
         return null;
     }
     if (!col.customId.includes("confirm")) {
-        await col.update(embedComment(`Cancelled`)).catch(() => null);
+        await col
+            .update({
+                embeds: [comment(`Cancelled`, colors.red, true)],
+            })
+            .catch(() => null);
         return null;
     }
     await col.deferUpdate().catch(() => null);
     return col;
 }
 
-export async function awaitComponent(
+export type AnyInteraction = StringSelectMenuInteraction | UserSelectMenuInteraction | RoleSelectMenuInteraction | MentionableSelectMenuInteraction | ChannelSelectMenuInteraction | ButtonInteraction;
+
+export async function awaitComponent<D extends AnyInteraction>(
     messageOrChannel: Message | TextBasedChannel,
     options: {
         custom_ids: { id: string; includes?: boolean }[];
-        user?: User;
+        users?: {
+            allow: boolean;
+            id: string;
+        }[];
         time?: number;
     },
-) {
+): Promise<D | null> {
     const filter = (i: Interaction) => {
         if (!("customId" in i)) {
             return false;
         }
-        if (options.user) {
-            if (options.user.id !== i.user.id) {
-                return false;
+        if (is.array(options.users)) {
+            for (const user of options.users.filter((c) => c.allow === true)) {
+                if (user.id !== i.user.id) {
+                    return false;
+                }
+            }
+            const find = options.users.find((c) => c.id === i.user.id);
+            if (find) {
+                if (!find.allow) {
+                    return false;
+                }
             }
         }
         return options.custom_ids.some((c) => (c.includes ? i.customId.includes(c.id) : i.customId === c.id));
@@ -716,5 +940,186 @@ export async function awaitComponent(
     if (!col) {
         return null;
     }
-    return col;
+    return col as D;
+}
+
+export type AwaitMessagesOptions = {
+    max?: number;
+    time?: number;
+    filter?: (m: Message) => boolean;
+};
+
+export async function awaitMessage(
+    channel: TextBasedChannel,
+    options: Omit<AwaitMessagesOptions, "max"> = {
+        filter: (m) => !m.author.bot,
+        time: get.secs(30),
+    },
+) {
+    const f = await channel
+        .awaitMessages({
+            filter: options.filter,
+            time: options.time || get.secs(30),
+            max: 1,
+            errors: ["time"],
+        })
+        .catch(() => null);
+    if (!f?.size) {
+        return null;
+    }
+    return f.first() as Message;
+}
+
+export async function awaitMessages(
+    channel: TextBasedChannel,
+    options: AwaitMessagesOptions = {
+        filter: (m) => !m.author.bot,
+        max: 1,
+        time: get.secs(30),
+    },
+) {
+    const f = await channel
+        .awaitMessages({
+            filter: options.filter,
+            time: options.time || get.secs(30),
+            max: options.max || 1,
+            errors: ["time"],
+        })
+        .catch(() => null);
+    if (!f?.size) {
+        return null;
+    }
+    return [...f.values()];
+}
+
+export interface ButtonOptions {
+    label?: string;
+    style?: ButtonStyle;
+    emoji?: ComponentEmojiResolvable;
+    id?: string;
+    url?: string;
+    disabled?: boolean;
+}
+
+export function addButton(options: ButtonOptions) {
+    const button = new ButtonBuilder();
+    if (options.id) {
+        button.setCustomId(options.id);
+    }
+    if (options.url) {
+        button.setURL(options.url).setStyle(ButtonStyle.Link);
+    } else if (options.style) {
+        button.setStyle(options.style);
+    }
+
+    if (options.label) {
+        button.setLabel(options.label);
+    }
+    if (options.emoji) {
+        button.setEmoji(options.emoji);
+    }
+    if (is.boolean(options.disabled)) {
+        button.setDisabled(options.disabled);
+    }
+    if (!button.data.label && !button.data.emoji) {
+        button.setEmoji("🤔"); // This only happens if there is no label or emoji to avoid erroring out the command.
+    }
+    return button;
+}
+
+export function addButtonRow(options: ButtonOptions | ButtonOptions[]) {
+    const row = new ActionRowBuilder<ButtonBuilder>();
+    if (Array.isArray(options) && options.length) {
+        for (const option of options) {
+            row.addComponents(addButton(option));
+        }
+    } else if (is.object(options)) {
+        row.addComponents(addButton(options as ButtonOptions));
+    }
+    return row;
+}
+
+export type ValidNumber = 1 | 2 | 3 | 4 | 5;
+
+export function displayButtonRandomly(
+    button: ButtonOptions,
+    options: Partial<{
+        top: ValidNumber;
+        middle: ValidNumber;
+        bottom: ValidNumber;
+    }> = {
+        top: 3,
+        middle: 3,
+        bottom: 3,
+    },
+    defaultButtons?: Partial<{
+        style: ButtonStyle;
+        emoji: ComponentEmojiResolvable;
+        label: string;
+    }>,
+) {
+    const get = (num: number): ButtonOptions[] =>
+        new Array(num).fill(0).map(() => ({
+            id: snowflakes.generate(),
+            emoji: defaultButtons?.emoji || { id: "868584026913505281" },
+            style: defaultButtons?.style || ButtonStyle.Secondary,
+            label: defaultButtons?.label || undefined,
+        }));
+    const t = get(options.top ?? 3);
+    const m = get(options.middle ?? 3);
+    const b = get(options.bottom ?? 3);
+    const all = [...t, ...m, ...b];
+    shuffle(all);
+    let random = all[Math.floor(Math.random() * all.length)];
+    while (!random) {
+        random = all[Math.floor(Math.random() * all.length)];
+    }
+
+    return chunk(
+        all.map((c) => {
+            if (c.id === random.id) {
+                c = button;
+            }
+            return c;
+        }),
+        3,
+    ).map((c) => addButtonRow(c));
+}
+
+export type EventOptions = XOR<{ name: string; includes?: boolean; run: (eventName: string, ...args: unknown[]) => Promise<unknown> | unknown }, { regex: RegExp; run: (eventName: string, ...args: unknown[]) => Promise<unknown> | unknown }>;
+
+export function listenForRawEvents(client: Client, events: EventOptions[], once = false) {
+    if (!is.array(events)) {
+        return log(`[LISTEN:FOR:RAW:EVENTS]: No events provided.`);
+    }
+    if (!dis.client(client)) {
+        return log(`[LISTEN:FOR:RAW:EVENTS]: Invalid client provided.`);
+    }
+    client[once ? "once" : "on"]("raw", (p) => {
+        if (!p.t || !p.d) {
+            return;
+        }
+        const e = (p.t as string).toLowerCase();
+        for (const event of events) {
+            if (is.string(event.name)) {
+                if (event.includes === true) {
+                    if (e.includes(event.name)) {
+                        event.run(p.t, p.d);
+                        continue;
+                    }
+                } else {
+                    if (event.name === e) {
+                        event.run(p.t, p.d);
+                        continue;
+                    }
+                }
+            }
+            if (event.regex) {
+                if (e.match(event.regex)) {
+                    event.run(p.t, p.d);
+                    continue;
+                }
+            }
+        }
+    });
 }

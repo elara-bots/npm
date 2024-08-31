@@ -3,6 +3,7 @@ import {
     APIModalInteractionResponseCallbackData,
     Collection,
     InteractionDeferUpdateOptions,
+    InteractionUpdateOptions,
     JSONEncodable,
     ModalComponentData,
     RepliableInteraction,
@@ -20,9 +21,9 @@ import {
     type MessagePayload,
     type MessageReaction,
     type MessageReplyOptions,
-    InteractionUpdateOptions,
 } from "discord.js";
-import { DefaultColors, colors, error, getFilesList, resolveColor, sleep } from ".";
+import { DefaultColors, colors, emitPackageMessage, error, getFilesList, getPackageStart, resolveColor, sleep } from ".";
+import pack from "../../package.json";
 
 export type TextBasedChannelSendOption = string | MessagePayload | MessageCreateOptions;
 
@@ -32,6 +33,10 @@ export type CommonInteractionEditReplyOptions = string | MessagePayload | Intera
 export type CommonInteractionUpdateOptions = string | MessagePayload | InteractionUpdateOptions;
 export type MessageReplyOption = string | MessagePayload | MessageReplyOptions;
 export type MessageEditOption = string | MessagePayload | MessageEditOptions;
+
+/**
+ * @description Provides a @discordjs/builders EmbedBuilder class to use, however... if you're on discord.js v13 make sure to use `.toJSON()` before sending it!
+ */
 export function embed(): EmbedBuilder {
     return new EmbedBuilder();
 }
@@ -39,10 +44,7 @@ export function comment(description: string, color: keyof typeof DefaultColors |
     const em = embed()
         .setDescription(description)
         .setColor(resolveColor(color) || colors.red);
-    if (toJSON) {
-        return em.toJSON();
-    }
-    return em;
+    return toJSON ? em.toJSON() : em;
 }
 
 export function getInteractionResponder(interaction: RepliableInteraction, handleErrors = error) {
@@ -124,7 +126,7 @@ export function getMessageResponder(message: Message) {
                 .catch(error);
         },
 
-        delete: async (timeout = 0) => {
+        delete: async (timeout = 0): Promise<void | Message> => {
             if (timeout <= 0) {
                 return message.delete().catch(error);
             }
@@ -137,14 +139,14 @@ export function getMessageResponder(message: Message) {
         },
         send: async (options: TextBasedChannelSendOption) => {
             if (!message.channel || !message.channel.isTextBased()) {
-                return;
+                return null;
             }
             const sentMessage = await message.channel.send(options).catch(error);
             if (!sentMessage) {
-                return sentMessage;
+                return null;
             }
 
-            return getMessageResponder(sentMessage);
+            return getMessageResponder(sentMessage) as getMessageResponders;
         },
         react: async (options: EmojiIdentifierResolvable): Promise<void | MessageReaction> => {
             return message.react(options).catch(error);
@@ -161,6 +163,9 @@ export type getInteractionResponders = ReturnType<typeof getInteractionResponder
 export type getMessageResponders = ReturnType<typeof getMessageResponder>;
 
 export function handleSubCommands<T extends ChatInputCommandInteraction, F>(interaction: T, files: F) {
+    emitPackageMessage(`handleSubCommands`, () => {
+        console.warn(`${getPackageStart(pack)}: 'handleSubCommands' function is deprecated, use '@elara-services/botbuilder' version of it!`);
+    });
     const responder = getInteractionResponder(interaction);
     const subCommandArg = interaction.options.getSubcommand();
     if (!(files instanceof Collection)) {
@@ -181,6 +186,9 @@ export interface SubCommand {
 }
 
 export function buildSubCommand<T extends SubCommand>(builder: SBuild | ((builder: SBuild) => SBuild), commands: object) {
+    emitPackageMessage(`buildSubCommand`, () => {
+        console.warn(`${getPackageStart(pack)}: 'buildSubCommand' function is deprecated, use '@elara-services/botbuilder' version of it!`);
+    });
     const command = typeof builder === "function" ? builder(new SBuild()) : builder;
     const subCommands = getFilesList<T>(commands);
     if (subCommands.size) {
@@ -191,6 +199,5 @@ export function buildSubCommand<T extends SubCommand>(builder: SBuild | ((builde
             command.addSubcommand(subCommand.subCommand);
         }
     }
-
     return command;
 }
