@@ -16,6 +16,7 @@ import {
     Guild,
     GuildMember,
     InteractionEditReplyOptions,
+    Invite,
     Message,
     MessageActionRowComponentBuilder,
     MessageCreateOptions,
@@ -34,7 +35,6 @@ import {
     type FetchChannelOptions,
     type GuildBan,
     type Interaction,
-    type Invite,
     type MentionableSelectMenuInteraction,
     type PermissionResolvable,
     type RoleSelectMenuInteraction,
@@ -426,6 +426,7 @@ export interface MakeInviteClientOptions {
     fetch?: {
         inviters?: boolean;
         uses?: boolean;
+        inviter_ids?: string[];
     };
 }
 
@@ -437,6 +438,7 @@ export interface FormatInvitedBy {
     codes: {
         type: Exclude<FetchedMemberInvite["joinType"], "bot" | "integration">;
         code: string;
+        uses: number;
     }[];
     members: FetchedMemberInvite[];
 }
@@ -503,7 +505,7 @@ export const Invites = {
      * - This uses an endpoint not documented and can be restricted to bots at any time by Discord.
      * - Due to caching on Discord's end an entry for a user might not show up for a few minutes to an hour+ (THIS CAN'T BE CHANGED)
      */
-    query: async (guild: Guild, options: MakeInviteClientOptions): Promise<InviteResponseData<FetchedMemberInvitesResponse>> => {
+    query: async (guild: Guild, options: MakeInviteClientOptions, guildInvites?: Collection<string, Invite>): Promise<InviteResponseData<FetchedMemberInvitesResponse>> => {
         return new Promise(async (r) => {
             if (!guild.features.includes("COMMUNITY")) {
                 return r(status.error(`Server ${guild.name} (${guild.id}) doesn't have "COMMUNITY" enabled so this cannot be used.`));
@@ -537,8 +539,10 @@ export const Invites = {
                 await sleep((data.retry_after as number) * 1000);
                 await fetch();
             }
-            if (data instanceof Error || !is.array(data)) {
-                return r(status.error(data?.message || "Unknown Issue while fetching it."));
+            // @ts-ignore
+            if (data instanceof Error || !is.array(data?.members || [])) {
+                // @ts-ignore
+                return r(status.error(data?.message || is.array(data?.members || [], false) ? "No users/invites returned by Discord" : "Unknown Issue while fetching it."));
             }
             // @ts-ignore
             data.members = data.members.map((c: FetchedMemberInvitesResponse["members"][0]) => {
@@ -551,9 +555,19 @@ export const Invites = {
                 };
                 // @ts-ignore
                 c.joinType = types[c.join_source_type as keyof typeof types] || "unknown";
+                return c;
             });
+            if (is.array(options.fetch?.inviter_ids)) {
+                // @ts-ignore
+                data.members = data.members.filter((c) => {
+                    if (!c.inviter_id || !options.fetch?.inviter_ids?.includes?.(c.inviter_id)) {
+                        return false;
+                    }
+                    return true;
+                });
+            }
             if (fetchUses === true && guild.members.me?.permissions.has(32n)) {
-                const invs = await guild.invites.fetch({ cache: false }).catch(() => null);
+                const invs = guildInvites ?? (await guild.invites.fetch({ cache: false }).catch(() => null));
                 if (invs?.size) {
                     // @ts-ignore
                     data.members = data.members.map((c) => {
@@ -592,7 +606,7 @@ export const Invites = {
                             c.inviter = await discord.user(guild.client, guild.ownerId, { fetch: true });
                         } else if (
                             c.inviter_id &&
-                            ![
+                            [
                                 1, // Bot Invite
                                 5, // Normal invite.
                             ].includes(c.join_source_type)
@@ -642,23 +656,43 @@ export const Invites = {
      * - This uses an endpoint not documented and can be restricted to bots at any time by Discord.
      * - Due to caching on Discord's end an entry for a user might not show up for a few minutes to an hour+ (THIS CAN'T BE CHANGED)
      */
-    by: async (guild: Guild, user: string | string[], limit = 500): Promise<InviteResponseData<FetchedMemberInvitesResponse>> => {
+    by: async (guild: Guild, user: string | string[], limit = 1000, onlyValidInvites = true): Promise<InviteResponseData<FetchedMemberInvitesResponse>> => {
         return new Promise(async (r) => {
+            const list = is.array(user) ? user : [user];
+            let invites = new Collection<string, Invite>();
+            if (guild.members.me?.permissions.has(32n) && onlyValidInvites === true) {
+                const invs = await guild.invites.fetch({ cache: false }).catch(() => null);
+                if (invs) {
+                    invites = invs;
+                }
+            }
             return r(
-                await Invites.query(guild, {
-                    search: {
-                        limit,
-                        and_query: {
-                            inviter_id: {
-                                or_query: is.array(user) ? user : [user],
+                await Invites.query(
+                    guild,
+                    {
+                        search: {
+                            limit,
+                            and_query: {
+                                join_source_type: {
+                                    or_query: [5],
+                                },
+                                ...(invites.size
+                                    ? {
+                                          source_invite_code: {
+                                              or_query: invites.filter((c) => c.inviterId && list.includes(c.inviterId)).map((c) => c.code),
+                                          },
+                                      }
+                                    : {}),
                             },
                         },
+                        fetch: {
+                            inviters: true,
+                            uses: true,
+                            inviter_ids: list,
+                        },
                     },
-                    fetch: {
-                        inviters: true,
-                        uses: true,
-                    },
-                }),
+                    invites,
+                ),
             );
         });
     },
@@ -667,36 +701,47 @@ export const Invites = {
      * - This uses an endpoint not documented and can be restricted to bots at any time by Discord.
      * - Due to caching on Discord's end an entry for a user might not show up for a few minutes to an hour+ (THIS CAN'T BE CHANGED)
      */
-    formatBy: async (guild: Guild, user: string | string[], limit = 500): Promise<InviteResponseData<Collection<string, FormatInvitedBy>>> => {
+    formatBy: async (guild: Guild, user: string | string[], limit = 1000, ignoreInactiveInvites = true): Promise<InviteResponseData<Collection<string, FormatInvitedBy>>> => {
         return new Promise(async (r) => {
             const list = is.array(user) ? user : [user];
-            const data = await Invites.query(guild, {
-                search: {
-                    limit,
-                    and_query: {
-                        inviter_id: {
-                            or_query: list,
-                        },
-                    },
-                },
-                fetch: {
-                    inviters: true,
-                    uses: true,
-                },
-            });
+            const data = await Invites.by(guild, list, limit);
             if (!data.status) {
                 return r(data);
             }
             const users = new Collection<string, FormatInvitedBy>();
             for (const id of list) {
-                const l = data.data.members.filter((c) => c.inviter_id === id && c.source_invite_code && !c.notFound);
+                let l = data.data.members.filter((c) => c.inviter_id === id && c.source_invite_code);
+                if (ignoreInactiveInvites === true) {
+                    l = l.filter((c) => c.notFound === false && c.uses >= 1);
+                }
+                const li: {
+                    type: Exclude<FetchedMemberInvite["joinType"], "bot" | "integration">;
+                    code: string;
+                    uses: number;
+                }[] = [];
+                let uses = 0;
+                for (const c of l) {
+                    if (!c.source_invite_code) {
+                        continue;
+                    }
+                    const f = li.find((cc) => cc.code === c.source_invite_code);
+                    if (f) {
+                        f.uses++;
+                    } else {
+                        if (is.number(c.uses)) {
+                            uses = Math.floor(uses + c.uses);
+                        }
+                        li.push({
+                            type: c.joinType as Exclude<FetchedMemberInvite["joinType"], "bot" | "integration">,
+                            code: c.source_invite_code as string,
+                            uses: 1,
+                        });
+                    }
+                }
                 users.set(id, {
                     invited: l.length || 0,
-                    uses: l.map((c) => c.uses || 0).reduce((a, b) => a + b, 0) || 0,
-                    codes: l.map((c) => ({
-                        type: (c.joinType || "normal") as Exclude<FetchedMemberInvite["joinType"], "bot" | "integration">,
-                        code: c.source_invite_code as string,
-                    })),
+                    uses: Math.floor(uses || 0),
+                    codes: li,
                     members: l || [],
                 });
             }

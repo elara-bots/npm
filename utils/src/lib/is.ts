@@ -52,3 +52,16 @@ export const is = {
         return promise instanceof Promise;
     },
 };
+
+export function getPluralTxt(arrOrNum: unknown[] | number): "" | "s" {
+    if (is.array(arrOrNum)) {
+        if (arrOrNum.length >= 2) {
+            return "s";
+        }
+    } else if (is.number(arrOrNum)) {
+        if (arrOrNum >= 2) {
+            return "s";
+        }
+    }
+    return "";
+}
