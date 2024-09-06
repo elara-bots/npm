@@ -566,7 +566,7 @@ export const Invites = {
                     return true;
                 });
             }
-            if (fetchUses === true && guild.members.me?.permissions.has(32n)) {
+            if (fetchUses === true && guild.members.me?.permissions.has(48n)) {
                 const invs = guildInvites ?? (await guild.invites.fetch({ cache: false }).catch(() => null));
                 if (invs?.size) {
                     // @ts-ignore
@@ -660,12 +660,13 @@ export const Invites = {
         return new Promise(async (r) => {
             const list = is.array(user) ? user : [user];
             let invites = new Collection<string, Invite>();
-            if (guild.members.me?.permissions.has(32n) && onlyValidInvites === true) {
+            if (guild.members.me?.permissions.has(48n) && onlyValidInvites === true) {
                 const invs = await guild.invites.fetch({ cache: false }).catch(() => null);
-                if (invs) {
+                if (invs && invs.size) {
                     invites = invs;
                 }
             }
+            const validInvites = onlyValidInvites && invites.size ? invites.filter((c) => c.inviterId && list.includes(c.inviterId) && is.number(c.uses) && c.uses >= 1).map((c) => c.code) : [];
             return r(
                 await Invites.query(
                     guild,
@@ -676,10 +677,10 @@ export const Invites = {
                                 join_source_type: {
                                     or_query: [5],
                                 },
-                                ...(invites.size
+                                ...(validInvites.length
                                     ? {
                                           source_invite_code: {
-                                              or_query: invites.filter((c) => c.inviterId && list.includes(c.inviterId)).map((c) => c.code),
+                                              or_query: validInvites,
                                           },
                                       }
                                     : {}),
@@ -719,28 +720,22 @@ export const Invites = {
                     code: string;
                     uses: number;
                 }[] = [];
-                let uses = 0;
                 for (const c of l) {
                     if (!c.source_invite_code) {
                         continue;
                     }
                     const f = li.find((cc) => cc.code === c.source_invite_code);
-                    if (f) {
-                        f.uses++;
-                    } else {
-                        if (is.number(c.uses)) {
-                            uses = Math.floor(uses + c.uses);
-                        }
+                    if (!f) {
                         li.push({
                             type: c.joinType as Exclude<FetchedMemberInvite["joinType"], "bot" | "integration">,
                             code: c.source_invite_code as string,
-                            uses: 1,
+                            uses: c.uses || 0,
                         });
                     }
                 }
                 users.set(id, {
                     invited: l.length || 0,
-                    uses: Math.floor(uses || 0),
+                    uses: li.map((c) => c.uses).reduce((a, b) => a + b, 0) || 0,
                     codes: li,
                     members: l || [],
                 });

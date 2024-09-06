@@ -98,6 +98,8 @@ function getExtension<D extends ImageExtension>(str?: string, ex: ImageExtension
 const main = `discord.com`;
 
 export const make = {
+    array: <T>(arr?: T[]): T[] => (is.array(arr) ? arr : []) as T[],
+    set: <T>(val?: Set<T>): Set<T> => (val instanceof Set ? val : new Set()) as Set<T>,
     cdn: (ex: string, proxy = false) => `https://${proxy ? `media.discordapp.net` : `cdn.discordapp.com`}/${ex}`,
     emojiURL: (id: string, ext: ImageExtension = "png", size?: number) => `${make.cdn(CDNRoutes.emoji(id, getExtension<EmojiFormat>(id, ext, false)))}${size ? `?size=${size}` : ""}`,
     guildURL: (guildId: string) => `https://${main}/channels/${guildId}` as const,

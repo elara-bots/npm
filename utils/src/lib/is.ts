@@ -1,3 +1,5 @@
+import { make } from "./utils";
+
 export const is = {
     string: (name: any, checkEmpty = true): name is string => {
         if (typeof name === "string") {
@@ -64,4 +66,16 @@ export function getPluralTxt(arrOrNum: unknown[] | number): "" | "s" {
         }
     }
     return "";
+}
+
+/**
+ * @deprecated
+ * @description Use make.array()
+ */
+export function makeArray<T>(arr?: T[]): T[] {
+    return make.array<T>(arr);
+}
+
+export function noop() {
+    return null;
 }
