@@ -1,8 +1,7 @@
 import type { Emoji, PartialEmoji } from "discord.js";
-import { is } from "./is";
-import { make } from "./utils";
+import { is, make } from "./is";
 
-const getTwemojiURL = (name: string) => `https://cdn.jsdelivr.net/gh/twitter/twemoji@v12.1.4/assets/72x72/${name}.png`;
+const getTwemojiURL = (name: string, version = "v15.1.0") => `https://cdn.jsdelivr.net/gh/jdecked/twemoji@${version}/assets/72x72/${name}.png`;
 const twemoji = /^(?:\d\ufe0f?\u20e3|\p{Emoji_Presentation})$/giu;
 
 export function getUnicodeEmoji(emoji: string | null) {
