@@ -1,4 +1,4 @@
-import { XOR, is, Collection } from "@elara-services/utils";
+import { Collection, XOR, is, log } from "@elara-services/utils";
 import { REST, Routes, type APIUser } from "discord.js";
 import type {
     MessageContextMenuCommand,
@@ -57,16 +57,16 @@ export async function deployCommands<
     }
     try {
         const rest = new REST({ version: "10" }).setToken(botToken);
-        console.log(`Started refreshing application (/) commands.`);
+        log(`Started refreshing application (/) commands.`);
         const clientId = (await rest.get(`/users/@me`)) as APIUser;
 
         // The put method is used to fully refresh all commands in the guild with the current set
-        console.log("Deploying for production...");
+        log("Deploying for production...");
         await rest.put(Routes.applicationCommands(clientId.id), { body });
 
-        console.log(`Successfully reloaded application (/) commands.`);
+        log(`Successfully reloaded application (/) commands.`);
     } catch (error) {
         // And of course, make sure you catch and log any errors!
-        console.error(error);
+        log(error);
     }
 }

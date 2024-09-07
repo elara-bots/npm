@@ -1,4 +1,10 @@
-import { getFilesList, type SubCommand as Sub } from "@elara-services/utils";
+import {
+    XOR,
+    getFilesList,
+    getInteractionResponders,
+    getMessageResponders,
+    type SubCommand as Sub,
+} from "@elara-services/utils";
 
 import type {
     ChatInputCommandInteraction,
@@ -6,16 +12,23 @@ import type {
     Message,
     MessageContextMenuCommandInteraction,
     SlashCommandBuilder as SBuild,
+    SlashCommandOptionsOnlyBuilder,
     UserContextMenuCommandInteraction,
 } from "discord.js";
 export type CachedInt = ChatInputCommandInteraction;
+export type AnyBuilder = XOR<SlashCommandOptionsOnlyBuilder, SBuild>;
 
-type IntOptions = {
+export type Status = { status: true } | { status: false; message: string };
+
+export type Pre = Promise<Status | boolean> | Status | boolean;
+
+export type IntOptions = {
     roles?: string[];
     users?: string[];
     channels?: string[];
 };
-type OnlyOptions = {
+
+export type OnlyOptions = {
     guild?: boolean;
     threads?: boolean;
     text?: boolean;
@@ -23,7 +36,7 @@ type OnlyOptions = {
     dms?: boolean;
 };
 
-interface Common<T> {
+export interface Common<T> {
     enabled?: boolean;
     defer?: {
         silent: boolean;
@@ -32,14 +45,19 @@ interface Common<T> {
     locked?: IntOptions;
     disabled?: IntOptions;
     only?: OnlyOptions;
-    execute: (interaction: T) => Promise<unknown> | unknown;
-    pre?: (interaction: T, cmd: SlashCommand) => Promise<boolean> | boolean;
+    execute: (
+        interaction: T,
+        responder: getInteractionResponders,
+    ) => Promise<unknown> | unknown;
+    pre?: (interaction: T, cmd: SlashCommand) => Pre;
 }
 
 export interface SubCommand extends Sub, Omit<Common<CachedInt>, "aliases"> {}
 
 export interface SlashCommand extends Common<CachedInt> {
-    command: Partial<SBuild> | ((builder: Partial<SBuild>) => Partial<SBuild>);
+    command:
+        | Partial<AnyBuilder>
+        | ((builder: Partial<AnyBuilder>) => Partial<AnyBuilder>);
 }
 
 export interface UserContextMenuCommand
@@ -59,8 +77,11 @@ export interface PrefixCommand {
     locked?: IntOptions;
     disabled?: IntOptions;
     only?: OnlyOptions;
-    execute(message: Message): Promise<unknown> | unknown;
-    pre?: (message: Message, cmd: PrefixCommand) => Promise<boolean> | boolean;
+    execute(
+        message: Message,
+        responder: getMessageResponders,
+    ): Promise<unknown> | unknown;
+    pre?: (message: Message, cmd: PrefixCommand) => Pre;
 }
 
 export { getFilesList };

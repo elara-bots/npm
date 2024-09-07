@@ -1,20 +1,23 @@
 import { is } from "@elara-services/utils";
 import { ActivityType, Client, PresenceData } from "discord.js";
 
-export function setPresence(
-    client: Client<true>,
-    options?: {
-        status?: PresenceData["status"];
-        type?: keyof typeof ActivityType;
-        name?: string;
-        stream_url?: string;
-    },
-) {
+export function setPresence(client: Client<true>, options?: PresenceOptions) {
+    client.user.setPresence(getPresence(options));
+}
+
+export interface PresenceOptions {
+    status?: PresenceData["status"];
+    type?: keyof typeof ActivityType;
+    name?: string;
+    stream_url?: string;
+}
+
+export function getPresence(options?: PresenceOptions) {
     const obj: PresenceData = {
         status: "online",
         activities: [
             {
-                type: ActivityType.Custom,
+                type: ActivityType.Watching,
                 name: "commands",
             },
         ],
@@ -37,5 +40,5 @@ export function setPresence(
         }
     }
 
-    client.user.setPresence(obj);
+    return obj;
 }
