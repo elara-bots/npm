@@ -7,6 +7,7 @@ import {
 } from "@elara-services/utils";
 
 import type {
+    AutocompleteInteraction,
     ChatInputCommandInteraction,
     ContextMenuCommandBuilder,
     Message,
@@ -45,11 +46,9 @@ export interface Common<T> {
     locked?: IntOptions;
     disabled?: IntOptions;
     only?: OnlyOptions;
-    execute: (
-        interaction: T,
-        responder: getInteractionResponders,
-    ) => Promise<unknown> | unknown;
+    execute: (i: T, r: getInteractionResponders) => Promise<unknown> | unknown;
     pre?: (interaction: T, cmd: SlashCommand) => Pre;
+    autocomplete?: (i: AutocompleteInteraction) => Promise<unknown> | unknown;
 }
 
 export interface SubCommand extends Sub, Omit<Common<CachedInt>, "aliases"> {}

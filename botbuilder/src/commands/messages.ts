@@ -25,4 +25,10 @@ export const m = {
         threads: `This command can't be used in thread channels.`,
         voice: `This command can't be used in voice channels.`,
     },
+    required: {
+        commands: {
+            execute: (name: string) =>
+                `Command (${name}) doesn't have an 'execute' function.`,
+        },
+    },
 };

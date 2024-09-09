@@ -48,10 +48,25 @@ export async function handleMessageCommand<
     cmds: Collection<string, C>,
     prefix: string,
     pre?: (message: M, cmd: C) => Pre,
-    replyWithMessage?: boolean,
+    options?: Partial<{
+        /**
+         * Makes the bot respond with an error message if there is one (by default this is disabled!)
+         */
+        replyWith: boolean;
+        /**
+         * Allows prefix commands to be used by other bots (by default this is disabled!)
+         * */
+        allowBots: boolean;
+    }>,
 ) {
-    if (message.author.bot || !message.content) {
+    if (!message.content) {
         return;
+    }
+    if (message.author.bot) {
+        const allowBots = options?.allowBots ?? false;
+        if (allowBots !== true) {
+            return;
+        }
     }
 
     const data = commands(message.content, prefix);
@@ -60,11 +75,11 @@ export async function handleMessageCommand<
     }
     const cmd = cmds.find(
         (c) =>
-            c.name?.toLowerCase() === data.name.toLowerCase() ||
+            c.name.toLowerCase() === data.name.toLowerCase() ||
             c.aliases?.some((a) => a.toLowerCase() === data.name.toLowerCase()),
     );
     const reply = async (str: string) => {
-        if (replyWithMessage !== true) {
+        if (options?.replyWith !== true) {
             return;
         }
         await message.reply(embedComment(str, colors.red)).catch(noop);
@@ -218,10 +233,125 @@ export async function handleInteractionCommand<
     }
     const cmd = cmds.find(
         (c) =>
-            c.command.name === i.commandName ||
-            c.aliases?.includes(i.commandName),
+            c?.command?.name === i.commandName ||
+            c?.aliases?.includes(i.commandName),
     );
     return handleCommands(i, cmd, pre, alwaysDefer);
+}
+
+export async function handleAutocompleteCommand(
+    i: Interaction,
+    cmds: Collection<string, SlashCommand>,
+) {
+    if (!i.isAutocomplete() || !i.channel) {
+        return;
+    }
+    const cmd = cmds.find(
+        (c) =>
+            c?.command?.name === i.commandName ||
+            c.aliases?.includes(i.commandName),
+    );
+    if (!cmd || cmd.enabled === false) {
+        return;
+    }
+    if (!cmd.autocomplete || !("autocomplete" in cmd)) {
+        // If there is no autocomplete function then it will not respond at all.
+        return;
+    }
+    if (is.object(cmd.only)) {
+        if (is.boolean(cmd.only.guild)) {
+            if (cmd.only.guild === true && !i.guild) {
+                return;
+            }
+            if (cmd.only.guild == false && i.guild) {
+                return;
+            }
+        }
+        if (is.boolean(cmd.only.text)) {
+            if (cmd.only.text === true && !i.channel.isTextBased()) {
+                return;
+            }
+            if (cmd.only.text === false && i.channel.isTextBased()) {
+                return;
+            }
+        }
+
+        if (is.boolean(cmd.only.dms)) {
+            if (cmd.only.dms === true && i.guild) {
+                return;
+            }
+            if (cmd.only.dms === false && !i.guild) {
+                return;
+            }
+        }
+
+        if (is.boolean(cmd.only.threads)) {
+            if (cmd.only.threads === true && !i.channel.isThread()) {
+                return;
+            }
+            if (cmd.only.threads === false && i.channel.isThread()) {
+                return;
+            }
+        }
+
+        if (is.boolean(cmd.only.voice)) {
+            if (cmd.only.voice === true && !i.channel.isVoiceBased()) {
+                return;
+            }
+            if (cmd.only.voice === false && i.channel.isVoiceBased()) {
+                return;
+            }
+        }
+    }
+    const cs = make.array([i.channelId]);
+    if ("parentId" in i.channel && i.channel.parentId) {
+        cs.push(i.channel.parentId);
+    }
+    if (is.object(cmd.locked)) {
+        if (
+            is.array(cmd.locked.channels) &&
+            !cmd.locked.channels.some((c) => cs.includes(c))
+        ) {
+            return;
+        }
+        if (is.array(cmd.locked.roles)) {
+            if (!(i.member instanceof GuildMember)) {
+                return;
+            }
+            if (!i.member.roles.cache.hasAny(...cmd.locked.roles)) {
+                return;
+            }
+        }
+        if (
+            is.array(cmd.locked.users) &&
+            !cmd.locked.users.includes(i.user.id)
+        ) {
+            return;
+        }
+    }
+    if (is.object(cmd.disabled)) {
+        if (
+            is.array(cmd.disabled.channels) &&
+            cmd.disabled.channels.some((c) => cs.includes(c))
+        ) {
+            return;
+        }
+        if (is.array(cmd.disabled.roles)) {
+            if (!(i.member instanceof GuildMember)) {
+                return;
+            }
+            if (i.member.roles.cache.hasAny(...cmd.disabled.roles)) {
+                return;
+            }
+        }
+        if (
+            is.array(cmd.disabled.users) &&
+            cmd.disabled.users.includes(i.user.id)
+        ) {
+            return;
+        }
+    }
+    return cmd.autocomplete(i);
 }
 
 export async function handleCommands<
@@ -239,7 +369,7 @@ export async function handleCommands<
     if (!("commandName" in i)) {
         return;
     }
-    const reply = (content: string) => {
+    const reply = async (content: string) => {
         if (i.deferred) {
             return i.editReply(embedComment(content)).catch(log);
         }
@@ -255,6 +385,9 @@ export async function handleCommands<
     }
     if (cmd.enabled === false) {
         return reply(m.not.enabled(i.commandName));
+    }
+    if (!cmd.execute || !("execute" in cmd)) {
+        return reply(m.required.commands.execute(i.commandName));
     }
     if (is.object(alwaysDefer)) {
         await i
@@ -387,16 +520,11 @@ export function handleSubCommands<T extends ChatInputCommandInteraction, F>(
     pre?: (i: Interaction, cmd: SubCommand) => Pre,
     alwaysDefer?: { silent: boolean },
 ) {
-    const subCommandArg = interaction.options.getSubcommand();
+    const name = interaction.options.getSubcommand();
     if (!(files instanceof Collection)) {
         return;
     }
-    return handleCommands(
-        interaction,
-        files.get(subCommandArg),
-        pre,
-        alwaysDefer,
-    );
+    return handleCommands(interaction, files.get(name), pre, alwaysDefer);
 }
 
 export function buildSubCommand<T extends SubCommand>(
@@ -426,6 +554,22 @@ export function buildCommand<
         | XOR<SlashCommand, SubCommand>
         | XOR<UserContextMenuCommand, MessageContextMenuCommand>,
 >(options: O): O {
+    if (!is.object(options)) {
+        throw new Error(`You failed to provide any options for the command.`);
+    }
+    if (!is.boolean(options.enabled)) {
+        options.enabled = true;
+    }
+    return options;
+}
+
+export function buildPrefixCommand(options: PrefixCommand) {
+    if (!is.object(options)) {
+        throw new Error(`You failed to provide any options for the command.`);
+    }
+    if (!is.boolean(options.enabled)) {
+        options.enabled = true;
+    }
     return options;
 }
 
