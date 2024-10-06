@@ -1,7 +1,7 @@
 {
-  "name": "@elara-services/example",
+  "name": "@elara-services/giveaways",
   "version": "1.0.0",
-  "description": "",
+  "description": "[WIP]: Package to handle/do giveaways on Discord.",
   "main": "./dist/index.js",
   "author": "SUPERCHIEFYT (Elara-Discord-Bots, Elara-Services)",
   "license": "ISC",
@@ -15,7 +15,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/elara-bots/npm/tree/main/example"
+    "url": "https://github.com/elara-bots/npm/tree/main/giveaways"
   },
   "files": [
     "dist",
