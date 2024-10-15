@@ -60,6 +60,10 @@ export const settings = new Schema<Settings>({
         url: t.string(),
         color: t.string(),
     },
+    webhook: {
+        name: t.string(),
+        image: t.string(),
+    },
     xp: {
         min: t.num(1),
         max: t.num(8),
@@ -112,6 +116,7 @@ export const settings = new Schema<Settings>({
     ],
     toggles: {
         onlyRegisteredLevels: t.boolean(false),
+        useWebhook: t.boolean(true),
         stackRoles: t.boolean(false),
         resetOnLeave: t.boolean(false),
         earnXPOnSlashCommands: t.boolean(false),

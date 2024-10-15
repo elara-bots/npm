@@ -140,7 +140,8 @@ export type ServerToggleTypes =
     | "voice.xp"
     | "voice.unmutedRequired"
     | "weekly.announce"
-    | "earnXPOnSlashCommands";
+    | "earnXPOnSlashCommands"
+    | "useWebhook";
 export type UserToggles = "locked" | "pings" | "dms";
 export type MemberPresenceStatus =
     | "online"
@@ -213,6 +214,10 @@ export interface Settings {
         url: string;
         color: string;
     };
+    webhook: {
+        name: string;
+        image: string;
+    };
     xp: {
         min: number;
         max: number;
@@ -260,6 +265,7 @@ export interface Settings {
     toggles: {
         onlyRegisteredLevels: boolean;
         stackRoles: boolean;
+        useWebhook: boolean;
         resetOnLeave: boolean;
         earnXPOnSlashCommands: boolean;
         weekly: {

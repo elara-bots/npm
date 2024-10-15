@@ -1,3 +1,4 @@
+import { is } from "@elara-services/utils";
 import type { User } from "discord.js";
 import * as Canvas from "skia-canvas";
 import type {
@@ -7,7 +8,6 @@ import type {
     Users,
 } from "../../interfaces";
 import { colors, getData, getUserAvatar } from "../../utils";
-import { is } from "@elara-services/utils";
 
 const defs = {
     progress: {

@@ -217,8 +217,11 @@ export class Database {
                 },
                 "canvacord",
                 true,
+                undefined,
+                data.id,
             );
             if (!lb.status) {
+                log(`[HandleWeeklyAnnounce:STATUS:FAILED]: ${lb.message}`);
                 return;
             }
             // @ts-ignore
@@ -232,11 +235,13 @@ export class Database {
                     files: [
                         {
                             name: "weekly.png",
-                            attachment: Buffer.from(lb.image),
+                            attachment: lb.image,
                         },
                     ],
                 })
-                .catch(() => null);
+                .catch((e) =>
+                    log(`[HandleWeeklyAnnounce]: Channel.send failed!`, e),
+                );
         }
     }
 }

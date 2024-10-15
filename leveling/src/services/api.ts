@@ -53,6 +53,11 @@ export class API {
         this.#client = client;
     }
 
+    #displayUser(userId: string) {
+        const user = this.#client.client.users.resolve(userId);
+        return `\`@${user?.tag || "Unknown User"}\` (${userId})`;
+    }
+
     /**
      * Returns the server name (ID) string
      */
@@ -104,6 +109,48 @@ export class API {
                 return status.data(data.toJSON());
             },
 
+            setWebhook: async (
+                guildId: string,
+                options: { name?: string | null; image?: string | null },
+            ) => {
+                const r = await this.#getSettings(guildId);
+                if (!r) {
+                    return status.error(server_not_found);
+                }
+                if (!is.object(options)) {
+                    return status.error(`You didn't provide any options.`);
+                }
+                const change = [];
+                if (is.string(options.name)) {
+                    change.push(`[NAME]: Set to: ${options.name}`);
+                    r.webhook.name = options.name;
+                } else if (is.null(options.name)) {
+                    r.webhook.name = "";
+                    change.push(`[NAME]: Reset`);
+                }
+                if (is.string(options.image)) {
+                    if (
+                        !options.image.match(
+                            /https:\/\/|.(png|jpg|webp|jpeg)/gi,
+                        )
+                    ) {
+                        return status.error(`Invalid image provided.`);
+                    }
+                    change.push(`[IMAGE]: Set to: ${options.image}`);
+                    r.webhook.image = options.image;
+                } else if (is.null(options.image)) {
+                    change.push(`[IMAGE]: Reset`);
+                    r.webhook.image = "";
+                }
+                if (!is.array(change)) {
+                    return status.error(`Nothing needed to be changed.`);
+                }
+                await save(r);
+                return status.success(
+                    `Updated the following:\n${change.join("\n")}`,
+                );
+            },
+
             /**
              * Fetch multiple servers data
              */
@@ -133,6 +180,15 @@ export class API {
                 const data = await this.#getSettings(guildId);
                 if (!data) {
                     return status.error(server_not_found);
+                }
+                if (type === "useWebhook") {
+                    data.toggles.useWebhook = tog(data.toggles.useWebhook);
+                    await save(data);
+                    return status.success(
+                        `${toggle(
+                            data.toggles.useWebhook,
+                        )} useWebhook for ${this.#getServer(guildId)}`,
+                    );
                 }
                 if (type === "leveling") {
                     data.enabled = tog(data.enabled);
@@ -1233,6 +1289,58 @@ export class API {
                         users: users.data,
                     });
                 },
+
+                left: async (guildId: string, dry = true) => {
+                    const guild = this.#client.client.guilds.resolve(guildId);
+                    if (!guild || !guild.available) {
+                        return status.error(
+                            `Can't find server (${guildId}) or it's not available.`,
+                        );
+                    }
+                    if (!hasBit(getClientIntents(this.#client.client), 2)) {
+                        return status.error(
+                            `The bot isn't using the "Server Members" intent, I cannot fetch the members list.`,
+                        );
+                    }
+                    const members = await guild.members
+                        .fetch()
+                        .catch(() => null);
+                    if (!members?.size) {
+                        return status.error(
+                            `Unable to fetch the members for the server.`,
+                        );
+                    }
+                    const dbs = await this.#client.dbs.users
+                        .find({
+                            guildId,
+                        })
+                        .catch(() => []);
+                    const users = dbs.filter((c) => !members.has(c.userId));
+                    if (!users.length) {
+                        return status.error(`No one needed to be removed.`);
+                    }
+                    if (dry === true) {
+                        return status.data({
+                            count: users.length,
+                            deleted: false,
+                        });
+                    }
+                    const r = await this.#client.dbs.users
+                        .deleteMany({
+                            _id: {
+                                $in: users.map((c) => c._id),
+                            },
+                        })
+                        .catch(() => null);
+                    if (!r?.deletedCount) {
+                        return status.error(`Nothing needed to be removed.`);
+                    }
+                    return status.data({
+                        count: r.deletedCount,
+                        users,
+                        deleted: true,
+                    });
+                },
             },
         };
     }
@@ -1259,9 +1367,9 @@ export class API {
                     data.stats = incUserStat(data, type, count);
                     await save(data);
                     return status.success(
-                        `I've added (${count}) to (${type}) stats for (${userId}) user on ${this.#getServer(
-                            guildId,
-                        )}`,
+                        `I've added (${count}) to (${type}) stats for ${this.#displayUser(
+                            userId,
+                        )} user on ${this.#getServer(guildId)}`,
                     );
                 },
                 /**
@@ -1283,9 +1391,9 @@ export class API {
                     data.stats = incUserStat(data, type, count);
                     await save(data);
                     return status.success(
-                        `I've added (${count}) to (${type}) stats for (${userId}) user on ${this.#getServer(
-                            guildId,
-                        )}`,
+                        `I've added (${count}) to (${type}) stats for ${this.#displayUser(
+                            userId,
+                        )} user on ${this.#getServer(guildId)}`,
                     );
                 },
             },
@@ -1329,7 +1437,9 @@ export class API {
                     .catch(() => []);
                 if (!is.array(data)) {
                     return status.error(
-                        `Unable to find (${userId}) user in any server.`,
+                        `Unable to find ${this.#displayUser(
+                            userId,
+                        )} user in any server.`,
                     );
                 }
                 return status.data(data);
@@ -1352,9 +1462,9 @@ export class API {
                 return status.success(
                     `I've turned ${
                         data.toggles[type] ? "on" : "off"
-                    } ${type} for (${userId})'s profile in ${this.#getServer(
-                        guildId,
-                    )}`,
+                    } ${type} for ${this.#displayUser(
+                        userId,
+                    )}'s profile in ${this.#getServer(guildId)}`,
                 );
             },
 
@@ -1422,7 +1532,9 @@ export class API {
                 data.xp = xpFor(level) + 1;
                 await save(data);
                 return status.success(
-                    `${userId}'s level is now set to: ${level}`,
+                    `${this.#displayUser(
+                        userId,
+                    )}'s level is now set to: ${level}`,
                 );
             },
 
@@ -1450,7 +1562,9 @@ export class API {
                     data.background = background;
                     await save(data);
                     return status.success(
-                        `Set ${userId}'s background url in ${this.#getServer(
+                        `Set ${this.#displayUser(
+                            userId,
+                        )}'s background url in ${this.#getServer(
                             guildId,
                         )} to: ${background}`,
                     );
@@ -1458,9 +1572,9 @@ export class API {
                     data.background = "";
                     await save(data);
                     return status.success(
-                        `Reset ${userId}'s background url in ${this.#getServer(
-                            guildId,
-                        )}`,
+                        `Reset ${this.#displayUser(
+                            userId,
+                        )}'s background url in ${this.#getServer(guildId)}`,
                     );
                 }
             },
@@ -1516,7 +1630,9 @@ export class API {
                     }
                     await save(data);
                     return status.success(
-                        `Set ${userId}'s (${type.toLowerCase()}) color profile to ${color} in ${this.#getServer(
+                        `Set ${this.#displayUser(
+                            userId,
+                        )}'s (${type.toLowerCase()}) color profile to ${color} in ${this.#getServer(
                             guildId,
                         )}`,
                     );
@@ -1526,7 +1642,9 @@ export class API {
                     );
                     await save(data);
                     return status.success(
-                        `Reset ${userId}'s (${type.toLowerCase()}) color profile in ${this.#getServer(
+                        `Reset ${this.#displayUser(
+                            userId,
+                        )}'s (${type.toLowerCase()}) color profile in ${this.#getServer(
                             guildId,
                         )}`,
                     );
@@ -1545,7 +1663,9 @@ export class API {
                 data.level = Math.floor(0.1 * Math.sqrt(data.xp));
                 await save(data);
                 return status.success(
-                    `${userId}'s XP is now set to: ${data.xp} and level ${data.level}`,
+                    `${this.#displayUser(userId)}'s XP is now set to: ${
+                        data.xp
+                    } and level ${data.level}`,
                 );
             },
 
@@ -1571,7 +1691,9 @@ export class API {
                         .catch(() => []);
                     if (!is.array(data)) {
                         return status.error(
-                            `There is no data to delete for (${userId})`,
+                            `There is no data to delete for ${this.#displayUser(
+                                userId,
+                            )}`,
                         );
                     }
                     await this.#client.dbs.users
@@ -1580,7 +1702,9 @@ export class API {
                     return {
                         status: true,
                         data,
-                        message: `Deleted ${userId}'s profiles in ${data.length} servers`,
+                        message: `Deleted ${this.#displayUser(
+                            userId,
+                        )}'s profiles in ${data.length} servers`,
                     };
                 },
 
@@ -1591,15 +1715,17 @@ export class API {
                     const data = await this.#getUser(userId, guildId);
                     if (!data) {
                         return status.error(
-                            `There is no data to delete for (${userId})`,
+                            `There is no data to delete for ${this.#displayUser(
+                                userId,
+                            )}`,
                         );
                     }
                     await data.deleteOne().catch(() => null);
                     return {
                         status: true,
-                        message: `Deleted ${userId}'s profile in ${this.#getServer(
-                            guildId,
-                        )}`,
+                        message: `Deleted ${this.#displayUser(
+                            userId,
+                        )}'s profile in ${this.#getServer(guildId)}`,
                         data,
                     };
                 },
@@ -1756,7 +1882,9 @@ export class API {
             mock: false,
         });
         if (!user) {
-            return status.error(`Unable to fetch (${userId})'s Discord info`);
+            return status.error(
+                `Unable to fetch ${this.#displayUser(userId)}'s Discord info`,
+            );
         }
         let memberStatus;
         if (
@@ -1816,6 +1944,7 @@ export class API {
               }
             | null
             | undefined,
+        weeklyId?: string,
     ): CanvasResponseWithQuery {
         if (!Leaderboards[type]) {
             return status.error(
@@ -1841,7 +1970,7 @@ export class API {
         }
         let lb;
         if (isWeekly) {
-            lb = await this.weekly.leaderboard(guildId);
+            lb = await this.weekly.leaderboard(guildId, weeklyId);
         } else {
             lb = await this.servers.leaderboard.formatted(
                 guildId,

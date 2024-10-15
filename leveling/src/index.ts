@@ -1,15 +1,24 @@
-import { discord, get, hasBit, is, p } from "@elara-services/utils";
-import type { APIEmbed } from "discord-api-types/v10";
+import { discord, error, get, hasBit, is, p } from "@elara-services/utils";
+import { GuildWebhook, sendOptions } from "@elara-services/webhooks";
 import {
     Client,
     Message,
     TextBasedChannel,
     VoiceState,
+    type Guild,
+    type GuildChannel,
     type GuildMember,
+    type MessageCreateOptions,
     type PartialGuildMember,
 } from "discord.js";
 import { EventEmitter } from "events";
-import type { CachedOptions, Settings, UserCache, Users } from "./interfaces";
+import type {
+    CachedOptions,
+    Options,
+    Settings,
+    UserCache,
+    Users,
+} from "./interfaces";
 import { Database } from "./services";
 import { API } from "./services/api";
 import {
@@ -44,6 +53,10 @@ export class Leveling extends Database {
         super(mongodbURI, client, dbName);
     }
 
+    private webhook(guild: Guild) {
+        return new GuildWebhook(guild);
+    }
+
     /**
      * Emits when the cooldown is added for the user
      */
@@ -61,9 +74,42 @@ export class Leveling extends Database {
             profile: Users & { _id: string },
             server: Settings & { _id: string },
             level: number,
+            channel: GuildChannel | null,
         ) => unknown,
     ) {
         return this.#events.on("level", listener);
+    }
+
+    private async send(
+        db: Settings,
+        channel: TextBasedChannel,
+        channelId: string,
+        options: sendOptions,
+    ) {
+        if (channel.isDMBased()) {
+            return;
+        }
+        if (!channel.isTextBased() || !channel.guild) {
+            return;
+        }
+        if (
+            db.toggles.useWebhook &&
+            channel.permissionsFor(channel.client.user.id)?.has(536870912n)
+        ) {
+            options.webhook = {
+                name: db.webhook.name || channel.client.user.displayName,
+                icon:
+                    db.webhook.image ||
+                    channel.client.user.displayAvatarURL({
+                        forceStatic: true,
+                        extension: "png",
+                    }),
+            };
+            return this.webhook(channel.guild)
+                .send(channelId, options as sendOptions, false, false)
+                .catch(error);
+        }
+        return channel.send(options as MessageCreateOptions).catch(error);
     }
 
     /**
@@ -324,6 +370,48 @@ export class Leveling extends Database {
         return this.handleLevelups(member, message.channel, xp, db);
     }
 
+    public async sendOptions(
+        user: Users,
+        db: Settings,
+        member: GuildMember,
+        options: Options,
+        channel: TextBasedChannel,
+    ) {
+        const r = await this.getOptions(options, user, member);
+        if (!r) {
+            return;
+        }
+        const users = [member.id];
+        if (!db.announce.channel.ping || !user.toggles.pings) {
+            users.length = 0;
+        }
+        return this.send(db, channel, channel.id, {
+            ...r,
+            // @ts-ignore
+            allowedMentions: { users },
+            allowed_mentions: { users },
+        });
+    }
+
+    public async getOptions(
+        options: Options,
+        user: Users,
+        member: GuildMember,
+    ) {
+        if (!options.content && !options.embeds?.length) {
+            options.content = `Congrats ${p.user.mention}, you leveled up to **Level ${user.level}**!`;
+        }
+        return await parser(
+            options,
+            {
+                level: `${user.level}`,
+                xp: `${user.xp}`,
+                background: user.background,
+            },
+            { member, guild: member.guild, user: member.user },
+        );
+    }
+
     /**
      * This is only for internal use!
      *
@@ -377,27 +465,10 @@ export class Leveling extends Database {
         const allLevelRoles = db.levels
             .filter((c) => c.roles.add.length)
             .flatMap((c) => c.roles.add);
-        const str = async <D extends Record<string, unknown>>(data: D) => {
-            return await parser(
-                data,
-                {
-                    level: `${profile.data.level}`,
-                    xp: `${profile.data.xp}`,
-                    background: profile.data.background,
-                },
-                { member, guild: member.guild, user: member.user },
-            );
-        };
-        const getOptions = async (options: {
-            content: string;
-            embeds: APIEmbed[];
-        }) => {
-            if (!options.content && !options.embeds?.length) {
-                options.content = `Congrats ${p.user.mention}, you leveled up to **Level ${profile.data.level}**!`;
-            }
-            return await str(options);
-        };
         if (level === true) {
+            const channel =
+                member.guild.channels.resolve(db.announce.channel.channel) ||
+                currentChannel;
             this.#events.emit("xp", member, profile.data, db.toJSON(), xp);
             this.#events.emit(
                 "level",
@@ -405,6 +476,7 @@ export class Leveling extends Database {
                 profile.data,
                 db.toJSON(),
                 profile.data.level,
+                channel,
             );
             if (db.toggles.weekly.track) {
                 // @ts-ignore
@@ -433,32 +505,24 @@ export class Leveling extends Database {
             }
             cached.add(`${profile.data.level}:${member.id}`);
             if (db.announce.channel.enabled) {
-                const channel =
-                    member.guild.channels.resolve(
-                        db.announce.channel.channel,
-                    ) || currentChannel;
                 if (channel && "send" in channel) {
-                    const users = [member.id];
-                    if (
-                        !db.announce.channel.ping ||
-                        !profile.data.toggles.pings
-                    ) {
-                        users.length = 0;
-                    }
-                    await channel
-                        .send({
-                            ...(await getOptions(db.announce.channel.options)),
-                            allowedMentions: {
-                                users,
-                            },
-                        })
-                        .catch(() => null);
+                    await this.sendOptions(
+                        profile.data,
+                        db,
+                        member,
+                        db.announce.channel.options,
+                        channel,
+                    );
                 }
             }
             if (db.announce.dm.enabled && profile.data.toggles.dms === true) {
                 await member
                     .send({
-                        ...(await getOptions(db.announce.dm.options)),
+                        ...(await this.getOptions(
+                            db.announce.dm.options,
+                            profile.data,
+                            member,
+                        )),
                         components: [
                             {
                                 type: 1,
