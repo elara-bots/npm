@@ -1597,7 +1597,7 @@ export class API {
                         !overlay.match(/.(png|jpg|jpeg|gif|webp)/gi)
                     ) {
                         return status.error(
-                            `The background url provided isn't a valid image link.`,
+                            `The overlay url provided isn't a valid image link.`,
                         );
                     }
                     data.overlay = overlay;
