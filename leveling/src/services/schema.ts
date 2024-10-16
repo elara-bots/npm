@@ -21,7 +21,7 @@ export const users = new Schema<Users>({
     guildId: t.string(),
     xp: t.num(),
     level: t.num(),
-    overlay: t.string(),
+    foreground: t.string(),
     background: t.string(),
     voice: {
         duration: t.num(),

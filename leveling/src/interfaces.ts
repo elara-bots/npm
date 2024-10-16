@@ -24,10 +24,10 @@ export interface Users {
     background: string;
 
     /**
-     * The overlay URL to be used for 'rank cards'
+     * The foreground URL to be used for 'rank cards'
      */
 
-    overlay: string;
+    foreground: string;
 
     /**
      * The voice data stored while the user is in voice chat. (duration: the Date.now() for when they joined the voice channel)
@@ -360,7 +360,7 @@ export type CanvasLeaderboardTypes = "canvacord";
 export interface ArcaneUser {
     username: string;
     avatar?: string | null;
-    overlay?: string;
+    foreground?: string;
     background?: string;
     xp: {
         current: number;

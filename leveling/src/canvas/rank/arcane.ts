@@ -35,8 +35,8 @@ export async function arcane(
             max: xp.required,
         },
         avatar: getUserAvatar(user),
-        overlay: db.overlay,
         background: db.background,
+        foreground: db.foreground,
         colors: {
             progress: {
                 first: colors.get(db, "arcane.progress.first", true),
@@ -82,10 +82,6 @@ async function createArcaneRankProfile(user: ArcaneUser): CanvasResponse {
         ctx.closePath();
         ctx.fill();
         ctx.restore();
-    }
-
-    if (user.overlay) {
-        // TODO: This
     }
 
     // Draw progress bar.
@@ -174,6 +170,17 @@ async function createArcaneRankProfile(user: ArcaneUser): CanvasResponse {
         width(`Level ${user.level}`, `Rank ${user.rank}`, 155, 40),
         120,
     );
+    if (user.foreground) {
+        await rectangle(
+            ctx,
+            0,
+            0,
+            canvas.width,
+            canvas.height,
+            10,
+            user.foreground,
+        );
+    }
 
     function width(...params: any[]) {
         let width = 0;

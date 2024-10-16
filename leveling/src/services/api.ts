@@ -1582,40 +1582,40 @@ export class API {
             /**
              * Set/Reset a background for a user on a certain server.
              */
-            setOverlay: async (
+            setForeground: async (
                 userId: string,
                 guildId: string,
-                overlay?: string,
+                foreground?: string,
             ) => {
                 const data = await this.#getUser(userId, guildId);
                 if (!data) {
                     return status.error(message);
                 }
-                if (overlay) {
+                if (foreground) {
                     if (
-                        !overlay.match(/http(s)?:\/\//gi) ||
-                        !overlay.match(/.(png|jpg|jpeg|gif|webp)/gi)
+                        !foreground.match(/http(s)?:\/\//gi) ||
+                        !foreground.match(/.(png|jpg|jpeg|gif|webp)/gi)
                     ) {
                         return status.error(
-                            `The overlay url provided isn't a valid image link.`,
+                            `The foreground url provided isn't a valid image link.`,
                         );
                     }
-                    data.overlay = overlay;
+                    data.foreground = foreground;
                     await save(data);
                     return status.success(
                         `Set ${this.#displayUser(
                             userId,
-                        )}'s overlay url in ${this.#getServer(
+                        )}'s foreground url in ${this.#getServer(
                             guildId,
-                        )} to: ${overlay}`,
+                        )} to: ${foreground}`,
                     );
                 } else {
-                    data.overlay = "";
+                    data.foreground = "";
                     await save(data);
                     return status.success(
                         `Reset ${this.#displayUser(
                             userId,
-                        )}'s overlay url in ${this.#getServer(guildId)}`,
+                        )}'s foreground url in ${this.#getServer(guildId)}`,
                     );
                 }
             },
