@@ -35,6 +35,7 @@ export async function arcane(
             max: xp.required,
         },
         avatar: getUserAvatar(user),
+        overlay: db.overlay,
         background: db.background,
         colors: {
             progress: {
@@ -81,6 +82,10 @@ async function createArcaneRankProfile(user: ArcaneUser): CanvasResponse {
         ctx.closePath();
         ctx.fill();
         ctx.restore();
+    }
+
+    if (user.overlay) {
+        // TODO: This
     }
 
     // Draw progress bar.

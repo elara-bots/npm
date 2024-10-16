@@ -24,6 +24,12 @@ export interface Users {
     background: string;
 
     /**
+     * The overlay URL to be used for 'rank cards'
+     */
+
+    overlay: string;
+
+    /**
      * The voice data stored while the user is in voice chat. (duration: the Date.now() for when they joined the voice channel)
      * voice.multiplier is the amount of multipler used when the leave the voice channel. (on every update it will update the multiplier to their current state)
      */
@@ -354,6 +360,7 @@ export type CanvasLeaderboardTypes = "canvacord";
 export interface ArcaneUser {
     username: string;
     avatar?: string | null;
+    overlay?: string;
     background?: string;
     xp: {
         current: number;

@@ -1580,6 +1580,47 @@ export class API {
             },
 
             /**
+             * Set/Reset a background for a user on a certain server.
+             */
+            setOverlay: async (
+                userId: string,
+                guildId: string,
+                overlay?: string,
+            ) => {
+                const data = await this.#getUser(userId, guildId);
+                if (!data) {
+                    return status.error(message);
+                }
+                if (overlay) {
+                    if (
+                        !overlay.match(/http(s)?:\/\//gi) ||
+                        !overlay.match(/.(png|jpg|jpeg|gif|webp)/gi)
+                    ) {
+                        return status.error(
+                            `The background url provided isn't a valid image link.`,
+                        );
+                    }
+                    data.overlay = overlay;
+                    await save(data);
+                    return status.success(
+                        `Set ${this.#displayUser(
+                            userId,
+                        )}'s overlay url in ${this.#getServer(
+                            guildId,
+                        )} to: ${overlay}`,
+                    );
+                } else {
+                    data.overlay = "";
+                    await save(data);
+                    return status.success(
+                        `Reset ${this.#displayUser(
+                            userId,
+                        )}'s overlay url in ${this.#getServer(guildId)}`,
+                    );
+                }
+            },
+
+            /**
              * Set/Reset color(s) for a user on a certain server.
              */
             setColor: async (
