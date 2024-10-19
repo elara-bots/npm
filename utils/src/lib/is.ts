@@ -156,3 +156,7 @@ export const make = {
         },
     },
 };
+
+export function includes(content: string | number, arr: (string | number)[], useIncludes = false) {
+    return arr.some((c) => (useIncludes ? content.toString().includes(`${c}`) : content === c));
+}

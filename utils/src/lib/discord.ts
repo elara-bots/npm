@@ -1,24 +1,29 @@
 import { Collection } from "@discordjs/collection";
 import { REST, makeURLSearchParams } from "@discordjs/rest";
 import { DiscordSnowflake } from "@sapphire/snowflake";
-import { Routes, type APIMessage } from "discord-api-types/v10";
+import { APIEmbed, APIRoleSelectComponent, Routes, SelectMenuDefaultValueType, type APIMessage } from "discord-api-types/v10";
 import {
     ActionRowBuilder,
     Application,
     ButtonBuilder,
+    ButtonInteraction,
     ButtonStyle,
     CategoryChannel,
     Channel,
+    ChannelSelectMenuInteraction,
     Client,
     Colors,
+    ComponentType,
     EmbedBuilder,
     ForumChannel,
     Guild,
     GuildMember,
+    InteractionCollector,
     InteractionEditReplyOptions,
     Invite,
     Message,
     MessageActionRowComponentBuilder,
+    MessageCollector,
     MessageCreateOptions,
     MessagePayload,
     RepliableInteraction,
@@ -29,8 +34,6 @@ import {
     User,
     VoiceChannel,
     version,
-    type ButtonInteraction,
-    type ChannelSelectMenuInteraction,
     type ComponentEmojiResolvable,
     type FetchChannelOptions,
     type GuildBan,
@@ -41,11 +44,11 @@ import {
     type StringSelectMenuInteraction,
     type UserSelectMenuInteraction,
 } from "discord.js";
-import { chunk, colors, shuffle, sleep } from "./extra";
-import { is } from "./is";
+import { chunk, colors, getKeys, shuffle, sleep } from "./extra";
+import { is, noop } from "./is";
 import { XOR } from "./jobs";
 import { checkChannelPerms } from "./permissions";
-import { comment } from "./responders";
+import { comment, getInteractionResponder, getInteractionResponders } from "./responders";
 import { get, status } from "./status";
 import { log, time } from "./times";
 import { field, snowflakes } from "./utils";
@@ -852,12 +855,27 @@ export const dis = {
     },
 };
 
-export function embedComment(str: string, color: keyof typeof Colors | number = "Red", components: ActionRowBuilder<MessageActionRowComponentBuilder>[] = [], files: InteractionEditReplyOptions["files"] = []) {
+export function embedComment(
+    str: string,
+    color: keyof typeof Colors | number = "Red",
+    options?: Partial<{
+        components: ActionRowBuilder<MessageActionRowComponentBuilder>[];
+        files: InteractionEditReplyOptions["files"];
+        embed: APIEmbed;
+    }>,
+) {
+    const embed = new EmbedBuilder().setDescription(str).setColor(typeof color === "number" ? color : Colors[color]);
+    if (options && is.object(options.embed)) {
+        for (const c of getKeys(options.embed)) {
+            // @ts-ignore
+            embed.data[c] = options.embed[c];
+        }
+    }
     return {
         content: "",
-        embeds: [new EmbedBuilder().setDescription(str).setColor(typeof color === "number" ? color : Colors[color])],
-        components,
-        files,
+        embeds: [embed],
+        components: is.array(options?.components, false) ? options?.components : [],
+        files: is.array(options?.files, false) ? options?.files : [],
     };
 }
 
@@ -1162,4 +1180,148 @@ export function listenForRawEvents(client: Client, events: EventOptions[], once 
             }
         }
     });
+}
+
+export type PossiblePromise<T> = Promise<T> | T;
+
+export type AnyInteractionCollector = StringSelectMenuInteraction | UserSelectMenuInteraction | RoleSelectMenuInteraction | MentionableSelectMenuInteraction | ChannelSelectMenuInteraction | ButtonInteraction;
+
+export const collector = {
+    components: async (
+        target: Message | TextBasedChannel,
+        options?: Partial<{
+            message: MessageCreateOptions;
+            filter: (i: AnyInteraction) => boolean;
+            on: (
+                /** The original message sent by the bot */
+                message: Message | null,
+                i: AnyInteraction,
+                r: getInteractionResponders,
+                collector: InteractionCollector<AnyInteraction>,
+            ) => PossiblePromise<unknown>;
+            end: (
+                /** The original message sent by the bot */
+                message: Message | null,
+                collected: Collection<string, AnyInteractionCollector>,
+                reason: string,
+                collector: InteractionCollector<AnyInteraction>,
+            ) => PossiblePromise<unknown>;
+            /** By default the time is 1m */
+            time: number;
+            max: number;
+            type: ComponentType.Button | ComponentType.StringSelect | ComponentType.UserSelect | ComponentType.RoleSelect | ComponentType.MentionableSelect | ComponentType.ChannelSelect;
+        }>,
+    ) => {
+        let m = target instanceof Message ? target : null;
+        if (options?.message && target instanceof TextChannel) {
+            if (!is.array(options.message.components)) {
+                throw new Error(`No components provided in 'options.message.components', this field is required.`);
+            }
+            const msg = await target.send(options.message).catch(noop);
+            if (!msg) {
+                throw new Error(`Unable to create a message in ${target.name} (${target.id})`);
+            }
+            m = msg;
+        }
+        const col = target.createMessageComponentCollector({
+            filter: options?.filter,
+            time: options?.time || get.mins(1),
+            max: options?.max,
+            componentType: options?.type,
+            message: m,
+        });
+        if (!col) {
+            throw new Error(`Unable to make the createMessageComponentCollector.`);
+        }
+        if (is.object(options)) {
+            if (options.on) {
+                col.on("collect", async (i) => {
+                    if (typeof options.on === "function" && col) {
+                        await options.on(m, i, getInteractionResponder(i), col);
+                    }
+                    return void 0;
+                });
+            }
+            if (options.end) {
+                col.on("end", async (c, reason) => {
+                    if (typeof options.end === "function" && col) {
+                        await options.end(m, c, reason, col);
+                    }
+                    return void 0;
+                });
+            }
+        }
+        return col;
+    },
+    messages: (
+        channel: TextBasedChannel,
+        options?: Partial<{
+            filter: (m: Message, collector: Collection<string, Message>) => boolean;
+            on: (m: Message, collected: Collection<string, Message>, self: MessageCollector) => PossiblePromise<unknown>;
+            end: (collected: Collection<string, Message>, reason: string, self: MessageCollector) => PossiblePromise<unknown>;
+            /** By default the time is 1m */
+            time: number;
+            max: number;
+        }>,
+    ) => {
+        const col = channel.createMessageCollector({
+            filter: options?.filter,
+            time: options?.time || get.mins(1),
+            max: options?.max,
+        });
+        if (is.object(options)) {
+            if (options.on) {
+                col.on("collect", async (m, collected) => {
+                    if (typeof options.on === "function") {
+                        await options.on(m, collected, col);
+                    }
+                    return void 0;
+                });
+            }
+            if (options.end) {
+                col.on("end", async (collected, reason) => {
+                    if (typeof options.end === "function") {
+                        await options.end(collected, reason, col);
+                    }
+                    return void 0;
+                });
+            }
+        }
+        return col;
+    },
+};
+
+export type RoleSelectMenuOptions = Partial<{
+    roles: string[];
+    min: number;
+    max: number;
+    disabled: boolean;
+    placeholder: string;
+}>;
+
+export function makeRoleSelectMenu(custom_id: string, options?: RoleSelectMenuOptions) {
+    return {
+        type: 1,
+        components: [
+            {
+                type: 6,
+                custom_id,
+                disabled: options?.disabled,
+                placeholder: options?.placeholder,
+                min_values: options?.min,
+                max_values: options?.max,
+                default_values: is.array(options?.roles)
+                    ? options?.roles?.map((c) => ({
+                          type: SelectMenuDefaultValueType.Role,
+                          id: c,
+                      }))
+                    : undefined,
+            },
+        ] as APIRoleSelectComponent[],
+    };
+}
+
+export function getClientIntents(client: Client) {
+    // @ts-ignore
+    return (client.options.intents?.bitfield || client.options.intents) as number;
 }
