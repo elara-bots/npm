@@ -1,6 +1,6 @@
 import { ButtonStyles } from "@elara-services/packages";
 import { XOR } from "@elara-services/utils";
-import { MessageCreateOptions } from "discord.js";
+import { Guild, GuildMember, MessageCreateOptions, TextBasedChannel, User } from "discord.js";
 import { MongoClient, MongoClientOptions } from "mongodb";
 
 export type CollectionNames = "active" | "old" | "settings";
@@ -16,6 +16,21 @@ export type MongoDBOptions = XOR<
         options?: MongoClientOptions;
     }
 >;
+
+export interface GiveawayFilterOptions {
+    user: User,
+    member: GuildMember,
+    guild: Guild,
+    db: GiveawayDatabase,
+    channel: TextBasedChannel | null,
+}
+
+export type GiveawayFilter = (options: GiveawayFilterOptions) => Promise<Status> | Status;
+
+// export type GiveawayFilter = (
+//     i: ButtonInteraction,
+//     r: getInteractionResponders
+// ) => Promise<Status> | Status;
 
 export interface GiveawayDatabase {
     _id: string;
@@ -64,7 +79,7 @@ export interface GiveawayUser {
 export interface AddGiveaway {
     channelId: string;
     prize: string;
-    endAt: Date | string;
+    end: Date | string;
     winners?: number;
     mentions?: {
         id: string;
