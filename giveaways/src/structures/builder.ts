@@ -1,5 +1,5 @@
 import { is } from "@elara-services/utils";
-import { AddGiveaway, Entries, RoleTypes } from "./interfaces";
+import { AddGiveaway, Entries, RoleTypes } from "../interfaces";
 
 export class GiveawayBuilder {
     public constructor(public data: Partial<AddGiveaway> = {}) {}
@@ -14,7 +14,9 @@ export class GiveawayBuilder {
     }
 
     public setEntries(entries: Entries[]) {
-        this.data.entries = entries;
+        for (const e of entries) {
+            this.addEntry(e.roles, e.amount);
+        }
         return this;
     }
 
