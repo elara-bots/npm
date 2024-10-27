@@ -6,12 +6,14 @@ import {
     colors,
     discord,
     embedComment,
-    field,
     formatNumber,
     get,
+    getAllBrackets,
     getClientIntents,
     getInteractionResponder,
+    getInteractionResponders,
     getPackageStart,
+    getPluralTxt,
     getTimeLeft,
     hasBit,
     is,
@@ -19,6 +21,7 @@ import {
     log,
     make,
     noop,
+    removeAllBrackets,
     snowflakes,
     status,
     time,
@@ -44,34 +47,39 @@ import {
     RESTPostAPIChannelMessageJSONBody,
     TextBasedChannel,
 } from "discord.js";
+import { EventEmitter } from "eventemitter3";
 import moment from "moment";
 import { MongoClient, ObjectId } from "mongodb";
 import pack from "../package.json";
+import { GiveawayBuilder } from "./builder";
 import {
     AddGiveaway,
+    CollectionFilter,
     CollectionNames,
-    Entries,
+    CustomMessage,
     Giveaway,
     GiveawayDatabase,
     GiveawayFilter,
     GiveawaySettings,
+    GiveawaySettingsUpdateData,
     MongoDBOptions,
 } from "./interfaces";
+import { giveawayParser } from "./parser";
+import { EVENTS, messages } from "./utils";
 
 const start = getPackageStart(pack);
 let defaultHandler = false;
+export type * from "./interfaces";
+export * from "./parser";
+export * from "./utils";
 
 export class GiveawayClient {
     #isConnected = false;
     #mongo: MongoClient;
     #deleteAfter = 2;
-    #cache = new Collection<
-        string,
-        {
-            channelId: string;
-            filter: GiveawayFilter;
-        }
-    >();
+    #randomButtonColor = true;
+    #events = new EventEmitter();
+    #cache = new Collection<string, CollectionFilter>();
     private rest = new REST();
     private errorHandler: (error: unknown) => null = noop;
     private dms: DMManager;
@@ -121,6 +129,44 @@ export class GiveawayClient {
                     `Removed giveaway filter for (${channelId}) channel.`
                 );
             },
+            multiple: {
+                add: (
+                    channels: { channelId: string; filter: GiveawayFilter }[]
+                ) => {
+                    const results = make.array<{
+                        status: boolean;
+                        message: string;
+                    }>();
+                    for (const c of channels) {
+                        if (
+                            !is.string(c.channelId) ||
+                            typeof c.filter !== "function"
+                        ) {
+                            results.push(
+                                status.error(
+                                    `channelId isn't a string or filter isn't a function`
+                                )
+                            );
+                            continue;
+                        }
+                        results.push(this.filters.add(c.channelId, c.filter));
+                    }
+                    return status.data(results);
+                },
+                get: (ids: string[]) =>
+                    ids
+                        .map((c) => this.#cache.get(c) ?? null)
+                        .filter((c) => c) as CollectionFilter[],
+                remove: (ids: string[]) => {
+                    const count = ids.filter((c) => this.#cache.has(c)).length;
+                    for (const id of ids) {
+                        this.#cache.delete(id);
+                    }
+                    return status.success(
+                        `Removed (${formatNumber(count)}) giveaway filters.`
+                    );
+                },
+            },
             get: (channelId: string) => this.#cache.get(channelId) ?? null,
             removeAll: () => {
                 if (!this.#cache.size) {
@@ -143,7 +189,7 @@ export class GiveawayClient {
         };
     }
 
-    private get removal() {
+    get #removal() {
         return {
             handle: async (
                 name: string,
@@ -160,21 +206,21 @@ export class GiveawayClient {
             },
             messages: async (ids: string[]) => {
                 return await Promise.all([
-                    this.removal.handle("messageId", ids),
-                    this.removal.handle("messageId", ids, "old"),
+                    this.#removal.handle("messageId", ids),
+                    this.#removal.handle("messageId", ids, "old"),
                 ]);
             },
             channels: async (channels: string[]) => {
                 return await Promise.all([
                     // Remove the giveaways for the channels from both active and old databases.
-                    this.removal.handle("channelId", channels),
-                    this.removal.handle("channelId", channels, "old"),
+                    this.#removal.handle("channelId", channels),
+                    this.#removal.handle("channelId", channels, "old"),
                 ]);
             },
             servers: async (ids: string[]) => {
                 return await Promise.all([
-                    this.removal.handle("guildId", ids),
-                    this.removal.handle("guildId", ids, "old"),
+                    this.#removal.handle("guildId", ids),
+                    this.#removal.handle("guildId", ids, "old"),
                 ]);
             },
         };
@@ -187,20 +233,20 @@ export class GiveawayClient {
         defaultHandler = true;
         this.client.on("interactionCreate", async (i) => {
             if (i.isButton()) {
-                return this.onInteraction(i, filter);
+                return this.interactions.main(i, filter);
             }
         });
         this.client.on("channelDelete", async (channel) => {
             if (!channel) {
                 return;
             }
-            this.removal.channels([channel.id]);
+            this.#removal.channels([channel.id]);
         });
         this.client.on("threadDelete", async (thread) => {
             if (!thread) {
                 return;
             }
-            this.removal.channels([thread.id]);
+            this.#removal.channels([thread.id]);
         });
         this.client.ws.on(
             GatewayDispatchEvents.MessageDelete,
@@ -208,7 +254,7 @@ export class GiveawayClient {
                 if (!data?.id) {
                     return;
                 }
-                this.removal.messages([data.id]);
+                this.#removal.messages([data.id]);
             }
         );
 
@@ -218,7 +264,7 @@ export class GiveawayClient {
                 if (!is.array(data?.ids)) {
                     return;
                 }
-                this.removal.messages(data.ids);
+                this.#removal.messages(data.ids);
             }
         );
 
@@ -232,6 +278,11 @@ export class GiveawayClient {
 
     public setDeleteOldAfter(days: number) {
         this.#deleteAfter = days || 2;
+        return this;
+    }
+
+    public setRandomButtonColor(bool: boolean) {
+        this.#randomButtonColor = bool;
         return this;
     }
 
@@ -259,9 +310,12 @@ export class GiveawayClient {
                 (await this.dbs.settings
                     .findOne({ guildId })
                     .catch(this.errorHandler)) as GiveawaySettings | null,
-            update: async (guildId: string, entries: Entries[]) => {
+            update: async (
+                guildId: string,
+                data: GiveawaySettingsUpdateData
+            ) => {
                 return await this.dbs.settings
-                    .updateOne({ guildId }, { entries })
+                    .updateOne({ guildId }, { $set: data })
                     .catch(this.errorHandler);
             },
             remove: async (guildId: string) =>
@@ -326,11 +380,24 @@ export class GiveawayClient {
                             if (
                                 r.type === ComponentType.Button &&
                                 "custom_id" in r &&
-                                r.custom_id.startsWith("giveaways:")
+                                r.custom_id.startsWith("giveaway")
                             ) {
                                 r.label = formatNumber(
                                     this.api.entries.count(data)
                                 );
+                                if (this.#randomButtonColor) {
+                                    const list = [
+                                        ButtonStyle.PRIMARY,
+                                        ButtonStyle.GREEN,
+                                        ButtonStyle.GREY,
+                                    ].filter((c) => c !== r.style);
+                                    r.style =
+                                        list[
+                                            Math.floor(
+                                                Math.random() * list.length
+                                            )
+                                        ];
+                                }
                                 if (disableButton) {
                                     r.disabled = true;
                                     r.style = ButtonStyle.DANGER;
@@ -358,34 +425,42 @@ export class GiveawayClient {
                 );
             },
 
-            defaultMessageOptions: (id: string, data: AddGiveaway) => {
-                const options: MessageCreateOptions = {};
+            defaultMessageOptions: (
+                id: string,
+                data: AddGiveaway,
+                options: MessageCreateOptions = {}
+            ) => {
                 if (is.array(data.mentions)) {
                     options.content = data.mentions
                         .map((c) => `<@${c.type === "role" ? "&" : ""}${c.id}>`)
                         .join(", ");
                 }
                 const extra = make.array([
-                    `Winner${(data.winners || 1) === 1 ? "" : "s"
-                    }: ${formatNumber(data.winners || 1)}`,
+                    `Winner${getPluralTxt(data.winners || 1)}: ${formatNumber(
+                        data.winners || 1
+                    )}`,
                 ]);
 
                 if (data.host && data.host.id) {
                     extra.push(`Host: <@${data.host.id}>`);
                 }
+                const levels = this.utils.getLevelRequirements(data.prize);
+                if (levels) {
+                    extra.push(levels);
+                }
                 extra.push(`Ends at: ${time.relative(data.end)}`);
                 options.embeds = [
                     {
-                        color: colors.cyan,
-                        title: `Giveaway!`,
-                        description: `${data.prize}`,
-                        fields: [
-                            field(
-                                `\u200b`,
-                                extra.map((c) => `- ${c}`).join("\n")
-                            ),
-                        ],
+                        color: colors.green,
+                        author: { name: `🎊 GIVEAWAY! 🎊` },
+                        title: removeAllBrackets(
+                            `${data.prize}`.slice(0, limits.title)
+                        ),
+                        description: extra.map((c) => `- ${c}`).join("\n"),
                         footer: { text: `ID: ${id}` },
+                        thumbnail: {
+                            url: make.emojiURL("756943260538110103", "gif"),
+                        },
                     },
                 ];
                 return options;
@@ -400,6 +475,88 @@ export class GiveawayClient {
                     return true;
                 }
                 return false;
+            },
+
+            getDefaultWinnerMessage: async (
+                data: GiveawayDatabase,
+                guildId: string,
+                winners: string[]
+            ) => {
+                const db = await this.settings.get(guildId);
+                if (!db) {
+                    return messages.def.winner(winners, data);
+                }
+                if (!is.object(db.messages.winner)) {
+                    return messages.def.winner(winners, data);
+                }
+                return await giveawayParser<unknown, CustomMessage>(
+                    db.messages.winner,
+                    data,
+                    undefined,
+                    winners
+                );
+            },
+        };
+    }
+
+    public get utils() {
+        return {
+            getLevelRequirements: (db: GiveawayDatabase | string) => {
+                const levels = this.utils.brackets.levels(db);
+                if (!is.array(levels)) {
+                    return null;
+                }
+                return `Required Level${getPluralTxt(levels)}: ${levels.join(
+                    ", "
+                )}`;
+            },
+            levels: (userLevel: number, requiredLevels: number[]) => {
+                for (const l of requiredLevels) {
+                    if (userLevel >= l) {
+                        return status.success(`All good!`);
+                    }
+                }
+                return status.error(
+                    `You don't meet the level requirements for this giveaway!\n-# You need to be one of these levels: ${requiredLevels
+                        .map((c) => `**${c}**`)
+                        .join(", ")}\n-# Your current level: **${userLevel}**`
+                );
+            },
+            brackets: {
+                get: (db: GiveawayDatabase | string, removeBrackets = true) => {
+                    const str = is.string(db) ? db : db.prize;
+                    return getAllBrackets(str, removeBrackets);
+                },
+                levels: (db: GiveawayDatabase | string) => {
+                    return this.utils.brackets
+                        .get(db, true)
+                        .filter((c) => c.toLowerCase().startsWith("level"))
+                        .map((c) => parseInt(c.split(":")[1]))
+                        .sort((a, b) => b - a);
+                },
+                roles: (db: GiveawayDatabase | string, name: string) => {
+                    return [
+                        ...new Set(
+                            this.utils.brackets
+                                .get(db, true)
+                                .filter((c) => c.toLowerCase().startsWith(name))
+                                .map((c) => {
+                                    const s = c.split(":")[1];
+                                    // eslint-disable-next-line no-useless-escape
+                                    const search = new RegExp(
+                                        [",", "\\|", "-", "/"].join("|"),
+                                        "gi"
+                                    );
+                                    if (s.match(search)) {
+                                        return s.split(search);
+                                    } else {
+                                        return [s];
+                                    }
+                                })
+                                .flatMap((c) => c)
+                        ).values(),
+                    ];
+                },
             },
         };
     }
@@ -427,11 +584,13 @@ export class GiveawayClient {
                 name: CollectionNames = "active",
                 updateMessage = true,
                 disableButton = false,
-                isEnd = false
+                isEnd = false,
+                r?: getInteractionResponders
             ) => {
                 if (
                     name === "active" &&
-                    [updateMessage, disableButton].includes(true)
+                    [updateMessage, disableButton].includes(true) &&
+                    !isEnd
                 ) {
                     const m = await this.messages.fetch(data);
                     if (m) {
@@ -442,61 +601,85 @@ export class GiveawayClient {
                                 .setColor(
                                     disableButton ? colors.red : colors.green
                                 )
+                                .setAuthor({
+                                    name: `🎊 GIVEAWAY${
+                                        disableButton ? `ENDED` : ""
+                                    } 🎊`,
+                                })
                                 .setTitle(
-                                    disableButton
-                                        ? `Giveaway Ended!`
-                                        : `Giveaway!`
+                                    removeAllBrackets(
+                                        data.prize.slice(0, limits.title)
+                                    )
                                 );
                             if (data.end) {
                                 const extra = make.array<string>([
-                                    `Winner${(data.winners || 1) === 1 ? "" : "s"
-                                    }: ${formatNumber(data.winners || 1)}`,
+                                    `Winner${getPluralTxt(
+                                        data.winners || 1
+                                    )}: ${formatNumber(data.winners || 1)}`,
                                 ]);
 
                                 if (data.host && data.host.id) {
                                     extra.push(`Host: <@${data.host.id}>`);
                                 }
+                                const levels =
+                                    this.utils.getLevelRequirements(data);
+                                if (levels) {
+                                    extra.push(levels);
+                                }
                                 extra.push(
                                     `Ends at: ${time.relative(data.end)}`
                                 );
                                 if (is.array(extra)) {
-                                    embed.setFields(
-                                        field(
-                                            `\u200b`,
-                                            extra
-                                                .map((c) => `- ${c}`)
-                                                .join("\n")
-                                        )
+                                    embed.setDescription(
+                                        extra.map((c) => `- ${c}`).join("\n")
                                     );
                                 }
                             }
                         }
-
-                        await this.messages.edit(data, {
-                            embeds: isDefault ? [embed.toJSON()] : undefined,
-                            components: this.messages.components(
-                                data,
-                                m,
-                                disableButton
-                            ),
-                        });
+                        if (r) {
+                            await r.edit({
+                                embeds: isDefault
+                                    ? [embed.toJSON()]
+                                    : undefined,
+                                components: this.messages.components(
+                                    data,
+                                    m,
+                                    disableButton
+                                ),
+                            });
+                        } else {
+                            await this.messages.edit(data, {
+                                embeds: isDefault
+                                    ? [embed.toJSON()]
+                                    : undefined,
+                                components: this.messages.components(
+                                    data,
+                                    m,
+                                    disableButton
+                                ),
+                            });
+                        }
                     }
                 }
                 if (isEnd === true) {
-                    await this.dbs.old
-                        .insertOne({
-                            ...data,
-                            deleteAfter: moment()
-                                .add(this.#deleteAfter || 2, "days")
-                                .toISOString(),
-                        } as Omit<Giveaway, "_id">)
-                        .catch(this.errorHandler);
+                    await this.dbs.active.deleteOne({ id }).catch(noop);
+                    const f = await this.dbs.old.findOne({ id }).catch(noop);
+                    if (!f) {
+                        await this.dbs.old
+                            .insertOne({
+                                ...data,
+                                deleteAfter: moment()
+                                    .add(this.#deleteAfter || 2, "days")
+                                    .toISOString(),
+                            } as Omit<Giveaway, "_id">)
+                            .catch(this.errorHandler);
+                    }
                 }
                 if (data.end) {
                     await this.api.schedule(id, data.end);
                 }
                 return await this.dbs[name]
-                    .updateOne({ id }, data)
+                    .updateOne({ id }, { $set: data })
                     .catch(this.errorHandler);
             },
             /**
@@ -557,6 +740,7 @@ export class GiveawayClient {
                         []
                     );
                 }
+                this.#events.emit(EVENTS.GIVEAWAY_CANCEL, data);
                 return await this.api.del(id, "active", true);
             },
 
@@ -568,7 +752,8 @@ export class GiveawayClient {
                 }
                 if (data.prize.length > limits.description - 500) {
                     return status.error(
-                        `Prize is above the embed description limit (${limits.description - 500
+                        `Prize is above the embed description limit (${
+                            limits.description - 500
                         })`
                     );
                 }
@@ -584,7 +769,9 @@ export class GiveawayClient {
                     );
                 }
                 const gId = snowflakes.generate();
-                let options: MessageCreateOptions = {};
+                let options: MessageCreateOptions = {
+                    components: [],
+                };
                 const button = Interactions.button({
                     id: `giveaway:${gId}`,
                     style: data.button?.style || 1,
@@ -623,32 +810,42 @@ export class GiveawayClient {
                     }
                 }
                 if (!is.array(options.embeds) && !is.string(options.content)) {
-                    options = this.messages.defaultMessageOptions(gId, data);
+                    options = this.messages.defaultMessageOptions(
+                        gId,
+                        data,
+                        options
+                    );
                 }
-                const msg = (await channel.send(options).catch((e) => e)) as
-                    | Message
-                    | Error;
+
+                const msg = (await channel
+                    .send(options)
+                    .catch((e) => new Error(e))) as Message | Error;
                 if (msg instanceof Error) {
                     return status.error(
-                        `Giveaway not created, error while trying to send to (${data.channelId
-                        }) channel. ${msg?.stack || msg.message || "Unknown Error?"
+                        `Giveaway not created, error while trying to send to (${
+                            data.channelId
+                        }) channel. ${
+                            msg?.stack || msg.message || "Unknown Error?"
                         }`
                     );
                 }
+                const p = new GiveawayBuilder(data).toJSON();
                 const r = await this.dbs.active
                     .insertOne({
                         id: gId,
-                        winners: is.number(data.winners) ? data.winners : 1,
-                        channelId: data.channelId,
-                        end: data.end,
+                        winners: p.winners,
+                        channelId: p.channelId,
+                        end: p.end,
                         messageId: msg.id,
                         guildId: msg.guildId,
-                        host: data.host,
+                        host: p.host,
                         pending: true,
-                        prize: data.prize,
+                        prize: p.prize,
                         start: new Date().toISOString(),
                         users: [],
-                    })
+                        roles: p.roles,
+                        entries: p.entries,
+                    } as Omit<GiveawayDatabase, "_id">)
                     .catch(this.errorHandler);
                 if (!r) {
                     return status.error(
@@ -789,7 +986,6 @@ export class GiveawayClient {
                     );
                 };
                 const win = make.array<string>();
-
                 for (const u of randomUsers(wins)) {
                     const isValidEntry = !win.some((winner) => winner === u);
                     if (isValidEntry) {
@@ -797,7 +993,7 @@ export class GiveawayClient {
                     } else {
                         // Find a new winner
                         for (let i = 0; i < list.length; i++) {
-                            const user = randomUsers(1)[0];
+                            const user = randomUsers(wins)[0];
                             const isUserValidEntry = !win.some(
                                 (winner) => winner === user
                             );
@@ -809,7 +1005,7 @@ export class GiveawayClient {
                         }
                     }
                 }
-                return list;
+                return win;
             },
 
             deleteOld: async () => {
@@ -849,75 +1045,110 @@ export class GiveawayClient {
         };
     }
 
-    public async onInteraction(i: Interaction, filter?: GiveawayFilter) {
-        if (!i.isButton() || !i.customId.startsWith("giveaway:")) {
-            return;
-        }
-        if (!(i.member instanceof GuildMember) || !(i.guild instanceof Guild)) {
-            return;
-        }
-        const r = getInteractionResponder(i, this.errorHandler);
-        await r.defer({ ephemeral: true });
-        const id = i.customId.split(":")?.[1] || "";
-        if (!id) {
-            return r.edit(
-                embedComment(`Unable to find the giveaway ID in the custom_id`)
-            );
-        }
-        const db = await this.api.get(id);
-        if (!db || !db.pending) {
-            return r.edit(
-                embedComment(
-                    `Unable to find giveaway (${id}) or it's no longer active.`
-                )
-            );
-        }
-        if (filter && typeof filter === "function") {
-            const p = await filter({
-                user: i.user,
-                member: i.member,
-                channel: i.channel,
-                db,
-                guild: i.guild,
-            });
-            if (!p.status) {
-                return r.edit(embedComment(p.message));
-            }
-        }
-        const found = this.filters.get(i.channelId);
-        if (found) {
-            const p = await found.filter({
-                user: i.user,
-                member: i.member,
-                channel: i.channel,
-                db,
-                guild: i.guild,
-            });
-            if (!p.status) {
-                return r.edit(embedComment(p.message));
-            }
-        }
-        const d = await this.users(i.user.id)
-            .add(id)
-            .catch((e) => {
-                this.errorHandler(e);
-                return new Error(e);
-            });
-        if (d instanceof Error) {
-            return r.edit(embedComment(d.message));
-        }
-        if (!d.status) {
-            return r.edit(embedComment(d.message));
-        }
-        return r.edit(embedComment(d.message, "Green"));
+    public get interactions() {
+        return {
+            main: async (i: Interaction, filter?: GiveawayFilter) => {
+                if (!i.isButton() || !i.customId.startsWith("giveaway:")) {
+                    return;
+                }
+                if (
+                    !(i.member instanceof GuildMember) ||
+                    !(i.guild instanceof Guild)
+                ) {
+                    return;
+                }
+                const r = getInteractionResponder(i, this.errorHandler);
+                await r.deferUpdate();
+                // await r.defer({ ephemeral: true });
+                const id = i.customId.split(":")?.[1] || "";
+                if (!id) {
+                    return r.followUp({
+                        ephemeral: true,
+                        ...embedComment(
+                            `Unable to find the giveaway ID in the custom_id`
+                        ),
+                    });
+                }
+                const db = await this.api.get(id);
+                if (!db || !db.pending) {
+                    return r.followUp({
+                        ephemeral: true,
+                        ...embedComment(
+                            `Unable to find giveaway (${id}) or it's no longer active.`
+                        ),
+                    });
+                }
+                if (db.host?.id) {
+                    const data = await this.settings.get(db.guildId);
+                    if (data && data.toggles.hostCanJoin !== true) {
+                        if (db.host.id === i.user.id) {
+                            return r.followUp({
+                                ephemeral: true,
+                                ...embedComment(
+                                    `You can't join your own giveaway!`
+                                ),
+                            });
+                        }
+                    }
+                }
+                const filterOptions = {
+                    user: i.user,
+                    member: i.member,
+                    channel: i.channel,
+                    db,
+                    guild: i.guild,
+                };
+                if (filter && typeof filter === "function") {
+                    const p = await filter(filterOptions);
+                    if (!p.status) {
+                        return r.followUp({
+                            ephemeral: true,
+                            ...embedComment(p.message),
+                        });
+                    }
+                }
+                const found = this.filters.get(i.channelId);
+                if (found) {
+                    const p = await found.filter(filterOptions);
+                    if (!p.status) {
+                        return r.followUp({
+                            ephemeral: true,
+                            ...embedComment(p.message),
+                        });
+                    }
+                }
+                const d = await this.users(i.user.id)
+                    .add(id, undefined, r)
+                    .catch((e) => {
+                        this.errorHandler(e);
+                        return new Error(e);
+                    });
+                if (d instanceof Error) {
+                    return r.followUp({
+                        ephemeral: true,
+                        ...embedComment(d.message),
+                    });
+                }
+                return r.followUp({
+                    ephemeral: true,
+                    ...embedComment(d.message, d.status ? "Green" : "Red"),
+                });
+            },
+            users: {
+                list: async () => {},
+                remove: async () => {},
+            },
+        };
     }
 
+    /**
+     * @description Returns true/false if the client has certain gateway intents
+     */
     #bit(bit: number) {
         return hasBit(getClientIntents(this.client), bit);
     }
 
     // TODO: Finish this.
-    // TODO: Add a reschedule function that just adds the giveaway to the system
     async #end(id: string) {
         const db = await this.api.get(id);
         if (!db || !db.pending) {
@@ -930,11 +1161,11 @@ export class GiveawayClient {
         if (this.#bit(2)) {
             const guild =
                 this.client.guilds.resolve(db.guildId) ||
-                (await this.client.guilds.fetch(db.guildId).catch(() => null));
+                (await this.client.guilds.fetch(db.guildId).catch(noop));
             if (guild && guild.available) {
                 const m = await guild.members
                     .fetch(this.#bit(256) ? { withPresences: true } : undefined)
-                    .catch(() => null);
+                    .catch(noop);
                 if (m && m.size) {
                     db.users = db.users.filter((c) => m.has(c.id));
                 }
@@ -944,26 +1175,64 @@ export class GiveawayClient {
         db.pending = false;
         await this.api.update(id, db, "active", true, true, true);
         const winners = this.api.pickWinner(db, db.winners);
-        if (this.messages.isDefaultEmbed(msg)) {
-            const embed = new EmbedBuilder(msg.embeds[0])
-                .setColor(colors.green)
-                .setTitle(`Giveaway Finished!`)
-                .addFields(
-                    field(
-                        `Winner${winners.length === 1 ? "" : "s"}`,
-                        winners.map((c) => `<@${c}>`).join(", ")
-                    )
-                );
-            await this.messages.edit(db, { embeds: [embed.toJSON()] });
-        }
-        // TODO: Make the giveaway winner announcement message...
+        const embed = new EmbedBuilder(msg.embeds[0])
+            .setColor(colors.red)
+            .setAuthor({ name: `🎊 GIVEAWAY ENDED 🎊` })
+            .setTitle(removeAllBrackets(db.prize.slice(0, limits.title)))
+            .setFooter({ text: `Ended at` })
+            .setTimestamp(new Date(db.end))
+            .setFields([])
+            .setDescription(
+                `- Winner${getPluralTxt(winners)}: ${
+                    is.array(winners)
+                        ? winners.map((c) => `<@${c}>`).join(", ")
+                        : `No one??`
+                }${db.host?.id ? `\n- Hosted by: <@${db.host.id}>` : ""}`
+            );
+        await this.messages.edit(db, {
+            embeds: [embed.toJSON()],
+            components: msg.components?.length
+                ? msg.components.map((c) => {
+                      if (c.components) {
+                          c.components = c.components.map((r) => {
+                              if (
+                                  r.type === ComponentType.Button &&
+                                  r.style !== 5 &&
+                                  r.custom_id.startsWith("giveaway")
+                              ) {
+                                  r.disabled = true;
+                                  r.style = ButtonStyle.DANGER;
+                                  r.label = `${formatNumber(
+                                      this.api.entries.count(db)
+                                  )}`;
+                              }
+                              return r;
+                          });
+                      }
+                      return c;
+                  })
+                : [],
+        });
+
         await this.messages.create(db.channelId, {
-            content: ``,
+            ...(await this.messages.getDefaultWinnerMessage(
+                db,
+                db.guildId,
+                winners
+            )),
             message_reference: {
                 message_id: msg.id,
                 fail_if_not_exists: false,
             },
         });
+    }
+
+    async #getMember(guildId: string, userId: string) {
+        const guild = await this.client.guilds.fetch(guildId).catch(noop);
+        if (!guild || !guild.available) {
+            return null;
+        }
+        return await discord.member(guild, userId, true, false);
     }
 
     public users(userId: string) {
@@ -976,7 +1245,11 @@ export class GiveawayClient {
             /**
              * @description 'id' is the message or giveaway ID
              */
-            add: async (id: string, entries?: number) => {
+            add: async (
+                id: string,
+                entries?: number,
+                r?: getInteractionResponders
+            ) => {
                 const res = await this.api.get(id);
                 if (!res) {
                     return status.error(`Giveaway (${id}) not found.`);
@@ -986,28 +1259,85 @@ export class GiveawayClient {
                         `Giveaway (${id}) isn't pending, no users can be added to it.`
                     );
                 }
+                if (res.roles) {
+                    if (is.array(res.roles.required)) {
+                        const member = await this.#getMember(
+                            res.guildId,
+                            userId
+                        );
+                        if (!member) {
+                            return status.error(
+                                `Unable to fetch your member information.`
+                            );
+                        }
+                        if (!member.roles.cache.hasAny(...res.roles.required)) {
+                            return status.error(
+                                `You need one of these roles to enter this giveaway: ${res.roles.required
+                                    .map((c) => `<@&${c}>`)
+                                    .join(", ")}`
+                            );
+                        }
+                    }
+                }
                 const ent = is.number(entries)
                     ? entries
                     : await this.api.entries.user(res, userId);
                 const find = res.users.find((c) => c.id === userId);
                 if (find) {
                     if (find.entries !== ent) {
+                        const before = find.entries;
                         find.entries = ent;
-                        await this.api.update(res._id, res);
+                        await this.api.update(
+                            res.id,
+                            res,
+                            undefined,
+                            undefined,
+                            undefined,
+                            undefined,
+                            r
+                        );
                         return status.success(
-                            `Updated (${userId}) user's entries in giveaway (${id})`
+                            `I've updated your entries from ${formatNumber(
+                                before
+                            )} to ${formatNumber(ent)}!`
                         );
                     }
+                    res.users = res.users.filter((c) => c.id !== userId);
+                    await this.api.update(
+                        res.id,
+                        res,
+                        undefined,
+                        undefined,
+                        undefined,
+                        undefined,
+                        r
+                    );
+                    log(
+                        `[GIVEAWAY]: Removed ${
+                            this.client.users.resolve(userId)?.tag
+                        } (${userId}) from "${res.prize}"`
+                    );
                     return status.error(
-                        `Giveaway user (${userId}) is already in the giveaway (${id})`
+                        `You've been removed from the giveaway!`
                     );
                 }
 
                 res.users.push({ id: userId, entries: ent });
-                await this.api.update(res._id, res);
-                return status.success(
-                    `Added (${userId}) user to giveaway (${id})`
+                await this.api.update(
+                    res.id,
+                    res,
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                    r
                 );
+                log(
+                    `[GIVEAWAY]: Added ${
+                        this.client.users.resolve(userId)?.tag
+                    } (${userId}) to "${res.prize}"`
+                );
+                return status.success(`You've entered the giveaway!`);
             },
             /**
              * @description 'id' is the message or giveaway ID
@@ -1029,7 +1359,7 @@ export class GiveawayClient {
                     );
                 }
                 res.users = res.users.filter((c) => c.id !== userId);
-                await this.api.update(res._id, res);
+                await this.api.update(res.id, res);
                 return status.success(
                     `Removed (${userId}) user from giveaway (${id})`
                 );
@@ -1063,7 +1393,7 @@ export class GiveawayClient {
                 if (find.entries <= 0) {
                     find.entries = 1;
                 }
-                await this.api.update(res._id, res);
+                await this.api.update(res.id, res);
                 return status.success(
                     `Updated (${userId}) user entries on giveaway (${id})`
                 );
@@ -1078,10 +1408,10 @@ export class GiveawayClient {
                         },
                         ...(is.array(guildIds)
                             ? {
-                                guildId: {
-                                    $in: guildIds,
-                                },
-                            }
+                                  guildId: {
+                                      $in: guildIds,
+                                  },
+                              }
                             : {}),
                     })
                     .toArray()

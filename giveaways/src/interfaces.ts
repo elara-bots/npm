@@ -1,6 +1,14 @@
 import { ButtonStyles } from "@elara-services/packages";
 import { XOR } from "@elara-services/utils";
-import { Guild, GuildMember, MessageCreateOptions, TextBasedChannel, User } from "discord.js";
+import { RESTPostAPIChannelMessageJSONBody } from "discord-api-types/v10";
+import {
+    ButtonStyle,
+    Guild,
+    GuildMember,
+    MessageCreateOptions,
+    TextBasedChannel,
+    User,
+} from "discord.js";
 import { MongoClient, MongoClientOptions } from "mongodb";
 
 export type CollectionNames = "active" | "old" | "settings";
@@ -18,19 +26,16 @@ export type MongoDBOptions = XOR<
 >;
 
 export interface GiveawayFilterOptions {
-    user: User,
-    member: GuildMember,
-    guild: Guild,
-    db: GiveawayDatabase,
-    channel: TextBasedChannel | null,
+    user: User;
+    member: GuildMember;
+    guild: Guild;
+    db: GiveawayDatabase;
+    channel: TextBasedChannel | null;
 }
 
-export type GiveawayFilter = (options: GiveawayFilterOptions) => Promise<Status> | Status;
-
-// export type GiveawayFilter = (
-//     i: ButtonInteraction,
-//     r: getInteractionResponders
-// ) => Promise<Status> | Status;
+export type GiveawayFilter = (
+    options: GiveawayFilterOptions
+) => Promise<Status> | Status;
 
 export interface GiveawayDatabase {
     _id: string;
@@ -50,21 +55,45 @@ export interface GiveawayDatabase {
     entries: Entries[];
     host: {
         id: string;
-        mention: boolean;
-    };
+        mention?: boolean;
+    } | null;
+    roles: Record<RoleTypes, string[]>;
 }
 export type Giveaway<D = void> = GiveawayDatabase & D;
 
 export type OldGiveaway<D = void> = Giveaway<D> & { deleteAfter: string };
+export type CustomMessage = Omit<
+    RESTPostAPIChannelMessageJSONBody,
+    | "message_reference"
+    | "tts"
+    | "nonce"
+    | "attachments"
+    | "flags"
+    | "sticker_ids"
+    | "allowed_mentions"
+>;
 
 export interface GiveawaySettings {
     _id: string;
     guildId: string;
     messages: {
-        winner: string;
+        winner: CustomMessage;
+    };
+    toggles: {
+        hostCanJoin: boolean;
     };
     entries: Entries[];
 }
+
+export type CollectionFilter = {
+    channelId: string;
+    filter: GiveawayFilter;
+};
+
+export type GiveawaySettingsUpdateData = Omit<
+    GiveawaySettings,
+    "_id" | "guildId"
+>;
 
 export type Entries = {
     amount: number;
@@ -76,6 +105,8 @@ export interface GiveawayUser {
     entries: number;
 }
 
+export type RoleTypes = "required" | "add" | "remove";
+
 export interface AddGiveaway {
     channelId: string;
     prize: string;
@@ -85,6 +116,9 @@ export interface AddGiveaway {
         id: string;
         type: "role" | "user";
     }[];
+
+    roles?: Partial<Record<RoleTypes, string[]>>;
+
     host?: {
         mention?: boolean;
         id: string;
@@ -96,6 +130,7 @@ export interface AddGiveaway {
     button?: {
         /** Use the unicode or custom Discord EMOJI ID */
         emoji?: string;
-        style?: ButtonStyles;
+        style?: ButtonStyles | ButtonStyle;
     };
+    entries?: Entries[];
 }
