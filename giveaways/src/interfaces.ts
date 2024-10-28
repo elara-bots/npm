@@ -62,6 +62,29 @@ export interface GiveawayDatabase {
     rerolled: string[];
     deleteAfter?: string;
 }
+
+export interface AddTemplate {
+    name: string;
+    guildId: string;
+    data: GiveawayTemplateData;
+}
+
+export type GiveawayTemplateData = Omit<
+    GiveawayDatabase, 
+    "_id" | "start" | "end" | "channelId" | 
+    "id" | "messageId" | "pending" | "users" | 
+    "deleteAfter"
+> & {
+    message: CustomMessage,
+}
+
+export interface GiveawayTemplate {
+    _id: ObjectId;
+    name: string;
+    guildId: string,
+    data: GiveawayTemplateData;
+}
+
 export type Giveaway<D = void> = GiveawayDatabase & D;
 
 export type OldGiveaway<D = void> = Giveaway<D> & { deleteAfter: string };

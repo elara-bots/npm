@@ -72,6 +72,7 @@ import { giveawayParser } from "../parser";
 import { messages } from "../utils";
 import { GiveawayBuilder } from "./builder";
 import { EVENTS, GiveawayEvents } from "./events";
+import { GiveawayTemplates } from "./templates";
 
 const start = getPackageStart(pack);
 let defaultHandler = false;
@@ -84,7 +85,8 @@ export class GiveawayClient extends GiveawayEvents {
     #cache = new Collection<string, CollectionFilter>();
     #dapi = new REST();
     private errorHandler: (error: unknown) => null = noop;
-    public constructor(private client: Client<true>, mongodb: MongoDBOptions) {
+    public templates = new GiveawayTemplates(this);
+    public constructor(public client: Client<true>, mongodb: MongoDBOptions) {
         super();
         if (!client || !(client instanceof Client)) {
             throw new Error(
@@ -208,7 +210,7 @@ export class GiveawayClient extends GiveawayEvents {
                 value: string[],
                 col: CollectionNames = "active"
             ) => {
-                return await this.#dbs[col]
+                return await this.dbs[col]
                     .deleteMany({
                         [name]: {
                             $in: value,
@@ -305,27 +307,28 @@ export class GiveawayClient extends GiveawayEvents {
         return this;
     }
 
-    get #dbs() {
+    public get dbs() {
         // FINISHED
         const main = this.#mongo.db("Giveaways");
         return {
             active: main.collection("active"),
             old: main.collection("old"),
             settings: main.collection("settings"),
+            templates: main.collection("templates"),
             getSettings: async (guildId: string) =>
-                (await this.#dbs.settings
+                (await this.dbs.settings
                     .findOne({ guildId })
                     .catch(this.errorHandler)) as GiveawaySettings | null,
             getGiveaway: async <D>(
                 id: string,
                 name: CollectionNames = "active"
             ) => {
-                const g = (await this.#dbs[name]
+                const g = (await this.dbs[name]
                     .findOne({ id })
                     .catch(noop)) as Giveaway<D> | null;
                 return (
                     g ??
-                    ((await this.#dbs[name]
+                    ((await this.dbs[name]
                         .findOne({ messageId: id })
                         .catch(noop)) as Giveaway<D> | null)
                 );
@@ -335,15 +338,15 @@ export class GiveawayClient extends GiveawayEvents {
                 name: CollectionNames = "active"
             ) => {
                 return await Promise.all([
-                    this.#dbs[name].deleteOne({ id }).catch(noop),
-                    this.#dbs[name].deleteOne({ messageId: id }).catch(noop),
+                    this.dbs[name].deleteOne({ id }).catch(noop),
+                    this.dbs[name].deleteOne({ messageId: id }).catch(noop),
                 ]);
             },
             getAll: async <D>(
                 name: CollectionNames = "active",
                 filter?: Filter<Document>
             ) =>
-                (await this.#dbs[name]
+                (await this.dbs[name]
                     .find(filter || {})
                     .toArray()
                     .catch(() => [])) as Giveaway<D>[],
@@ -354,17 +357,17 @@ export class GiveawayClient extends GiveawayEvents {
         // FINISHED
         return {
             get: async (guildId: string) =>
-                await this.#dbs.getSettings(guildId),
+                await this.dbs.getSettings(guildId),
             update: async (guildId: string, data: GiveawaySettingsUpdateData) =>
-                await this.#dbs.settings
+                await this.dbs.settings
                     .updateOne({ guildId }, { $set: data })
                     .catch(this.errorHandler),
             remove: async (guildId: string) =>
-                await this.#dbs.settings
+                await this.dbs.settings
                     .deleteOne({ guildId })
                     .catch(this.errorHandler),
             list: async () =>
-                (await this.#dbs.settings
+                (await this.dbs.settings
                     .find()
                     .toArray()
                     .catch(() => [])) as GiveawaySettings[],
@@ -385,12 +388,12 @@ export class GiveawayClient extends GiveawayEvents {
     ): Promise<D | null> {
         // prettier-ignore
         return (await this.#dapi[options?.method ?? "get"](route, {
-                body: options?.body,
-                query: options?.query,
-                reason: options?.reason,
-                auth: options?.auth,
-                files: options?.files,
-            })
+            body: options?.body,
+            query: options?.query,
+            reason: options?.reason,
+            auth: options?.auth,
+            files: options?.files,
+        })
             .catch(this.errorHandler)) as D | null;
     }
 
@@ -525,23 +528,23 @@ export class GiveawayClient extends GiveawayEvents {
                         },
                         fields: is.array(data.entries)
                             ? [
-                                  {
-                                      name: "\u200b",
-                                      value: data.entries
-                                          .sort((a, b) => b.amount - a.amount)
-                                          .map(
-                                              (c) =>
-                                                  `- ${c.roles
-                                                      .map((c) => `<@&${c}>`)
-                                                      .join(
-                                                          " "
-                                                      )} (**${formatNumber(
-                                                      c.amount
-                                                  )}** entries)`
-                                          )
-                                          .join("\n"),
-                                  },
-                              ]
+                                {
+                                    name: "\u200b",
+                                    value: data.entries
+                                        .sort((a, b) => b.amount - a.amount)
+                                        .map(
+                                            (c) =>
+                                                `- ${c.roles
+                                                    .map((c) => `<@&${c}>`)
+                                                    .join(
+                                                        " "
+                                                    )} (**${formatNumber(
+                                                        c.amount
+                                                    )}** entries)`
+                                        )
+                                        .join("\n"),
+                                },
+                            ]
                             : undefined,
                     },
                 ];
@@ -750,7 +753,7 @@ export class GiveawayClient extends GiveawayEvents {
     public get api() {
         return {
             get: async <D>(id: string, name: CollectionNames = "active") =>
-                await this.#dbs.getGiveaway<D>(id, name),
+                await this.dbs.getGiveaway<D>(id, name),
 
             update: async <D>(
                 id: string,
@@ -783,9 +786,8 @@ export class GiveawayClient extends GiveawayEvents {
                                     disableButton ? colors.red : colors.green
                                 )
                                 .setAuthor({
-                                    name: `🎊 GIVEAWAY${
-                                        disableButton ? `ENDED` : ""
-                                    } 🎊`,
+                                    name: `🎊 GIVEAWAY${disableButton ? `ENDED` : ""
+                                        } 🎊`,
                                 })
                                 .setTitle(
                                     removeAllBrackets(
@@ -804,8 +806,8 @@ export class GiveawayClient extends GiveawayEvents {
                                                     .join(
                                                         " "
                                                     )} (**${formatNumber(
-                                                    c.amount
-                                                )}** entries)`
+                                                        c.amount
+                                                    )}** entries)`
                                         )
                                         .join("\n"),
                                 });
@@ -857,8 +859,8 @@ export class GiveawayClient extends GiveawayEvents {
                                                         .join(
                                                             " "
                                                         )} (**${formatNumber(
-                                                        c.amount
-                                                    )}** entries)`
+                                                            c.amount
+                                                        )}** entries)`
                                             )
                                             .join("\n"),
                                     });
@@ -891,10 +893,10 @@ export class GiveawayClient extends GiveawayEvents {
                     }
                 }
                 if (isEnd === true) {
-                    await this.#dbs.deleteGiveaway(id, "active");
-                    const f = await this.#dbs.getGiveaway(id, "old");
+                    await this.dbs.deleteGiveaway(id, "active");
+                    const f = await this.dbs.getGiveaway(id, "old");
                     if (!f) {
-                        await this.#dbs.old
+                        await this.dbs.old
                             .insertOne({
                                 ...data,
                                 deleteAfter: moment()
@@ -907,7 +909,7 @@ export class GiveawayClient extends GiveawayEvents {
                 if (data.end) {
                     await this.api.schedule(id, data.end);
                 }
-                return await this.#dbs[name]
+                return await this.dbs[name]
                     .updateOne({ id }, { $set: data })
                     .catch(this.errorHandler);
             },
@@ -924,7 +926,7 @@ export class GiveawayClient extends GiveawayEvents {
                     "_id"
                 >;
                 if (data && !deleteOld) {
-                    await this.#dbs.old
+                    await this.dbs.old
                         .insertOne({
                             ...data,
                             deleteAfter: moment()
@@ -939,14 +941,14 @@ export class GiveawayClient extends GiveawayEvents {
                         data as GiveawayDatabase,
                         `Deleted 'old' version of the giveaway.`
                     );
-                    await this.#dbs.deleteGiveaway(id, "old");
+                    await this.dbs.deleteGiveaway(id, "old");
                 }
                 this.emit(
                     EVENTS.giveawayDelete,
                     data as GiveawayDatabase,
                     `Deleted '${name}' version of the giveaway.`
                 );
-                return await this.#dbs.deleteGiveaway(id, name);
+                return await this.dbs.deleteGiveaway(id, name);
             },
 
             cancel: async (id: string, reason = "No Reason Provided.") => {
@@ -987,8 +989,7 @@ export class GiveawayClient extends GiveawayEvents {
                 }
                 if (data.prize.length > limits.description - 500) {
                     return status.error(
-                        `Prize is above the embed description limit (${
-                            limits.description - 500
+                        `Prize is above the embed description limit (${limits.description - 500
                         })`
                     );
                 }
@@ -1014,37 +1015,30 @@ export class GiveawayClient extends GiveawayEvents {
                     label: `0`,
                 });
 
+                button.emoji = { name: "🎉" };
                 if (data.button) {
                     if (data.button.emoji) {
                         button.emoji = is.number(parseInt(data.button.emoji))
                             ? { id: data.button.emoji }
                             : { name: data.button.emoji };
                     }
-                    if (!button.emoji && !button.label) {
-                        button.emoji = { name: "🎉" };
-                    }
-                    options.components = [
-                        { type: 1, components: [button] },
-                        ...(data.options?.components?.slice(0, 4) || []),
-                    ];
-                } else {
-                    button.emoji = { name: "🎉" };
-                    options.components = [
-                        {
-                            type: 1,
-                            components: [
-                                button,
-                                Interactions.button({
-                                    id: `GA:user_list:${gId}`,
-                                    style: "GREY",
-                                    label: `Participants`,
-                                    emoji: { id: "1077714505766813756" },
-                                }),
-                            ],
-                        },
-                        ...(data.options?.components?.slice(0, 4) || []),
-                    ];
                 }
+                options.components = [
+                    {
+                        type: 1,
+                        components: [
+                            button,
+                            Interactions.button({
+                                id: `GA:user_list:${gId}`,
+                                style: "GREY",
+                                label: `Participants`,
+                                emoji: { id: "1077714505766813756" },
+                            }),
+                        ],
+                    },
+                    ...(data.options?.components?.slice(0, 4) || []),
+                ];
+                
                 if (is.object(data.options)) {
                     if (is.string(data.options.content)) {
                         options.content = data.options.content;
@@ -1074,14 +1068,12 @@ export class GiveawayClient extends GiveawayEvents {
                     .catch((e) => new Error(e))) as Message | Error;
                 if (msg instanceof Error) {
                     return status.error(
-                        `Giveaway not created, error while trying to send to (${
-                            data.channelId
-                        }) channel. ${
-                            msg?.stack || msg.message || "Unknown Error?"
+                        `Giveaway not created, error while trying to send to (${data.channelId
+                        }) channel. ${msg?.stack || msg.message || "Unknown Error?"
                         }`
                     );
                 }
-                const r = await this.#dbs.active
+                const r = await this.dbs.active
                     .insertOne({
                         id: gId,
                         winners: p.winners,
@@ -1142,7 +1134,7 @@ export class GiveawayClient extends GiveawayEvents {
             },
 
             scheduleAll: async () => {
-                const dbs = await this.#dbs.getAll("active");
+                const dbs = await this.dbs.getAll("active");
                 if (!is.array(dbs)) {
                     return status.error(
                         `Unable to find any giveaways to schedule.`
@@ -1164,8 +1156,8 @@ export class GiveawayClient extends GiveawayEvents {
                     userCount
                         ? data.users.length
                         : data.users
-                              .map((c) => c.entries)
-                              .reduce((a, b) => a + b, 0),
+                            .map((c) => c.entries)
+                            .reduce((a, b) => a + b, 0),
                 user: async <D>(
                     data: Giveaway<D>,
                     userId: string
@@ -1269,7 +1261,7 @@ export class GiveawayClient extends GiveawayEvents {
             },
 
             deleteOld: async () => {
-                const dbs = await this.#dbs.getAll("old");
+                const dbs = await this.dbs.getAll("old");
                 if (!is.array(dbs)) {
                     return status.error(`No old giveaways to process.`);
                 }
@@ -1288,7 +1280,7 @@ export class GiveawayClient extends GiveawayEvents {
                 if (!is.array(ids)) {
                     return status.error(`No old giveaways to remove.`);
                 }
-                const r = await this.#dbs.old
+                const r = await this.dbs.old
                     .deleteMany({
                         _id: {
                             $in: ids,
@@ -1302,8 +1294,7 @@ export class GiveawayClient extends GiveawayEvents {
                     this.emit(
                         EVENTS.giveawayBulkDelete,
                         backups,
-                        `[AUTOMATIC]: Purge of ${
-                            this.#deleteAfter
+                        `[AUTOMATIC]: Purge of ${this.#deleteAfter
                         } day${getPluralTxt(this.#deleteAfter)} old giveaways.`
                     );
                 }
@@ -1328,8 +1319,7 @@ export class GiveawayClient extends GiveawayEvents {
                 }
                 if (amount > (g.winners || 1)) {
                     return status.error(
-                        `Reroll amount received is higher than the giveaway winners set. (${
-                            g.winners || 1
+                        `Reroll amount received is higher than the giveaway winners set. (${g.winners || 1
                         })`
                     );
                 }
@@ -1386,9 +1376,9 @@ export class GiveawayClient extends GiveawayEvents {
 
             list: {
                 server: async (guildId: string) =>
-                    await this.#dbs.getAll("active", { guildId }),
+                    await this.dbs.getAll("active", { guildId }),
                 channel: async (channelId: string) =>
-                    await this.#dbs.getAll("active", { channelId }),
+                    await this.dbs.getAll("active", { channelId }),
             },
         };
     }
@@ -1563,14 +1553,12 @@ export class GiveawayClient extends GiveawayEvents {
                                                     (c) =>
                                                         `${formatNumber(
                                                             c.num
-                                                        )}. <@${
-                                                            c.id
+                                                        )}. <@${c.id
                                                         }> (**${formatNumber(
                                                             c.entries
-                                                        )}** ${
-                                                            c.entries === 1
-                                                                ? "entry"
-                                                                : "entries"
+                                                        )}** ${c.entries === 1
+                                                            ? "entry"
+                                                            : "entries"
                                                         })`
                                                 )
                                                 .join("\n")}`
@@ -1584,25 +1572,25 @@ export class GiveawayClient extends GiveawayEvents {
                                 ],
                                 actions:
                                     db.pending === true &&
-                                    (await this.utils.isAuthorized(
-                                        i.guildId,
-                                        i.channelId,
-                                        i.member
-                                    ))
+                                        (await this.utils.isAuthorized(
+                                            i.guildId,
+                                            i.channelId,
+                                            i.member
+                                        ))
                                         ? [
-                                              {
-                                                  customId: `GA:user_remove:${gId}`,
-                                                  style: ButtonStyle.DANGER,
-                                                  type: ComponentType.Button,
-                                                  emoji: {
-                                                      id: `1019045113151901726`,
-                                                  },
-                                                  label: `Remove Participant(s)`,
-                                                  run(context) {
-                                                      context.collector.stop();
-                                                  },
-                                              },
-                                          ]
+                                            {
+                                                customId: `GA:user_remove:${gId}`,
+                                                style: ButtonStyle.DANGER,
+                                                type: ComponentType.Button,
+                                                emoji: {
+                                                    id: `1019045113151901726`,
+                                                },
+                                                label: `Remove Participant(s)`,
+                                                run(context) {
+                                                    context.collector.stop();
+                                                },
+                                            },
+                                        ]
                                         : [],
                             });
                             page++;
@@ -1721,18 +1709,16 @@ export class GiveawayClient extends GiveawayEvents {
                             }
                             return r.edit(
                                 embedComment(
-                                    `- Removed: ${
-                                        is.array(removed)
-                                            ? removed
-                                                  .map((c) => `<@${c}>`)
-                                                  .join(", ")
-                                            : "N/A"
-                                    }\n- Not Found: ${
-                                        is.array(notFound)
-                                            ? notFound
-                                                  .map((c) => `<@${c}>`)
-                                                  .join(", ")
-                                            : "N/A"
+                                    `- Removed: ${is.array(removed)
+                                        ? removed
+                                            .map((c) => `<@${c}>`)
+                                            .join(", ")
+                                        : "N/A"
+                                    }\n- Not Found: ${is.array(notFound)
+                                        ? notFound
+                                            .map((c) => `<@${c}>`)
+                                            .join(", ")
+                                        : "N/A"
                                     }`,
                                     "Green"
                                 )
@@ -2015,17 +2001,17 @@ export class GiveawayClient extends GiveawayEvents {
             },
 
             list: async <D>(guildIds?: string[]) => {
-                return await this.#dbs.getAll<D>("active", {
+                return await this.dbs.getAll<D>("active", {
                     pending: true,
                     users: {
                         $in: [userId],
                     },
                     ...(is.array(guildIds)
                         ? {
-                              guildId: {
-                                  $in: guildIds,
-                              },
-                          }
+                            guildId: {
+                                $in: guildIds,
+                            },
+                        }
                         : {}),
                 });
             },

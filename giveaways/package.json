@@ -1,8 +1,8 @@
 {
   "name": "@elara-services/giveaways",
-  "version": "0.0.1",
-  "description": "[WIP]: Package to handle/do giveaways on Discord.",
-  "main": "./dist/index.js",
+  "version": "1.1.0",
+  "description": "Package to handle/do giveaways on Discord.",
+  "main": "./dist/src/index.js",
   "author": "SUPERCHIEFYT (Elara-Discord-Bots, Elara-Services)",
   "license": "ISC",
   "scripts": {
@@ -22,27 +22,27 @@
     "docs"
   ],
   "devDependencies": {
-    "@types/node": "^20.3.0",
-    "@typescript-eslint/eslint-plugin": "^5.59.9",
-    "@typescript-eslint/parser": "^5.59.9",
-    "eslint": "^8.42.0",
-    "prettier": "^2.8.8",
+    "@types/node": "20.3.0",
+    "@typescript-eslint/eslint-plugin": "5.59.9",
+    "@typescript-eslint/parser": "5.59.9",
+    "eslint": "8.42.0",
+    "prettier": "2.8.8",
     "ts-node": "10.9.1",
-    "tslib": "^2.6.0",
+    "tslib": "2.6.0",
     "typedoc": "0.24.8",
     "typescript": "5.1.3"
   },
   "dependencies": {
-    "@discordjs/rest": "^2.3.0",
-    "@elara-services/dms": "^1.0.0",
-    "@elara-services/packages": "^6.1.0",
-    "@elara-services/utils": "^2.0.11",
-    "@sapphire/discord.js-utilities": "^7.1.5",
-    "discord-api-types": "^0.37.81",
-    "discord.js": "^14.15.2",
-    "eventemitter3": "^5.0.1",
-    "moment": "^2.30.1",
+    "@discordjs/rest": "2.3.0",
+    "@elara-services/dms": "1.0.0",
+    "@elara-services/packages": "6.1.0",
+    "@elara-services/utils": "2.0.11",
+    "@sapphire/discord.js-utilities": "7.1.5",
+    "discord-api-types": "0.37.81",
+    "discord.js": "14.15.2",
+    "eventemitter3": "5.0.1",
+    "moment": "2.30.1",
     "mongodb": "6.6.2",
-    "node-schedule": "^2.1.1"
+    "node-schedule": "2.1.1"
   }
 }
