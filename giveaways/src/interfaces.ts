@@ -9,7 +9,7 @@ import {
     TextBasedChannel,
     User,
 } from "discord.js";
-import { MongoClient, MongoClientOptions } from "mongodb";
+import { MongoClient, MongoClientOptions, ObjectId } from "mongodb";
 
 export type CollectionNames = "active" | "old" | "settings";
 
@@ -38,7 +38,7 @@ export type GiveawayFilter = (
 ) => Promise<Status> | Status;
 
 export interface GiveawayDatabase {
-    _id: string;
+    _id: ObjectId;
     pending: boolean;
     id: string;
     winners: number;
@@ -58,6 +58,9 @@ export interface GiveawayDatabase {
         mention?: boolean;
     } | null;
     roles: Record<RoleTypes, string[]>;
+    won: string[];
+    rerolled: string[];
+    deleteAfter?: string;
 }
 export type Giveaway<D = void> = GiveawayDatabase & D;
 
@@ -78,10 +81,16 @@ export interface GiveawaySettings {
     guildId: string;
     messages: {
         winner: CustomMessage;
+        reroll: CustomMessage;
     };
     toggles: {
         hostCanJoin: boolean;
     };
+    authorized: {
+        channelId: string;
+        roles: string[];
+        users: string[];
+    }[];
     entries: Entries[];
 }
 
