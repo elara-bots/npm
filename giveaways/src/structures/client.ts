@@ -1,5 +1,5 @@
 import { EmbedBuilder } from "@discordjs/builders";
-import { REST, RawFile } from "@discordjs/rest";
+import { RawFile, REST } from "@discordjs/rest";
 import { ButtonStyle, Interactions, Tasks } from "@elara-services/packages";
 import {
     chunk,
@@ -11,6 +11,7 @@ import {
     get,
     getAllBrackets,
     getClientIntents,
+    getComponent,
     getInteractionResponder,
     getInteractionResponders,
     getPackageStart,
@@ -26,6 +27,7 @@ import {
     snowflakes,
     status,
     time,
+    XOR,
 } from "@elara-services/utils";
 import { PaginatedMessage } from "@sapphire/discord.js-utilities";
 import {
@@ -56,6 +58,7 @@ import { Document, Filter, MongoClient, ObjectId } from "mongodb";
 import pack from "../../package.json";
 import {
     AddGiveaway,
+    AddGiveawayWithTemplate,
     CollectionFilter,
     CollectionNames,
     CustomMessage,
@@ -356,8 +359,7 @@ export class GiveawayClient extends GiveawayEvents {
     public get settings() {
         // FINISHED
         return {
-            get: async (guildId: string) =>
-                await this.dbs.getSettings(guildId),
+            get: async (guildId: string) => await this.dbs.getSettings(guildId),
             update: async (guildId: string, data: GiveawaySettingsUpdateData) =>
                 await this.dbs.settings
                     .updateOne({ guildId }, { $set: data })
@@ -426,8 +428,12 @@ export class GiveawayClient extends GiveawayEvents {
                 disableButton = false,
                 emoji?: ComponentEmojiResolvable
             ) => {
+                const current = getComponent(m, `giveaway:${data.id}`);
                 let style = ButtonStyle.GREEN;
-                if (this.#randomButtonColor) {
+                if (current) {
+                    emoji = current.emoji;
+                    style = current.style;
+                } else if (this.#randomButtonColor) {
                     style = getRandom([
                         ButtonStyle.PRIMARY,
                         ButtonStyle.GREEN,
@@ -528,23 +534,23 @@ export class GiveawayClient extends GiveawayEvents {
                         },
                         fields: is.array(data.entries)
                             ? [
-                                {
-                                    name: "\u200b",
-                                    value: data.entries
-                                        .sort((a, b) => b.amount - a.amount)
-                                        .map(
-                                            (c) =>
-                                                `- ${c.roles
-                                                    .map((c) => `<@&${c}>`)
-                                                    .join(
-                                                        " "
-                                                    )} (**${formatNumber(
-                                                        c.amount
-                                                    )}** entries)`
-                                        )
-                                        .join("\n"),
-                                },
-                            ]
+                                  {
+                                      name: "\u200b",
+                                      value: data.entries
+                                          .sort((a, b) => b.amount - a.amount)
+                                          .map(
+                                              (c) =>
+                                                  `- ${c.roles
+                                                      .map((c) => `<@&${c}>`)
+                                                      .join(
+                                                          " "
+                                                      )} (**${formatNumber(
+                                                      c.amount
+                                                  )}** entries)`
+                                          )
+                                          .join("\n"),
+                                  },
+                              ]
                             : undefined,
                     },
                 ];
@@ -627,14 +633,14 @@ export class GiveawayClient extends GiveawayEvents {
                         .join(", ")}\n-# Your current level: **${userLevel}**`
                 );
             },
-            roles: (db: AddGiveaway) => {
+            roles: (db: XOR<AddGiveaway, AddGiveawayWithTemplate>) => {
                 const json = new GiveawayBuilder(db).toJSON();
                 for (const n of make.array<RoleTypes>([
                     "add",
                     "remove",
                     "required",
                 ])) {
-                    const r = this.utils.brackets.roles(db.prize, n);
+                    const r = this.utils.brackets.roles(db.prize || "", n);
                     if (is.array(r)) {
                         json.roles[n] = [...new Set([...json.roles[n], ...r])];
                     }
@@ -786,8 +792,9 @@ export class GiveawayClient extends GiveawayEvents {
                                     disableButton ? colors.red : colors.green
                                 )
                                 .setAuthor({
-                                    name: `🎊 GIVEAWAY${disableButton ? `ENDED` : ""
-                                        } 🎊`,
+                                    name: `🎊 GIVEAWAY${
+                                        disableButton ? `ENDED` : ""
+                                    } 🎊`,
                                 })
                                 .setTitle(
                                     removeAllBrackets(
@@ -806,8 +813,8 @@ export class GiveawayClient extends GiveawayEvents {
                                                     .join(
                                                         " "
                                                     )} (**${formatNumber(
-                                                        c.amount
-                                                    )}** entries)`
+                                                    c.amount
+                                                )}** entries)`
                                         )
                                         .join("\n"),
                                 });
@@ -859,8 +866,8 @@ export class GiveawayClient extends GiveawayEvents {
                                                         .join(
                                                             " "
                                                         )} (**${formatNumber(
-                                                            c.amount
-                                                        )}** entries)`
+                                                        c.amount
+                                                    )}** entries)`
                                             )
                                             .join("\n"),
                                     });
@@ -981,7 +988,19 @@ export class GiveawayClient extends GiveawayEvents {
                 return await this.api.del(id, "active", true);
             },
 
-            create: async (data: AddGiveaway) => {
+            create: async (data: XOR<AddGiveaway, AddGiveawayWithTemplate>) => {
+                if (!is.string(data.channelId) || !is.string(data.guildId)) {
+                    return status.error(
+                        `You failed to provide (data.channelId) or (data.guildId)`
+                    );
+                }
+                if (is.string(data.template)) {
+                    data = await this.templates.toGiveaway(
+                        data.template,
+                        data.guildId,
+                        data
+                    );
+                }
                 if (!is.string(data.prize)) {
                     return status.error(
                         `You failed to provide a 'prize' when creating the giveaway.`
@@ -989,7 +1008,8 @@ export class GiveawayClient extends GiveawayEvents {
                 }
                 if (data.prize.length > limits.description - 500) {
                     return status.error(
-                        `Prize is above the embed description limit (${limits.description - 500
+                        `Prize is above the embed description limit (${
+                            limits.description - 500
                         })`
                     );
                 }
@@ -1038,7 +1058,7 @@ export class GiveawayClient extends GiveawayEvents {
                     },
                     ...(data.options?.components?.slice(0, 4) || []),
                 ];
-                
+
                 if (is.object(data.options)) {
                     if (is.string(data.options.content)) {
                         options.content = data.options.content;
@@ -1068,8 +1088,10 @@ export class GiveawayClient extends GiveawayEvents {
                     .catch((e) => new Error(e))) as Message | Error;
                 if (msg instanceof Error) {
                     return status.error(
-                        `Giveaway not created, error while trying to send to (${data.channelId
-                        }) channel. ${msg?.stack || msg.message || "Unknown Error?"
+                        `Giveaway not created, error while trying to send to (${
+                            data.channelId
+                        }) channel. ${
+                            msg?.stack || msg.message || "Unknown Error?"
                         }`
                     );
                 }
@@ -1156,8 +1178,8 @@ export class GiveawayClient extends GiveawayEvents {
                     userCount
                         ? data.users.length
                         : data.users
-                            .map((c) => c.entries)
-                            .reduce((a, b) => a + b, 0),
+                              .map((c) => c.entries)
+                              .reduce((a, b) => a + b, 0),
                 user: async <D>(
                     data: Giveaway<D>,
                     userId: string
@@ -1294,7 +1316,8 @@ export class GiveawayClient extends GiveawayEvents {
                     this.emit(
                         EVENTS.giveawayBulkDelete,
                         backups,
-                        `[AUTOMATIC]: Purge of ${this.#deleteAfter
+                        `[AUTOMATIC]: Purge of ${
+                            this.#deleteAfter
                         } day${getPluralTxt(this.#deleteAfter)} old giveaways.`
                     );
                 }
@@ -1319,7 +1342,8 @@ export class GiveawayClient extends GiveawayEvents {
                 }
                 if (amount > (g.winners || 1)) {
                     return status.error(
-                        `Reroll amount received is higher than the giveaway winners set. (${g.winners || 1
+                        `Reroll amount received is higher than the giveaway winners set. (${
+                            g.winners || 1
                         })`
                     );
                 }
@@ -1553,12 +1577,14 @@ export class GiveawayClient extends GiveawayEvents {
                                                     (c) =>
                                                         `${formatNumber(
                                                             c.num
-                                                        )}. <@${c.id
+                                                        )}. <@${
+                                                            c.id
                                                         }> (**${formatNumber(
                                                             c.entries
-                                                        )}** ${c.entries === 1
-                                                            ? "entry"
-                                                            : "entries"
+                                                        )}** ${
+                                                            c.entries === 1
+                                                                ? "entry"
+                                                                : "entries"
                                                         })`
                                                 )
                                                 .join("\n")}`
@@ -1572,25 +1598,25 @@ export class GiveawayClient extends GiveawayEvents {
                                 ],
                                 actions:
                                     db.pending === true &&
-                                        (await this.utils.isAuthorized(
-                                            i.guildId,
-                                            i.channelId,
-                                            i.member
-                                        ))
+                                    (await this.utils.isAuthorized(
+                                        i.guildId,
+                                        i.channelId,
+                                        i.member
+                                    ))
                                         ? [
-                                            {
-                                                customId: `GA:user_remove:${gId}`,
-                                                style: ButtonStyle.DANGER,
-                                                type: ComponentType.Button,
-                                                emoji: {
-                                                    id: `1019045113151901726`,
-                                                },
-                                                label: `Remove Participant(s)`,
-                                                run(context) {
-                                                    context.collector.stop();
-                                                },
-                                            },
-                                        ]
+                                              {
+                                                  customId: `GA:user_remove:${gId}`,
+                                                  style: ButtonStyle.DANGER,
+                                                  type: ComponentType.Button,
+                                                  emoji: {
+                                                      id: `1019045113151901726`,
+                                                  },
+                                                  label: `Remove Participant(s)`,
+                                                  run(context) {
+                                                      context.collector.stop();
+                                                  },
+                                              },
+                                          ]
                                         : [],
                             });
                             page++;
@@ -1709,16 +1735,18 @@ export class GiveawayClient extends GiveawayEvents {
                             }
                             return r.edit(
                                 embedComment(
-                                    `- Removed: ${is.array(removed)
-                                        ? removed
-                                            .map((c) => `<@${c}>`)
-                                            .join(", ")
-                                        : "N/A"
-                                    }\n- Not Found: ${is.array(notFound)
-                                        ? notFound
-                                            .map((c) => `<@${c}>`)
-                                            .join(", ")
-                                        : "N/A"
+                                    `- Removed: ${
+                                        is.array(removed)
+                                            ? removed
+                                                  .map((c) => `<@${c}>`)
+                                                  .join(", ")
+                                            : "N/A"
+                                    }\n- Not Found: ${
+                                        is.array(notFound)
+                                            ? notFound
+                                                  .map((c) => `<@${c}>`)
+                                                  .join(", ")
+                                            : "N/A"
                                     }`,
                                     "Green"
                                 )
@@ -2008,10 +2036,10 @@ export class GiveawayClient extends GiveawayEvents {
                     },
                     ...(is.array(guildIds)
                         ? {
-                            guildId: {
-                                $in: guildIds,
-                            },
-                        }
+                              guildId: {
+                                  $in: guildIds,
+                              },
+                          }
                         : {}),
                 });
             },

@@ -125,13 +125,19 @@ export class GiveawayBuilder {
     }
 
     public toJSON() {
-        if (!this.data.channelId || !this.data.end || !this.data.prize) {
+        if (
+            !this.data.channelId ||
+            !this.data.guildId ||
+            !this.data.end ||
+            !this.data.prize
+        ) {
             throw new Error(
                 `You failed to provide a 'channelId', 'end' or 'prize'`
             );
         }
         return {
             channelId: this.data.channelId,
+            guildId: this.data.guildId,
             end: new Date(this.data.end).toISOString(),
             prize: this.data.prize,
             button: this.data.button && {

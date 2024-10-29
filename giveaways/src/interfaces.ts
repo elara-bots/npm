@@ -66,24 +66,37 @@ export interface GiveawayDatabase {
 export interface AddTemplate {
     name: string;
     guildId: string;
-    data: GiveawayTemplateData;
+    data: Partial<Omit<GiveawayTemplateData, "guildId">>;
 }
 
 export type GiveawayTemplateData = Omit<
-    GiveawayDatabase, 
-    "_id" | "start" | "end" | "channelId" | 
-    "id" | "messageId" | "pending" | "users" | 
-    "deleteAfter"
+    GiveawayDatabase,
+    | "_id"
+    | "start"
+    | "end"
+    | "channelId"
+    | "id"
+    | "messageId"
+    | "pending"
+    | "users"
+    | "deleteAfter"
+    | "rerolled"
+    | "won"
 > & {
-    message: CustomMessage,
-}
+    message: CustomMessage;
+    button: AddGiveaway["button"];
+};
 
 export interface GiveawayTemplate {
     _id: ObjectId;
     name: string;
-    guildId: string,
+    guildId: string;
     data: GiveawayTemplateData;
 }
+
+export type UpdateTemplateOptions = Partial<
+    Omit<GiveawayTemplate, "_id" | "guildId" | "name">["data"]
+>;
 
 export type Giveaway<D = void> = GiveawayDatabase & D;
 
@@ -141,6 +154,7 @@ export type RoleTypes = "required" | "add" | "remove";
 
 export interface AddGiveaway {
     channelId: string;
+    guildId: string;
     prize: string;
     end: Date | string;
     winners?: number;
@@ -166,3 +180,8 @@ export interface AddGiveaway {
     };
     entries?: Entries[];
 }
+
+export type AddGiveawayWithTemplate = Omit<AddGiveaway, "prize"> & {
+    template: string;
+    prize?: string;
+};
