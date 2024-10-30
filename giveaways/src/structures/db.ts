@@ -30,6 +30,9 @@ export class MongoDB {
                 )}: No 'mongodb.url' or 'MongoClient provided when constructing the client.`
             );
         }
+        if (!this.#isConnected) {
+            this.#connect();
+        }
     }
 
     public get dbs() {
@@ -154,7 +157,7 @@ export class MongoDB {
         );
     }
 
-    async connect() {
+    async #connect() {
         if (this.#isConnected || !this.db) {
             return;
         }

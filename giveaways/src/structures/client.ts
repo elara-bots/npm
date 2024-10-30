@@ -32,8 +32,6 @@ import { PaginatedMessage } from "@sapphire/discord.js-utilities";
 import {
     APIGuildMember,
     APIMessage,
-    GatewayMessageDeleteBulkDispatchData,
-    GatewayMessageDeleteDispatchData,
     RESTPatchAPIChannelMessageJSONBody,
     Routes,
 } from "discord-api-types/v10";
@@ -42,7 +40,6 @@ import {
     Collection,
     ComponentEmojiResolvable,
     ComponentType,
-    GatewayDispatchEvents,
     Guild,
     GuildMember,
     type Interaction,
@@ -97,7 +94,6 @@ export class GiveawayClient extends GiveawayEvents {
             );
         }
         this.#mongo = new MongoDB(mongodb);
-        this.#mongo.connect();
         this.dbs = this.#mongo.dbs;
         if ("rest" in client && "setToken" in client.rest) {
             this.#dapi = client.rest;
