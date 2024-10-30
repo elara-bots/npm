@@ -3,17 +3,14 @@ import { GiveawayDatabase, GiveawayUser } from "../interfaces";
 
 export class GiveawayEvents {
     #events = new EventEmitter();
-    // @ts-ignore
     public on<E extends keyof GiveawayEventsList>(
         event: E,
         listener: (...args: GiveawayEventsList[E]) => Promise<unknown> | unknown
     ) {
-        // @ts-ignore
+        //@ts-ignore
         this.#events.on(event, listener);
         return this;
     }
-
-    // @ts-ignore
     public emit<E extends keyof GiveawayEventsList>(
         event: E,
         ...args: GiveawayEventsList[E]

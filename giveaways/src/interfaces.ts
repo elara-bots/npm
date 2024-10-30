@@ -85,6 +85,7 @@ export type GiveawayTemplateData = Omit<
 > & {
     message: CustomMessage;
     button: AddGiveaway["button"];
+    endTimer: number;
 };
 
 export interface GiveawayTemplate {
@@ -181,7 +182,8 @@ export interface AddGiveaway {
     entries?: Entries[];
 }
 
-export type AddGiveawayWithTemplate = Omit<AddGiveaway, "prize"> & {
+export type AddGiveawayWithTemplate = Omit<AddGiveaway, "prize" | "end"> & {
     template: string;
     prize?: string;
+    end?: string;
 };

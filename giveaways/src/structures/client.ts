@@ -9,7 +9,6 @@ import {
     embedComment,
     formatNumber,
     get,
-    getAllBrackets,
     getClientIntents,
     getComponent,
     getInteractionResponder,
@@ -54,7 +53,7 @@ import {
     TextInputStyle,
 } from "discord.js";
 import moment from "moment";
-import { Document, Filter, MongoClient, ObjectId } from "mongodb";
+import { ObjectId } from "mongodb";
 import pack from "../../package.json";
 import {
     AddGiveaway,
@@ -62,33 +61,34 @@ import {
     CollectionFilter,
     CollectionNames,
     CustomMessage,
-    Entries,
     Giveaway,
     GiveawayDatabase,
     GiveawayFilter,
     GiveawaySettings,
     GiveawaySettingsUpdateData,
     MongoDBOptions,
-    RoleTypes,
 } from "../interfaces";
 import { giveawayParser } from "../parser";
 import { messages } from "../utils";
 import { GiveawayBuilder } from "./builder";
+import { MongoDB } from "./db";
 import { EVENTS, GiveawayEvents } from "./events";
 import { GiveawayTemplates } from "./templates";
+import { GiveawayUtils } from "./utils";
 
 const start = getPackageStart(pack);
 let defaultHandler = false;
 
 export class GiveawayClient extends GiveawayEvents {
-    #isConnected = false;
-    #mongo: MongoClient;
+    #mongo: MongoDB;
     #deleteAfter = 2;
     #randomButtonColor = false;
     #cache = new Collection<string, CollectionFilter>();
     #dapi = new REST();
     private errorHandler: (error: unknown) => null = noop;
     public templates = new GiveawayTemplates(this);
+    public utils = new GiveawayUtils(this);
+    public dbs: MongoDB["dbs"];
     public constructor(public client: Client<true>, mongodb: MongoDBOptions) {
         super();
         if (!client || !(client instanceof Client)) {
@@ -96,16 +96,9 @@ export class GiveawayClient extends GiveawayEvents {
                 `${start}: No 'client' provided when constructing the client, or it's not an instance of a discord.js Client.`
             );
         }
-        if (mongodb instanceof MongoClient) {
-            this.#mongo = mongodb;
-        } else if (is.string(mongodb.url)) {
-            this.#mongo = new MongoClient(mongodb.url, mongodb.options);
-        } else {
-            throw new Error(
-                `${start}: No 'mongodb.url' or 'MongoClient provided when constructing the client.`
-            );
-        }
-        this.#connect();
+        this.#mongo = new MongoDB(mongodb);
+        this.#mongo.connect();
+        this.dbs = this.#mongo.dbs;
         if ("rest" in client && "setToken" in client.rest) {
             this.#dapi = client.rest;
         } else {
@@ -114,10 +107,8 @@ export class GiveawayClient extends GiveawayEvents {
     }
 
     public get filters() {
-        // FINISHED
         return {
             add: (channelId: string, filter: GiveawayFilter) => {
-                // FINISHED
                 this.#cache.delete(channelId);
                 this.#cache.set(channelId, {
                     channelId,
@@ -128,7 +119,6 @@ export class GiveawayClient extends GiveawayEvents {
                 );
             },
             remove: (channelId: string) => {
-                // FINISHED
                 if (!this.#cache.has(channelId)) {
                     return status.error(
                         `No giveaway filter for ${channelId} channel`
@@ -143,7 +133,6 @@ export class GiveawayClient extends GiveawayEvents {
                 add: (
                     channels: { channelId: string; filter: GiveawayFilter }[]
                 ) => {
-                    // FINISHED
                     const results = make.array<{
                         status: boolean;
                         message: string;
@@ -164,14 +153,11 @@ export class GiveawayClient extends GiveawayEvents {
                     }
                     return status.data(results);
                 },
-                get: (
-                    ids: string[] // FINISHED
-                ) =>
+                get: (ids: string[]) =>
                     ids
                         .map((c) => this.#cache.get(c) ?? null)
                         .filter((c) => c) as CollectionFilter[],
                 remove: (ids: string[]) => {
-                    // FINISHED
                     const count = ids.filter((c) => this.#cache.has(c)).length;
                     for (const id of ids) {
                         this.#cache.delete(id);
@@ -181,9 +167,8 @@ export class GiveawayClient extends GiveawayEvents {
                     );
                 },
             },
-            get: (channelId: string) => this.#cache.get(channelId) ?? null, // FINISHED
+            get: (channelId: string) => this.#cache.get(channelId) ?? null,
             removeAll: () => {
-                // FINISHED
                 if (!this.#cache.size) {
                     return status.error(`No giveaway filters found.`);
                 }
@@ -192,7 +177,6 @@ export class GiveawayClient extends GiveawayEvents {
                 return status.success(`Removed (${size}) giveaway filters.`);
             },
             list: (ids?: string[]) => {
-                // FINISHED
                 if (is.array(ids)) {
                     return [
                         ...this.#cache
@@ -205,86 +189,13 @@ export class GiveawayClient extends GiveawayEvents {
         };
     }
 
-    get #removal() {
-        // FINISHED
-        return {
-            handle: async (
-                name: string,
-                value: string[],
-                col: CollectionNames = "active"
-            ) => {
-                return await this.dbs[col]
-                    .deleteMany({
-                        [name]: {
-                            $in: value,
-                        },
-                    })
-                    .catch(this.errorHandler);
-            },
-            messages: async (ids: string[]) => {
-                return await Promise.all([
-                    this.#removal.handle("messageId", ids),
-                    this.#removal.handle("messageId", ids, "old"),
-                ]);
-            },
-            channels: async (channels: string[]) => {
-                return await Promise.all([
-                    // Remove the giveaways for the channels from both active and old databases.
-                    this.#removal.handle("channelId", channels),
-                    this.#removal.handle("channelId", channels, "old"),
-                ]);
-            },
-            servers: async (ids: string[]) => {
-                return await Promise.all([
-                    this.#removal.handle("guildId", ids),
-                    this.#removal.handle("guildId", ids, "old"),
-                ]);
-            },
-        };
-    }
-
     public async handler(filter?: GiveawayFilter) {
-        // FINISHED
         if (defaultHandler) {
             return this;
         }
         defaultHandler = true;
-        this.client.on("interactionCreate", async (i) => {
-            if (i.isButton() || i.isModalSubmit()) {
-                return this.interactions.main(i, filter);
-            }
-        });
-        this.client.on("channelDelete", async (channel) => {
-            if (!channel) {
-                return;
-            }
-            this.#removal.channels([channel.id]);
-        });
-        this.client.on("threadDelete", async (thread) => {
-            if (!thread) {
-                return;
-            }
-            this.#removal.channels([thread.id]);
-        });
-        this.client.ws.on(
-            GatewayDispatchEvents.MessageDelete,
-            (data: GatewayMessageDeleteDispatchData) => {
-                if (!data?.id) {
-                    return;
-                }
-                this.#removal.messages([data.id]);
-            }
-        );
-
-        this.client.ws.on(
-            GatewayDispatchEvents.MessageDeleteBulk,
-            (data: GatewayMessageDeleteBulkDispatchData) => {
-                if (!is.array(data?.ids)) {
-                    return;
-                }
-                this.#removal.messages(data.ids);
-            }
-        );
+        // @ts-ignore
+        this.#mongo.handler(this, filter);
 
         // Every 30 minutes, delete the old giveaway data.
         setInterval(() => this.api.deleteOld(), get.mins(30));
@@ -293,71 +204,21 @@ export class GiveawayClient extends GiveawayEvents {
     }
 
     public setDeleteOldAfter(days: number) {
-        // FINISHED
         this.#deleteAfter = days || 2;
         return this;
     }
 
     public setRandomButtonColor(bool: boolean) {
-        // FINISHED
         this.#randomButtonColor = bool;
         return this;
     }
 
     public setErrorHandler(handler?: (error: unknown) => null) {
-        // FINISHED
         this.errorHandler = handler || noop;
         return this;
     }
 
-    public get dbs() {
-        // FINISHED
-        const main = this.#mongo.db("Giveaways");
-        return {
-            active: main.collection("active"),
-            old: main.collection("old"),
-            settings: main.collection("settings"),
-            templates: main.collection("templates"),
-            getSettings: async (guildId: string) =>
-                (await this.dbs.settings
-                    .findOne({ guildId })
-                    .catch(this.errorHandler)) as GiveawaySettings | null,
-            getGiveaway: async <D>(
-                id: string,
-                name: CollectionNames = "active"
-            ) => {
-                const g = (await this.dbs[name]
-                    .findOne({ id })
-                    .catch(noop)) as Giveaway<D> | null;
-                return (
-                    g ??
-                    ((await this.dbs[name]
-                        .findOne({ messageId: id })
-                        .catch(noop)) as Giveaway<D> | null)
-                );
-            },
-            deleteGiveaway: async (
-                id: string,
-                name: CollectionNames = "active"
-            ) => {
-                return await Promise.all([
-                    this.dbs[name].deleteOne({ id }).catch(noop),
-                    this.dbs[name].deleteOne({ messageId: id }).catch(noop),
-                ]);
-            },
-            getAll: async <D>(
-                name: CollectionNames = "active",
-                filter?: Filter<Document>
-            ) =>
-                (await this.dbs[name]
-                    .find(filter || {})
-                    .toArray()
-                    .catch(() => [])) as Giveaway<D>[],
-        };
-    }
-
     public get settings() {
-        // FINISHED
         return {
             get: async (guildId: string) => await this.dbs.getSettings(guildId),
             update: async (guildId: string, data: GiveawaySettingsUpdateData) =>
@@ -558,11 +419,11 @@ export class GiveawayClient extends GiveawayEvents {
             },
 
             isDefaultEmbed(msg: APIMessage) {
-                if (msg.embeds.length > 1) {
+                if (msg.embeds.length > 1 || !is.array(msg.embeds)) {
                     return false;
                 }
                 const embed = msg.embeds[0];
-                if (embed.footer?.text?.startsWith?.("ID: ")) {
+                if (embed?.footer?.text?.startsWith?.("ID: ")) {
                     return true;
                 }
                 return false;
@@ -594,10 +455,7 @@ export class GiveawayClient extends GiveawayEvents {
                 winners: string[]
             ) => {
                 const db = await this.settings.get(guildId);
-                if (!db) {
-                    return messages.def.reroll(winners, data, modId);
-                }
-                if (!is.object(db.messages.winner)) {
+                if (!db || !is.object(db.messages.winner)) {
                     return messages.def.reroll(winners, data, modId);
                 }
                 return await giveawayParser<unknown, CustomMessage>(
@@ -606,152 +464,6 @@ export class GiveawayClient extends GiveawayEvents {
                     undefined,
                     winners
                 );
-            },
-        };
-    }
-
-    public get utils() {
-        return {
-            getLevelRequirements: (db: GiveawayDatabase | string) => {
-                const levels = this.utils.brackets.levels(db);
-                if (!is.array(levels)) {
-                    return null;
-                }
-                return `Required Level${getPluralTxt(levels)}: ${levels.join(
-                    ", "
-                )}`;
-            },
-            levels: (userLevel: number, requiredLevels: number[]) => {
-                for (const l of requiredLevels) {
-                    if (userLevel >= l) {
-                        return status.success(`All good!`);
-                    }
-                }
-                return status.error(
-                    `You don't meet the level requirements for this giveaway!\n-# You need to be one of these levels: ${requiredLevels
-                        .map((c) => `**${c}**`)
-                        .join(", ")}\n-# Your current level: **${userLevel}**`
-                );
-            },
-            roles: (db: XOR<AddGiveaway, AddGiveawayWithTemplate>) => {
-                const json = new GiveawayBuilder(db).toJSON();
-                for (const n of make.array<RoleTypes>([
-                    "add",
-                    "remove",
-                    "required",
-                ])) {
-                    const r = this.utils.brackets.roles(db.prize || "", n);
-                    if (is.array(r)) {
-                        json.roles[n] = [...new Set([...json.roles[n], ...r])];
-                    }
-                }
-                return json.roles;
-            },
-            brackets: {
-                get: (db: GiveawayDatabase | string, removeBrackets = true) => {
-                    const str = is.string(db) ? db : db.prize;
-                    return getAllBrackets(str, removeBrackets);
-                },
-                levels: (db: GiveawayDatabase | string) => {
-                    return this.utils.brackets
-                        .get(db, true)
-                        .filter((c) => c.toLowerCase().startsWith("level"))
-                        .map((c) => parseInt(c.split(":")[1]))
-                        .sort((a, b) => b - a);
-                },
-                roles: (db: GiveawayDatabase | string, name: string) => {
-                    return [
-                        ...new Set(
-                            this.utils.brackets
-                                .get(db, true)
-                                .filter((c) => c.toLowerCase().startsWith(name))
-                                .map((c) => {
-                                    const s = c.split(":")[1];
-                                    // eslint-disable-next-line no-useless-escape
-                                    const search = new RegExp(
-                                        [",", "\\|", "-", "/"].join("|"),
-                                        "gi"
-                                    );
-                                    if (s.match(search)) {
-                                        return s.split(search);
-                                    } else {
-                                        return [s];
-                                    }
-                                })
-                                .flatMap((c) => c)
-                        ).values(),
-                    ];
-                },
-                entries: (db: GiveawayDatabase | string) => {
-                    const list = make.array<Entries>();
-                    const entries = this.utils.brackets.get(db, true);
-                    if (!is.array(entries)) {
-                        return list;
-                    }
-                    for (const e of entries) {
-                        const entry: Entries = {
-                            roles: [],
-                            amount: 1,
-                        };
-                        for (const c of e
-                            .split(":")
-                            .filter((c) => c !== "entry")) {
-                            if (c.includes(",") || c.length > 15) {
-                                entry.roles.push(...c.split(","));
-                            }
-                            if (is.number(parseInt(c)) && c.length <= 15) {
-                                entry.amount = parseInt(c);
-                            }
-                        }
-                        if (is.array(entry.roles)) {
-                            list.push(entry);
-                        }
-                    }
-                    return list;
-                },
-            },
-            isAuthorized: async (
-                guildId: string,
-                channelId: string,
-                member: GuildMember
-            ) => {
-                if (member.permissions.has(40n)) {
-                    // If the user has Administrator or Manage Server permissions, then don't search the database
-                    return true;
-                }
-                const db = await this.settings.get(guildId);
-                if (!db) {
-                    return false;
-                }
-                const f = (db.authorized || []).find(
-                    (c) => c.channelId === channelId
-                );
-                if (f) {
-                    if (
-                        is.array(f.roles) &&
-                        member.roles.cache.hasAny(...f.roles)
-                    ) {
-                        return true;
-                    }
-                    if (is.array(f.users) && f.users.includes(member.id)) {
-                        return true;
-                    }
-                }
-                return false;
-            },
-            entries: (e: Entries[]) => {
-                const list = make.array<Entries>();
-                for (const c of e) {
-                    const f = list.find(
-                        (x) =>
-                            x.amount === c.amount &&
-                            c.roles.toString() === x.roles.toString()
-                    );
-                    if (!f) {
-                        list.push(c);
-                    }
-                }
-                return list;
             },
         };
     }
@@ -876,6 +588,7 @@ export class GiveawayClient extends GiveawayEvents {
                         }
                         if (r) {
                             await r.edit({
+                                content: disableButton ? null : undefined,
                                 embeds: isDefault
                                     ? [embed.toJSON()]
                                     : undefined,
@@ -887,6 +600,7 @@ export class GiveawayClient extends GiveawayEvents {
                             });
                         } else {
                             await this.#messages.edit(data, {
+                                content: disableButton ? null : undefined,
                                 embeds: isDefault
                                     ? [embed.toJSON()]
                                     : undefined,
@@ -1001,6 +715,11 @@ export class GiveawayClient extends GiveawayEvents {
                         data
                     );
                 }
+                if (!data.end) {
+                    return status.error(
+                        `You failed to provide a 'end' date for the giveaway!`
+                    );
+                }
                 if (!is.string(data.prize)) {
                     return status.error(
                         `You failed to provide a 'prize' when creating the giveaway.`
@@ -1017,9 +736,9 @@ export class GiveawayClient extends GiveawayEvents {
                     this.client,
                     data.channelId,
                     undefined,
-                    { cache: false, allowUnknownGuild: true }
+                    { cache: false }
                 );
-                if (!channel) {
+                if (!channel || !("guild" in channel)) {
                     return status.error(
                         `Unable to find (${data.channelId}) channel.`
                     );
@@ -1082,9 +801,30 @@ export class GiveawayClient extends GiveawayEvents {
                         options
                     );
                 }
+                const dbb = {
+                    id: gId,
+                    winners: p.winners,
+                    channelId: p.channelId,
+                    end: p.end,
+                    messageId: "",
+                    guildId: channel.guildId,
+                    host: p.host,
+                    pending: true,
+                    prize: p.prize,
+                    start: new Date().toISOString(),
+                    users: [],
+                    roles: p.roles,
+                    entries: p.entries,
+                    won: [],
+                    rerolled: [],
+                } as Omit<GiveawayDatabase, "_id">;
 
                 const msg = (await channel
-                    .send(options)
+                    .send(
+                        await giveawayParser(options, dbb as GiveawayDatabase, {
+                            guild: channel.guild,
+                        })
+                    )
                     .catch((e) => new Error(e))) as Message | Error;
                 if (msg instanceof Error) {
                     return status.error(
@@ -1095,24 +835,9 @@ export class GiveawayClient extends GiveawayEvents {
                         }`
                     );
                 }
+                dbb.messageId = msg.id;
                 const r = await this.dbs.active
-                    .insertOne({
-                        id: gId,
-                        winners: p.winners,
-                        channelId: p.channelId,
-                        end: p.end,
-                        messageId: msg.id,
-                        guildId: msg.guildId,
-                        host: p.host,
-                        pending: true,
-                        prize: p.prize,
-                        start: new Date().toISOString(),
-                        users: [],
-                        roles: p.roles,
-                        entries: p.entries,
-                        won: [],
-                        rerolled: [],
-                    } as Omit<GiveawayDatabase, "_id">)
+                    .insertOne(dbb)
                     .catch(this.errorHandler);
                 if (!r) {
                     return status.error(
@@ -1410,7 +1135,6 @@ export class GiveawayClient extends GiveawayEvents {
     public get interactions() {
         return {
             main: async (i: Interaction, filter?: GiveawayFilter) => {
-                // FINISHED
                 this.interactions.users.list(i);
                 this.interactions.users.remove(i);
                 if (!i.isButton() || !i.customId.startsWith("giveaway:")) {
@@ -1500,9 +1224,7 @@ export class GiveawayClient extends GiveawayEvents {
                 });
             },
             users: {
-                // FINISHED
                 list: async (i: Interaction) => {
-                    // FINISHED
                     if (
                         !i.inCachedGuild() ||
                         !("member" in i) ||
@@ -1625,7 +1347,6 @@ export class GiveawayClient extends GiveawayEvents {
                     }
                 },
                 remove: async (i: Interaction) => {
-                    // FINISHED
                     if (
                         !i.inCachedGuild() ||
                         !("member" in i) ||
@@ -1762,12 +1483,10 @@ export class GiveawayClient extends GiveawayEvents {
      * @description Returns true/false if the client has certain gateway intents
      */
     #bit(bit: number) {
-        // FINISHED
         return hasBit(getClientIntents(this.client), bit);
     }
 
     async #end(id: string) {
-        // FINISHED
         const db = await this.api.get(id);
         if (!db || !db.pending) {
             this.emit(
@@ -1802,6 +1521,7 @@ export class GiveawayClient extends GiveawayEvents {
         await Promise.all([
             this.api.update(id, db, "active", true, true, true),
             this.#messages.edit(db, {
+                content: null,
                 embeds: [messages.def.end(db, winners).toJSON()],
                 components: this.#messages.components(db, msg, true, {
                     name: "🎊",
@@ -1823,7 +1543,6 @@ export class GiveawayClient extends GiveawayEvents {
     }
 
     async #handleRewards(db: GiveawayDatabase, winners: string[]) {
-        // FINISHED
         if (is.array(db.roles.add) || is.array(db.roles.remove)) {
             for await (const w of winners) {
                 const m = await this.#getMember(db.guildId, w);
@@ -1860,7 +1579,6 @@ export class GiveawayClient extends GiveawayEvents {
     }
 
     async #getMember(guildId: string, userId: string) {
-        // FINISHED
         const guild = await this.#getGuild(guildId);
         if (!guild || !guild.available) {
             return null;
@@ -1869,7 +1587,6 @@ export class GiveawayClient extends GiveawayEvents {
     }
 
     public users(userId: string) {
-        // FINISHED
         if (!is.string(userId)) {
             throw new Error(
                 `No 'userId' provided in '<GiveawayClient>.users()'!`
@@ -2046,17 +1763,7 @@ export class GiveawayClient extends GiveawayEvents {
         };
     }
 
-    async #connect() {
-        // FINISHED
-        if (this.#isConnected || !this.#mongo) {
-            return;
-        }
-        await this.#mongo.connect();
-        this.#isConnected = true;
-    }
-
     async #getGuildMembers(guildId: string) {
-        // FINISHED
         if (this.#bit(2)) {
             const guild = await this.#getGuild(guildId);
             if (guild && guild.available) {
@@ -2072,7 +1779,6 @@ export class GiveawayClient extends GiveawayEvents {
     }
 
     async #getGuild(id: string) {
-        // FINISHED
         return (
             this.client.guilds.resolve(id) ||
             (await this.client.guilds.fetch(id).catch(noop)) ||

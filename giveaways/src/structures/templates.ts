@@ -66,6 +66,9 @@ export class GiveawayTemplates {
                     prize: data.prize,
                     roles: data.roles,
                     winners: data.winners || 1,
+                    endTimer: is.number(data.endTimer)
+                        ? data.endTimer
+                        : undefined,
                 },
             } as Omit<GiveawayTemplate, "_id">)
             .catch((e) => new Error(e));
@@ -122,6 +125,9 @@ export class GiveawayTemplates {
             return g.toJSON();
         }
         const { data: c } = f;
+        if (is.number(c.endTimer)) {
+            g.setEndTimer(c.endTimer);
+        }
         if (
             is.object(c.button) &&
             (is.string(c.button.emoji) ||
