@@ -22,6 +22,10 @@ export const gp = {
     winners: "%winners%",
     count: "%count%",
     users: "%users%",
+    no: {
+        thumbnail: "{thumbnail:no}",
+        image: "{image:no}",
+    },
     ...p,
 } as const;
 
@@ -34,6 +38,8 @@ export async function giveawayParser<D, R>(
     const s = JSON.stringify(await parser(obj, options));
     return JSON.parse(
         s
+            .replace(new RegExp(gp.no.image, "gi"), "")
+            .replace(new RegExp(gp.no.thumbnail, "gi"), "")
             .replace(new RegExp(gp.id, "gi"), db.id)
 
             .replace(new RegExp(gp.end, "gi"), new Date(db.end).toISOString())

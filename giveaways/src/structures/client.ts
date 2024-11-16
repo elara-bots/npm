@@ -19,7 +19,6 @@ import {
     getTimeLeft,
     hasBit,
     is,
-    limits,
     make,
     noop,
     removeAllBrackets,
@@ -79,27 +78,33 @@ let defaultHandler = false;
 export class GiveawayClient extends GiveawayEvents {
     #mongo: MongoDB;
     #deleteAfter = 2;
+    #syncTimer = get.secs(4);
     #randomButtonColor = false;
     #cache = new Collection<string, CollectionFilter>();
+    #sync = new Collection<string, string>();
     #dapi = new REST();
     private errorHandler: (error: unknown) => null = noop;
     public templates = new GiveawayTemplates(this);
     public utils = new GiveawayUtils(this);
     public dbs: MongoDB["dbs"];
-    public constructor(public client: Client<true>, mongodb: MongoDBOptions) {
+    public constructor(
+        public client: Client,
+        mongodb: MongoDBOptions,
+        token?: string
+    ) {
         super();
         if (!client || !(client instanceof Client)) {
             throw new Error(
                 `${start}: No 'client' provided when constructing the client, or it's not an instance of a discord.js Client.`
             );
         }
+        const t = token ?? client.token;
+        if (!is.string(t)) {
+            throw new Error(`The token wasn't available`);
+        }
         this.#mongo = new MongoDB(mongodb);
         this.dbs = this.#mongo.dbs;
-        if ("rest" in client && "setToken" in client.rest) {
-            this.#dapi = client.rest;
-        } else {
-            this.#dapi.setToken(client.token);
-        }
+        this.#dapi.setToken(t);
     }
 
     public get filters() {
@@ -192,10 +197,48 @@ export class GiveawayClient extends GiveawayEvents {
         defaultHandler = true;
         // @ts-ignore
         this.#mongo.handler(this, filter);
+        setInterval(() => this.#handleSync(), this.#syncTimer);
 
         // Every 30 minutes, delete the old giveaway data.
         setInterval(() => this.api.deleteOld(), get.mins(30));
         await this.api.scheduleAll();
+        return this;
+    }
+
+    async #handleSync() {
+        if (!this.#sync.size) {
+            return;
+        }
+        const syncing = this.#sync.clone();
+        this.#sync.clear();
+        const dbs = await this.dbs.getAll("active", {
+            id: {
+                $in: [...syncing.values()],
+            },
+        });
+        if (!is.array(dbs)) {
+            return;
+        }
+        for await (const c of syncing.values()) {
+            const db = dbs.find((r) => r.id === c);
+            if (!db) {
+                continue;
+            }
+            await this.api.update(
+                db.id,
+                db,
+                "active",
+                true,
+                false,
+                false,
+                undefined,
+                true
+            );
+        }
+    }
+
+    public setSyncTimer(ms: number) {
+        this.#syncTimer = ms;
         return this;
     }
 
@@ -379,16 +422,13 @@ export class GiveawayClient extends GiveawayEvents {
                 extra.push(`Ends at: ${time.relative(data.end)}`);
                 options.embeds = [
                     {
-                        color: colors.green,
+                        color: data.embed?.color || colors.green,
                         author: { name: `🎊 GIVEAWAY! 🎊` },
-                        title: removeAllBrackets(
-                            `${data.prize}`.slice(0, limits.title)
-                        ),
+                        title: this.utils.title(data),
                         description: extra.map((c) => `- ${c}`).join("\n"),
                         footer: { text: `ID: ${id}` },
-                        thumbnail: {
-                            url: make.emojiURL("756943260538110103", "gif"),
-                        },
+                        thumbnail: this.utils.image(data, "thumbnail"),
+                        image: this.utils.image(data, "image"),
                         fields: is.array(data.entries)
                             ? [
                                   {
@@ -476,7 +516,8 @@ export class GiveawayClient extends GiveawayEvents {
                 updateMessage = true,
                 disableButton = false,
                 isEnd = false,
-                r?: getInteractionResponders
+                r?: getInteractionResponders,
+                skipSyncCheck = false
             ) => {
                 const entries = this.utils.brackets.entries(data.prize);
                 if (is.array(entries)) {
@@ -497,18 +538,16 @@ export class GiveawayClient extends GiveawayEvents {
                         if (isDefault) {
                             embed
                                 .setColor(
-                                    disableButton ? colors.red : colors.green
+                                    disableButton
+                                        ? colors.red
+                                        : data.embed?.color || colors.green
                                 )
                                 .setAuthor({
                                     name: `🎊 GIVEAWAY${
                                         disableButton ? `ENDED` : ""
                                     } 🎊`,
                                 })
-                                .setTitle(
-                                    removeAllBrackets(
-                                        data.prize.slice(0, limits.title)
-                                    )
-                                );
+                                .setTitle(this.utils.title(data));
                             if (is.array(data.entries)) {
                                 embed.setFields({
                                     name: "\u200b",
@@ -582,30 +621,36 @@ export class GiveawayClient extends GiveawayEvents {
                                 }
                             }
                         }
-                        if (r) {
-                            await r.edit({
-                                content: disableButton ? null : undefined,
-                                embeds: isDefault
-                                    ? [embed.toJSON()]
-                                    : undefined,
-                                components: this.#messages.components(
-                                    data,
-                                    m,
-                                    disableButton
-                                ),
-                            });
+                        if (disableButton !== true && skipSyncCheck !== true) {
+                            if (!this.#sync.has(data.id)) {
+                                this.#sync.set(data.id, data.id);
+                            }
                         } else {
-                            await this.#messages.edit(data, {
-                                content: disableButton ? null : undefined,
-                                embeds: isDefault
-                                    ? [embed.toJSON()]
-                                    : undefined,
-                                components: this.#messages.components(
-                                    data,
-                                    m,
-                                    disableButton
-                                ),
-                            });
+                            if (r) {
+                                await r.edit({
+                                    content: disableButton ? null : undefined,
+                                    embeds: isDefault
+                                        ? [embed.toJSON()]
+                                        : undefined,
+                                    components: this.#messages.components(
+                                        data,
+                                        m,
+                                        disableButton
+                                    ),
+                                });
+                            } else {
+                                await this.#messages.edit(data, {
+                                    content: disableButton ? null : undefined,
+                                    embeds: isDefault
+                                        ? [embed.toJSON()]
+                                        : undefined,
+                                    components: this.#messages.components(
+                                        data,
+                                        m,
+                                        disableButton
+                                    ),
+                                });
+                            }
                         }
                     }
                 }
@@ -642,6 +687,7 @@ export class GiveawayClient extends GiveawayEvents {
                     GiveawayDatabase,
                     "_id"
                 >;
+                this.#sync.delete(data?.id || id);
                 if (data && !deleteOld) {
                     await this.dbs.old
                         .insertOne({
@@ -665,11 +711,29 @@ export class GiveawayClient extends GiveawayEvents {
                     data as GiveawayDatabase,
                     `Deleted '${name}' version of the giveaway.`
                 );
-                return await this.dbs.deleteGiveaway(id, name);
+                return status.data(
+                    (await this.dbs.deleteGiveaway(id, name)).filter(
+                        (c) => c !== null
+                    )
+                );
+            },
+
+            end: async (id: string) => {
+                const data = await this.api.get(id, "active");
+                this.#sync.delete(data?.id || id);
+                if (!data) {
+                    return status.error(`Giveaway (${id}) not found.`);
+                }
+                if (!data.pending) {
+                    return status.error(`Giveaway (${id}) isn't active.`);
+                }
+                await this.#end(id);
+                return status.success(`Giveaway (${id}) has been force ended.`);
             },
 
             cancel: async (id: string, reason = "No Reason Provided.") => {
                 const data = await this.api.get(id, "active");
+                this.#sync.delete(data?.id || id);
                 if (!data) {
                     return status.error(`Giveaway (${id}) not found.`);
                 }
@@ -721,13 +785,6 @@ export class GiveawayClient extends GiveawayEvents {
                         `You failed to provide a 'prize' when creating the giveaway.`
                     );
                 }
-                if (data.prize.length > limits.description - 500) {
-                    return status.error(
-                        `Prize is above the embed description limit (${
-                            limits.description - 500
-                        })`
-                    );
-                }
                 const channel = await discord.channel<TextBasedChannel>(
                     this.client,
                     data.channelId,
@@ -746,6 +803,7 @@ export class GiveawayClient extends GiveawayEvents {
                 };
                 const button = Interactions.button({
                     id: `giveaway:${gId}`,
+                    // @ts-ignore
                     style: data.button?.style || 1,
                     label: `0`,
                 });
@@ -813,6 +871,7 @@ export class GiveawayClient extends GiveawayEvents {
                     entries: p.entries,
                     won: [],
                     rerolled: [],
+                    embed: p.embed,
                 } as Omit<GiveawayDatabase, "_id">;
 
                 const msg = (await channel
@@ -1329,7 +1388,9 @@ export class GiveawayClient extends GiveawayEvents {
                                                   emoji: {
                                                       id: `1019045113151901726`,
                                                   },
-                                                  label: `Remove Participant(s)`,
+                                                  label: `Remove Participant${getPluralTxt(
+                                                      users
+                                                  )}`,
                                                   run(context) {
                                                       context.collector.stop();
                                                   },
@@ -1491,6 +1552,7 @@ export class GiveawayClient extends GiveawayEvents {
             );
             return;
         }
+        this.#sync.delete(db?.id || id);
         const msg = await this.#messages.fetch(db);
         if (!msg) {
             this.emit(
@@ -1554,10 +1616,10 @@ export class GiveawayClient extends GiveawayEvents {
                         }
                     }
                     if (is.array(db.roles.remove)) {
-                        if (current.some((c) => db.roles.remove.includes(c))) {
+                        if (current.some((c) => db.roles.remove?.includes(c))) {
                             changed = true;
                             current = current.filter(
-                                (c) => !db.roles.remove.includes(c)
+                                (c) => !db.roles.remove?.includes(c)
                             );
                         }
                     }
@@ -1606,17 +1668,30 @@ export class GiveawayClient extends GiveawayEvents {
                         `Giveaway (${id}) isn't pending, no users can be added to it.`
                     );
                 }
-                if (res.roles) {
-                    if (is.array(res.roles.required)) {
-                        const member = await this.#getMember(
-                            res.guildId,
-                            userId
+                if (
+                    res.roles &&
+                    (is.array(res.roles.blocked) ||
+                        is.array(res.roles.required))
+                ) {
+                    const member = await this.#getMember(res.guildId, userId);
+                    if (!member) {
+                        return status.error(
+                            `Unable to fetch your member information.`
                         );
-                        if (!member) {
+                    }
+                    if (is.array(res.roles.blocked)) {
+                        if (member.roles.cache.hasAny(...res.roles.blocked)) {
+                            const has = res.roles.blocked.filter((c) =>
+                                member.roles.cache.has(c)
+                            );
                             return status.error(
-                                `Unable to fetch your member information.`
+                                `You have a role that isn't allowed to enter this giveaway: ${has
+                                    .map((c) => `<@&${c}>`)
+                                    .join(", ")}`
                             );
                         }
+                    }
+                    if (is.array(res.roles.required)) {
                         if (!member.roles.cache.hasAny(...res.roles.required)) {
                             return status.error(
                                 `You need one of these roles to enter this giveaway: ${res.roles.required

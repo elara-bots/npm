@@ -2,7 +2,9 @@ import {
     getAllBrackets,
     getPluralTxt,
     is,
+    limits,
     make,
+    removeAllBrackets,
     status,
     XOR,
 } from "@elara-services/utils";
@@ -41,7 +43,12 @@ export class GiveawayUtils {
     }
     public roles(db: XOR<AddGiveaway, AddGiveawayWithTemplate>) {
         const json = new GiveawayBuilder(db).toJSON();
-        for (const n of make.array<RoleTypes>(["add", "remove", "required"])) {
+        for (const n of make.array<RoleTypes>([
+            "add",
+            "remove",
+            "required",
+            "blocked",
+        ])) {
             const r = this.brackets.roles(db.prize || "", n);
             if (is.array(r)) {
                 json.roles[n] = [...new Set([...json.roles[n], ...r])];
@@ -49,11 +56,48 @@ export class GiveawayUtils {
         }
         return json.roles;
     }
+
+    public title(data: XOR<AddGiveaway, GiveawayDatabase> | string) {
+        return `${removeAllBrackets(
+            is.string(data) ? data : data.prize
+        )}`.slice(0, limits.title);
+    }
+
+    public image(data: AddGiveaway, type: "image" | "thumbnail") {
+        if (this.brackets.has(data.prize || "", `{${type}:no}`)) {
+            return;
+        }
+        const url = data.embed?.[type] || "";
+        if (
+            ["none", "reset", "clear"].some(
+                (c) => c.toLowerCase() === url.toLowerCase()
+            )
+        ) {
+            return;
+        }
+        if (
+            url.match(/http(s)?:\/\//gi) &&
+            url.match(/.(gif|(a)?png|jp(e)?g|webp)/gi)
+        ) {
+            return { url };
+        }
+        if (type === "thumbnail") {
+            return {
+                url: make.emojiURL("756943260538110103", "gif"),
+            };
+        }
+        return;
+    }
+
     public get brackets() {
         return {
             get: (db: GiveawayDatabase | string, removeBrackets = true) => {
                 const str = is.string(db) ? db : db.prize;
                 return getAllBrackets(str, removeBrackets);
+            },
+            has: (db: GiveawayDatabase | string, value: string) => {
+                const b = this.brackets.get(db);
+                return b.some((c) => c === value);
             },
             levels: (db: GiveawayDatabase | string) => {
                 return this.brackets

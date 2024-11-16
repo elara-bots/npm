@@ -57,9 +57,10 @@ export interface GiveawayDatabase {
         id: string;
         mention?: boolean;
     } | null;
-    roles: Record<RoleTypes, string[]>;
+    roles: Partial<Record<RoleTypes, string[]>>;
     won: string[];
     rerolled: string[];
+    embed: AddGiveaway["embed"];
     deleteAfter?: string;
 }
 
@@ -151,7 +152,7 @@ export interface GiveawayUser {
     entries: number;
 }
 
-export type RoleTypes = "required" | "add" | "remove";
+export type RoleTypes = "required" | "add" | "remove" | "blocked";
 
 export interface AddGiveaway {
     channelId: string;
@@ -180,7 +181,14 @@ export interface AddGiveaway {
         style?: ButtonStyles | ButtonStyle;
     };
     entries?: Entries[];
+    embed?: GiveawayEmbedOptions;
 }
+
+export type GiveawayEmbedOptions = Partial<{
+    thumbnail: string;
+    image: string;
+    color: number;
+}>;
 
 export type AddGiveawayWithTemplate = Omit<AddGiveaway, "prize" | "end"> & {
     template: string;

@@ -1,6 +1,6 @@
 {
   "name": "@elara-services/giveaways",
-  "version": "1.1.0",
+  "version": "1.2.14",
   "description": "Package to handle/do giveaways on Discord.",
   "main": "./dist/src/index.js",
   "author": "SUPERCHIEFYT (Elara-Discord-Bots, Elara-Services)",
@@ -34,12 +34,10 @@
   },
   "dependencies": {
     "@discordjs/rest": "2.3.0",
-    "@elara-services/dms": "1.0.0",
     "@elara-services/packages": "6.1.0",
     "@elara-services/utils": "^2.0.13",
     "@sapphire/discord.js-utilities": "7.1.5",
     "discord-api-types": "0.37.81",
-    "discord.js": "14.15.2",
     "eventemitter3": "5.0.1",
     "moment": "2.30.1",
     "mongodb": "6.6.2",

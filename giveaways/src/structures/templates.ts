@@ -69,6 +69,7 @@ export class GiveawayTemplates {
                     endTimer: is.number(data.endTimer)
                         ? data.endTimer
                         : undefined,
+                    embed: data.embed,
                 },
             } as Omit<GiveawayTemplate, "_id">)
             .catch((e) => new Error(e));
@@ -134,13 +135,24 @@ export class GiveawayTemplates {
                 is.number(c.button.style) ||
                 is.string(c.button.style))
         ) {
-            g.setButton({ emoji: c.button.emoji, style: c.button.style });
+            g.setButton(c.button);
         }
-        if (is.string(c.prize)) {
+        if (is.string(c.prize) && !is.string(data.prize)) {
             g.setPrize(c.prize);
         }
         if (is.array(c.entries)) {
             g.setEntries(c.entries);
+        }
+        if (is.object(c.embed)) {
+            if (is.string(c.embed.image)) {
+                g.setImage(c.embed.image);
+            }
+            if (is.string(c.embed.thumbnail)) {
+                g.setThumbnail(c.embed.thumbnail);
+            }
+            if (is.number(c.embed.color)) {
+                g.setColor(c.embed.color);
+            }
         }
         if (is.object(c.roles)) {
             if (is.array(c.roles.add)) {

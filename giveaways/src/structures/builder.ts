@@ -1,5 +1,10 @@
 import { is } from "@elara-services/utils";
-import { AddGiveaway, Entries, RoleTypes } from "../interfaces";
+import {
+    AddGiveaway,
+    Entries,
+    GiveawayEmbedOptions,
+    RoleTypes,
+} from "../interfaces";
 
 export class GiveawayBuilder {
     public constructor(public data: Partial<AddGiveaway> = {}) {}
@@ -28,6 +33,34 @@ export class GiveawayBuilder {
     public setWinners(amount: number) {
         this.data.winners = amount;
         return this;
+    }
+
+    public setEmbed(embed: GiveawayEmbedOptions) {
+        if (!is.object(this.data.embed)) {
+            this.data.embed = {};
+        }
+        if (is.string(embed.thumbnail)) {
+            this.data.embed.thumbnail = embed.thumbnail;
+        }
+        if (is.number(embed.color)) {
+            this.data.embed.color = embed.color;
+        }
+        if (is.string(embed.image)) {
+            this.data.embed.image = embed.image;
+        }
+        return this;
+    }
+
+    public setThumbnail(url?: string) {
+        return this.setEmbed({ thumbnail: url });
+    }
+
+    public setImage(url?: string) {
+        return this.setEmbed({ image: url });
+    }
+
+    public setColor(color?: number) {
+        return this.setEmbed({ color });
     }
 
     /**
@@ -109,6 +142,10 @@ export class GiveawayBuilder {
         return this.#handleRoles(roles, "remove");
     }
 
+    public setBlockedRoles(roles: string[]) {
+        return this.#handleRoles(roles, "blocked");
+    }
+
     #stripMention(str: string) {
         return str.replace(/<@(&)?|>/gi, "");
     }
@@ -135,6 +172,10 @@ export class GiveawayBuilder {
                 `You failed to provide a 'channelId', 'end' or 'prize'`
             );
         }
+        const roles = (name: RoleTypes) =>
+            is.array(this.data.roles?.[name])
+                ? this.data.roles?.[name] || []
+                : [];
         return {
             channelId: this.data.channelId,
             guildId: this.data.guildId,
@@ -155,18 +196,20 @@ export class GiveawayBuilder {
                 : undefined,
             options: this.data.options,
             roles: {
-                add: is.array(this.data.roles?.add)
-                    ? this.data.roles?.add || []
-                    : [],
-                remove: is.array(this.data.roles?.remove)
-                    ? this.data.roles?.remove || []
-                    : [],
-                required: is.array(this.data.roles?.required)
-                    ? this.data.roles?.required || []
-                    : [],
+                add: roles("add"),
+                remove: roles("remove"),
+                required: roles("required"),
+                blocked: roles("blocked"),
             },
             winners: is.number(this.data.winners) ? this.data.winners : 1,
             entries: is.array(this.data.entries) ? this.data.entries : [],
+            embed: {
+                image: this.data.embed?.image,
+                thumbnail: this.data.embed?.thumbnail,
+                color: is.number(this.data.embed?.color)
+                    ? this.data.embed?.color || 0
+                    : 0,
+            },
         };
     }
 }
