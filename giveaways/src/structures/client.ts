@@ -531,76 +531,28 @@ export class GiveawayClient extends GiveawayEvents {
                     [updateMessage, disableButton].includes(true) &&
                     !isEnd
                 ) {
-                    const m = await this.#messages.fetch(data);
-                    if (m) {
-                        const embed = new EmbedBuilder(m.embeds[0]);
-                        const isDefault = this.#messages.isDefaultEmbed(m);
-                        if (isDefault) {
-                            embed
-                                .setColor(
-                                    disableButton
-                                        ? colors.red
-                                        : data.embed?.color || colors.green
-                                )
-                                .setAuthor({
-                                    name: `🎊 GIVEAWAY${
-                                        disableButton ? `ENDED` : ""
-                                    } 🎊`,
-                                })
-                                .setTitle(this.utils.title(data));
-                            if (is.array(data.entries)) {
-                                embed.setFields({
-                                    name: "\u200b",
-                                    value: data.entries
-                                        .sort((a, b) => b.amount - a.amount)
-                                        .map(
-                                            (c) =>
-                                                `- ${c.roles
-                                                    .map((c) => `<@&${c}>`)
-                                                    .join(
-                                                        " "
-                                                    )} (**${formatNumber(
-                                                    c.amount
-                                                )}** entries)`
-                                        )
-                                        .join("\n"),
-                                });
-                            }
-                            if (data.end) {
-                                const extra = make.array<string>([
-                                    `Winner${getPluralTxt(
-                                        data.winners || 1
-                                    )}: ${formatNumber(data.winners || 1)}`,
-                                ]);
-
-                                if (data.roles) {
-                                    if (is.array(data.roles.required)) {
-                                        extra.push(
-                                            `Required Role${getPluralTxt(
-                                                data.roles.required
-                                            )}: ${data.roles.required
-                                                .map((c) => `<@&${c}>`)
-                                                .join(", ")}`
-                                        );
-                                    }
-                                }
-
-                                if (data.host && data.host.id) {
-                                    extra.push(`Host: <@${data.host.id}>`);
-                                }
-                                const levels =
-                                    this.utils.getLevelRequirements(data);
-                                if (levels) {
-                                    extra.push(levels);
-                                }
-                                extra.push(
-                                    `Ends at: ${time.relative(data.end)}`
-                                );
-                                if (is.array(extra)) {
-                                    embed.setDescription(
-                                        extra.map((c) => `- ${c}`).join("\n")
-                                    );
-                                }
+                    if (disableButton !== true && skipSyncCheck !== true) {
+                        if (!this.#sync.has(data.id)) {
+                            this.#sync.set(data.id, data.id);
+                        }
+                    } else {
+                        const m = await this.#messages.fetch(data);
+                        if (m) {
+                            const embed = new EmbedBuilder(m.embeds[0]);
+                            const isDefault = this.#messages.isDefaultEmbed(m);
+                            if (isDefault) {
+                                embed
+                                    .setColor(
+                                        disableButton
+                                            ? colors.red
+                                            : data.embed?.color || colors.green
+                                    )
+                                    .setAuthor({
+                                        name: `🎊 GIVEAWAY${
+                                            disableButton ? `ENDED` : ""
+                                        } 🎊`,
+                                    })
+                                    .setTitle(this.utils.title(data));
                                 if (is.array(data.entries)) {
                                     embed.setFields({
                                         name: "\u200b",
@@ -619,13 +571,69 @@ export class GiveawayClient extends GiveawayEvents {
                                             .join("\n"),
                                     });
                                 }
+                                if (data.end) {
+                                    const extra = make.array<string>([
+                                        `Winner${getPluralTxt(
+                                            data.winners || 1
+                                        )}: ${formatNumber(data.winners || 1)}`,
+                                    ]);
+
+                                    if (data.roles) {
+                                        if (is.array(data.roles.required)) {
+                                            extra.push(
+                                                `Required Role${getPluralTxt(
+                                                    data.roles.required
+                                                )}: ${data.roles.required
+                                                    .map((c) => `<@&${c}>`)
+                                                    .join(", ")}`
+                                            );
+                                        }
+                                    }
+
+                                    if (data.host && data.host.id) {
+                                        extra.push(`Host: <@${data.host.id}>`);
+                                    }
+                                    const levels =
+                                        this.utils.getLevelRequirements(data);
+                                    if (levels) {
+                                        extra.push(levels);
+                                    }
+                                    extra.push(
+                                        `Ends at: ${time.relative(data.end)}`
+                                    );
+                                    if (is.array(extra)) {
+                                        embed.setDescription(
+                                            extra
+                                                .map((c) => `- ${c}`)
+                                                .join("\n")
+                                        );
+                                    }
+                                    if (is.array(data.entries)) {
+                                        embed.setFields({
+                                            name: "\u200b",
+                                            value: data.entries
+                                                .sort(
+                                                    (a, b) =>
+                                                        b.amount - a.amount
+                                                )
+                                                .map(
+                                                    (c) =>
+                                                        `- ${c.roles
+                                                            .map(
+                                                                (c) =>
+                                                                    `<@&${c}>`
+                                                            )
+                                                            .join(
+                                                                " "
+                                                            )} (**${formatNumber(
+                                                            c.amount
+                                                        )}** entries)`
+                                                )
+                                                .join("\n"),
+                                        });
+                                    }
+                                }
                             }
-                        }
-                        if (disableButton !== true && skipSyncCheck !== true) {
-                            if (!this.#sync.has(data.id)) {
-                                this.#sync.set(data.id, data.id);
-                            }
-                        } else {
                             if (r) {
                                 await r.edit({
                                     content: disableButton ? null : undefined,

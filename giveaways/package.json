@@ -1,6 +1,6 @@
 {
   "name": "@elara-services/giveaways",
-  "version": "1.2.14",
+  "version": "1.2.15",
   "description": "Package to handle/do giveaways on Discord.",
   "main": "./dist/src/index.js",
   "author": "SUPERCHIEFYT (Elara-Discord-Bots, Elara-Services)",
