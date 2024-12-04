@@ -40,6 +40,7 @@ export type MessageEditOption = string | MessagePayload | MessageEditOptions;
 export function embed(): EmbedBuilder {
     return new EmbedBuilder();
 }
+
 export function comment(description: string, color: keyof typeof DefaultColors | string | number, toJSON = false) {
     const em = embed()
         .setDescription(description)
@@ -72,7 +73,7 @@ export function getInteractionResponder(interaction: RepliableInteraction, handl
             return interaction.editReply(options).catch(handleErrors);
         },
         send: async (options: TextBasedChannelSendOption): Promise<void | Message> => {
-            if (!interaction.channel || !interaction.channel.isTextBased()) {
+            if (!interaction.channel || !interaction.channel.isTextBased() || !("send" in interaction.channel)) {
                 return;
             }
             return interaction.channel.send(options).catch(handleErrors);
@@ -138,7 +139,7 @@ export function getMessageResponder(message: Message) {
             return await message.reply(options).catch(error);
         },
         send: async (options: TextBasedChannelSendOption) => {
-            if (!message.channel || !message.channel.isTextBased()) {
+            if (!message.channel || !message.channel.isTextBased() || !("send" in message.channel)) {
                 return null;
             }
             const sentMessage = await message.channel.send(options).catch(error);

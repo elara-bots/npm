@@ -4,6 +4,7 @@
     "module": "commonjs" /* Specify what module code is generated. */,
     "outDir": "./dist",
     "esModuleInterop": true,
+    "baseUrl": ".",
     "forceConsistentCasingInFileNames": true,
     "strict": true,
     "skipLibCheck": true,

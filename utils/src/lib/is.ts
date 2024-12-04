@@ -36,6 +36,10 @@ export const is = {
     },
 
     object: (obj: any): obj is object => {
+        if (obj === null) {
+            // If the 'obj' is null it will return 'true' for th typeof check below. So this check is needed. (JS is dumb sometimes)
+            return false;
+        }
         return typeof obj === "object";
     },
 
@@ -68,14 +72,6 @@ export function getPluralTxt(arrOrNum: unknown[] | number): "" | "s" {
     return "";
 }
 
-/**
- * @deprecated
- * @description Use make.array()
- */
-export function makeArray<T>(arr?: T[]): T[] {
-    return make.array<T>(arr);
-}
-
 export function noop() {
     return null;
 }
@@ -89,9 +85,13 @@ function getExtension<D extends ImageExtension>(str?: string, ex: ImageExtension
 
 const main = `discord.com`;
 
+export type KType = string | number | symbol;
+
 export const make = {
     array: <T>(arr?: T[]): T[] => (is.array(arr) ? arr : []) as T[],
     set: <T>(val?: Set<T>): Set<T> => (val instanceof Set ? val : new Set<T>()) as Set<T>,
+    map: <K, V>(val?: Iterable<readonly [K, V]> | null | undefined) => new Map<K, V>(val),
+    object: <T>(obj?: T) => (is.object(obj) ? obj : {}) as T,
     cdn: (ex: string, proxy = false) => `https://${proxy ? `media.discordapp.net` : `cdn.discordapp.com`}/${ex}`,
     emojiURL: (id: string, ext: ImageExtension = "png", size?: number) => `${make.cdn(CDNRoutes.emoji(id, getExtension<EmojiFormat>(id, ext, false)))}${size ? `?size=${size}` : ""}`,
     guildURL: (guildId: string) => `https://${main}/channels/${guildId}` as const,
@@ -159,4 +159,21 @@ export const make = {
 
 export function includes(content: string | number, arr: (string | number)[], useIncludes = false) {
     return arr.some((c) => (useIncludes ? content.toString().includes(`${c}`) : content === c));
+}
+
+export function extractLinks(str: string | string[] | object) {
+    if (is.object(str)) {
+        str = JSON.stringify(str);
+    }
+    const links = make.array<string>();
+    // eslint-disable-next-line no-useless-escape
+    const link = (str: string) => ((str.match(/(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]+\.[^\s]{2,}|www\.[a-zA-Z0-9]+\.[^\s]{2,})/g) || [])?.map((c) => c.replace(new RegExp('"', "gi"), "")) || []).filter((c) => is.string(c));
+    if (is.array(str)) {
+        for (const c of str) {
+            links.push(...link(c));
+        }
+    } else if (is.string(str)) {
+        links.push(...link(str));
+    }
+    return links;
 }

@@ -268,3 +268,10 @@ export function convertiOSShit(str: string) {
     // Fuck you Apple
     return str.replace(/’/g, "'").replace(/“|”/g, '"');
 }
+
+export function getRandom<T>(arr: T[]): T {
+    return arr[Math.floor(Math.random() * arr.length)] as T;
+}
+export function getRandomValue(min: number, max: number) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}

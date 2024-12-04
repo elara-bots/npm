@@ -1,7 +1,7 @@
 import { Collection } from "@discordjs/collection";
 import { REST, makeURLSearchParams } from "@discordjs/rest";
 import { DiscordSnowflake } from "@sapphire/snowflake";
-import { APIEmbed, APIRoleSelectComponent, Routes, SelectMenuDefaultValueType, type APIMessage } from "discord-api-types/v10";
+import { APIButtonComponentWithCustomId, APIEmbed, APIRoleSelectComponent, Routes, SelectMenuDefaultValueType, type APIMessage } from "discord-api-types/v10";
 import {
     ActionRowBuilder,
     Application,
@@ -24,6 +24,7 @@ import {
     Message,
     MessageActionRowComponentBuilder,
     MessageCollector,
+    MessageComponentInteraction,
     MessageCreateOptions,
     MessagePayload,
     RepliableInteraction,
@@ -33,6 +34,7 @@ import {
     ThreadChannel,
     User,
     VoiceChannel,
+    resolvePartialEmoji,
     version,
     type ComponentEmojiResolvable,
     type FetchChannelOptions,
@@ -44,7 +46,7 @@ import {
     type StringSelectMenuInteraction,
     type UserSelectMenuInteraction,
 } from "discord.js";
-import { chunk, colors, getKeys, shuffle, sleep } from "./extra";
+import { chunk, colors, getKeys, getRandom, shuffle, sleep } from "./extra";
 import { is, noop } from "./is";
 import { XOR } from "./jobs";
 import { checkChannelPerms } from "./permissions";
@@ -880,7 +882,7 @@ export function embedComment(
 }
 
 export async function getConfirmPrompt(channelOrInteraction: TextBasedChannel | RepliableInteraction, user: User, str: string, timer = get.secs(30)) {
-    let msg: Message | null;
+    let msg: Message | null = null;
     const options = {
         embeds: [
             {
@@ -926,7 +928,9 @@ export async function getConfirmPrompt(channelOrInteraction: TextBasedChannel | 
                 .catch(() => null);
         }
     } else {
-        msg = await channelOrInteraction.send(options).catch(() => null);
+        if ("send" in channelOrInteraction) {
+            msg = await channelOrInteraction.send(options).catch(() => null);
+        }
     }
     if (!msg) {
         return null;
@@ -959,26 +963,38 @@ export async function getConfirmPrompt(channelOrInteraction: TextBasedChannel | 
 
 export type AnyInteraction = StringSelectMenuInteraction | UserSelectMenuInteraction | RoleSelectMenuInteraction | MentionableSelectMenuInteraction | ChannelSelectMenuInteraction | ButtonInteraction;
 
-export async function awaitComponent<D extends AnyInteraction>(
-    messageOrChannel: Message | TextBasedChannel,
-    options: {
-        custom_ids: { id: string; includes?: boolean }[];
-        users?: {
-            allow: boolean;
-            id: string;
-        }[];
-        time?: number;
-    },
-): Promise<D | null> {
+export type BaseAwaitComponentOptions = Partial<{
+    users: {
+        allow: boolean;
+        id: string;
+    }[];
+    time: number;
+    only: Partial<{
+        originalUser: boolean;
+    }>;
+}>;
+
+export type AwaitComponentOptions<D extends AnyInteraction> = XOR<BaseAwaitComponentOptions & { custom_ids: { id: string; includes?: boolean }[] }, BaseAwaitComponentOptions & { filter: (i: D) => boolean }>;
+
+export async function awaitComponent<D extends AnyInteraction>(messageOrChannel: Message | TextBasedChannel, options: AwaitComponentOptions<D>): Promise<D | null> {
+    if (!("awaitMessageComponent" in messageOrChannel)) {
+        return null;
+    }
     const filter = (i: Interaction) => {
         if (!("customId" in i)) {
             return false;
         }
-        if (is.array(options.users)) {
-            for (const user of options.users.filter((c) => c.allow === true)) {
-                if (user.id !== i.user.id) {
+        if (is.object(options.only)) {
+            if (options.only.originalUser === true && i.isMessageComponent()) {
+                if (!isOriginalInteractionUser(i)) {
                     return false;
                 }
+            }
+        }
+        if (is.array(options.users)) {
+            const allowed = options.users.filter((c) => c.allow === true);
+            if (is.array(allowed) && !allowed.find((r) => r.id === i.user.id)) {
+                return false;
             }
             const find = options.users.find((c) => c.id === i.user.id);
             if (find) {
@@ -987,14 +1003,20 @@ export async function awaitComponent<D extends AnyInteraction>(
                 }
             }
         }
-        return options.custom_ids.some((c) => (c.includes ? i.customId.includes(c.id) : i.customId === c.id));
+        if (options.filter && typeof options.filter === "function") {
+            return filter(i);
+        }
+        if (is.array(options.custom_ids)) {
+            return options.custom_ids.some((c) => (c.includes ? i.customId.includes(c.id) : i.customId === c.id));
+        }
+        return false;
     };
     const col = await messageOrChannel
         .awaitMessageComponent({
             filter,
             time: options.time ?? get.secs(30),
         })
-        .catch(() => null);
+        .catch(noop);
     if (!col) {
         return null;
     }
@@ -1014,6 +1036,9 @@ export async function awaitMessage(
         time: get.secs(30),
     },
 ) {
+    if (!("awaitMessages" in channel)) {
+        return null;
+    }
     const f = await channel
         .awaitMessages({
             filter: options.filter,
@@ -1036,6 +1061,9 @@ export async function awaitMessages(
         time: get.secs(30),
     },
 ) {
+    if (!("awaitMessages" in channel)) {
+        return null;
+    }
     const f = await channel
         .awaitMessages({
             filter: options.filter,
@@ -1079,6 +1107,7 @@ export function addButton(options: ButtonOptions) {
     if (is.boolean(options.disabled)) {
         button.setDisabled(options.disabled);
     }
+    // @ts-ignore
     if (!button.data.label && !button.data.emoji) {
         button.setEmoji("🤔"); // This only happens if there is no label or emoji to avoid erroring out the command.
     }
@@ -1128,9 +1157,9 @@ export function displayButtonRandomly(
     const b = get(options.bottom ?? 3);
     const all = [...t, ...m, ...b];
     shuffle(all);
-    let random = all[Math.floor(Math.random() * all.length)];
+    let random = getRandom(all);
     while (!random) {
-        random = all[Math.floor(Math.random() * all.length)];
+        random = getRandom(all);
     }
 
     return chunk(
@@ -1212,6 +1241,9 @@ export const collector = {
             type: ComponentType.Button | ComponentType.StringSelect | ComponentType.UserSelect | ComponentType.RoleSelect | ComponentType.MentionableSelect | ComponentType.ChannelSelect;
         }>,
     ) => {
+        if (!("createMessageComponentCollector" in target)) {
+            return null;
+        }
         let m = target instanceof Message ? target : null;
         if (options?.message && target instanceof TextChannel) {
             if (!is.array(options.message.components)) {
@@ -1245,6 +1277,7 @@ export const collector = {
             if (options.end) {
                 col.on("end", async (c, reason) => {
                     if (typeof options.end === "function" && col) {
+                        // @ts-ignore
                         await options.end(m, c, reason, col);
                     }
                     return void 0;
@@ -1264,6 +1297,9 @@ export const collector = {
             max: number;
         }>,
     ) => {
+        if (!("createMessageCollector" in channel)) {
+            return null;
+        }
         const col = channel.createMessageCollector({
             filter: options?.filter,
             time: options?.time || get.mins(1),
@@ -1281,6 +1317,7 @@ export const collector = {
             if (options.end) {
                 col.on("end", async (collected, reason) => {
                     if (typeof options.end === "function") {
+                        // @ts-ignore
                         await options.end(collected, reason, col);
                     }
                     return void 0;
@@ -1324,4 +1361,64 @@ export function makeRoleSelectMenu(custom_id: string, options?: RoleSelectMenuOp
 export function getClientIntents(client: Client) {
     // @ts-ignore
     return (client.options.intents?.bitfield || client.options.intents) as number;
+}
+
+export function disableComponent(
+    m: APIMessage,
+    filter: (custom_id: string) => boolean,
+    options?: {
+        style?: ButtonStyle;
+        label?: string;
+        emoji?: ComponentEmojiResolvable;
+        disabled?: boolean;
+    },
+) {
+    if (!is.array(m.components)) {
+        return [];
+    }
+    return m.components.map((c) => {
+        // @ts-ignore
+        c.components = c.components.map((r) => {
+            const customId = "custom_id" in r && r.custom_id ? r.custom_id : "customId" in r && r.customId && is.string(r.customId) ? r.customId : "";
+            if (customId && filter(customId)) {
+                r.disabled = true;
+                if (options) {
+                    if ("disabled" in options) {
+                        r.disabled = options.disabled;
+                    }
+                    if ("emoji" in options) {
+                        if (is.string(options.emoji)) {
+                            Reflect.defineProperty(r, "emoji", { value: resolvePartialEmoji(options.emoji) });
+                        } else if (is.object(options.emoji)) {
+                            Reflect.defineProperty(r, "emoji", { value: options.emoji });
+                        }
+                    }
+                    if (is.string(options.label)) {
+                        Reflect.defineProperty(r, "label", { value: options.label });
+                    }
+                    if ("style" in options) {
+                        Reflect.defineProperty(r, "style", { value: options.style });
+                    }
+                }
+            }
+            return r;
+        });
+        return c;
+    });
+}
+
+export function getComponent(m: APIMessage, custom_id: string) {
+    return ((m.components || []).flatMap((c) => c.components).find((c) => c.type === ComponentType.Button && "custom_id" in c && c.custom_id === custom_id) || null) as APIButtonComponentWithCustomId | null;
+}
+
+export function isOriginalInteractionUser(i: MessageComponentInteraction) {
+    if (!i.message) {
+        return true; // If there is no message, just return true?
+    }
+    // @ts-ignore
+    const original = (i.message.interaction || i.message.interactionMetadata)?.user as User;
+    if (i.user.id !== original?.id) {
+        return false;
+    }
+    return true;
 }

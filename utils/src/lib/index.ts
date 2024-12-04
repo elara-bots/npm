@@ -1,3 +1,4 @@
+export * from "./disco";
 export * from "./discord";
 export * from "./emojis";
 export * from "./extra";

@@ -1,4 +1,5 @@
-import type { Emoji, PartialEmoji } from "discord.js";
+import type { APIPartialEmoji } from "discord-api-types/v10";
+import type { Emoji } from "discord.js";
 import { is, make } from "./is";
 
 const getTwemojiURL = (name: string, version = "v15.1.0") => `https://cdn.jsdelivr.net/gh/jdecked/twemoji@${version}/assets/72x72/${name}.png`;
@@ -29,7 +30,7 @@ export function getUnicodeEmoji(emoji: string | null) {
     return r.join("-");
 }
 
-export function getDiscordEmoji(emoji: Emoji | PartialEmoji | null) {
+export function getDiscordEmoji(emoji: Emoji | APIPartialEmoji | null) {
     if (!emoji) {
         return null;
     }
