@@ -992,9 +992,10 @@ export async function awaitComponent<D extends AnyInteraction>(messageOrChannel:
             }
         }
         if (is.array(options.users)) {
-            const allowed = options.users.filter((c) => c.allow === true);
-            if (is.array(allowed) && !allowed.find((r) => r.id === i.user.id)) {
-                return false;
+            for (const user of options.users.filter((c) => c.allow === true)) {
+                if (user.id !== i.user.id) {
+                    return false;
+                }
             }
             const find = options.users.find((c) => c.id === i.user.id);
             if (find) {
@@ -1004,7 +1005,7 @@ export async function awaitComponent<D extends AnyInteraction>(messageOrChannel:
             }
         }
         if (options.filter && typeof options.filter === "function") {
-            return filter(i);
+            return options.filter(i as D);
         }
         if (is.array(options.custom_ids)) {
             return options.custom_ids.some((c) => (c.includes ? i.customId.includes(c.id) : i.customId === c.id));
