@@ -19,6 +19,13 @@ export interface CreateIssueOption extends BaseOptions<BaseRepoData> {
     milestone?: R["create"]["parameters"]["milestone"];
 }
 
+export interface UpdateIssueOption extends Partial<CreateIssueOption> {
+    issue: number;
+    repo: BaseRepoData,
+    state?: R['update']['parameters']['state'];
+    state_reason?: R['update']['parameters']['state_reason'];
+}
+
 export interface LockIssueOption extends BaseIssueData {
     reason?: R["lock"]["parameters"]["lock_reason"];
 }

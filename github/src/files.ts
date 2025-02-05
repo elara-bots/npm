@@ -21,13 +21,11 @@ export class Files {
         }
         const c = await this.client.repos
             .createOrUpdateFileContents({
-                owner: options.repo.owner,
-                repo: options.repo.repo,
+                ...options.repo,
                 message:
                     options.message || `Upload file(s) via ${name}@${version}`,
                 path: options.path,
                 content: data,
-                branch: options.repo.branch,
             })
             .catch((e) => new Error(e));
         const url = createURL(options.repo, encodeURIComponent(options.path));

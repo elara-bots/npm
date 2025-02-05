@@ -3,6 +3,7 @@ import {
     CreateIssueOption,
     LockIssueOption,
     UnlockIssueOption,
+    UpdateIssueOption,
 } from "../types";
 import { IssueComments } from "./comments";
 import { IssueLabels } from "./labels";
@@ -36,8 +37,11 @@ export class Issues {
                     continue;
                 }
                 if (rL && Array.isArray(rL.data) && rL.data?.length) {
-                    const f = rL.data.find((c) =>
-                        c.name.toLowerCase().includes(l.toLowerCase())
+                    const f = rL.data.find(
+                        (c) =>
+                            c.name === l ||
+                            c.name.toLowerCase() === l.toLowerCase() ||
+                            c.name.toLowerCase().includes(l.toLowerCase())
                     );
                     if (f) {
                         labels.push(f.name);
@@ -52,6 +56,20 @@ export class Issues {
             title: data.title,
             assignees: data.assignees,
             milestone: data.milestone,
+        });
+    }
+
+    public async update(data: UpdateIssueOption) {
+        return await this.client.issues.update({
+            ...data.repo,
+            issue_number: data.issue,
+            assignees: data.assignees,
+            state: data.state,
+            state_reason: data.state_reason,
+            labels: data.labels,
+            title: data.title,
+            milestone: data.milestone,
+            body: data.body,
         });
     }
 
