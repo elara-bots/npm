@@ -1,10 +1,10 @@
 declare module "@elara-services/youtube-videos" {
     import { EventEmitter } from "events";
-    export type ResponseType = Promise<object|string|Error>
+    export type ResponseType = Promise<object | string | Error>
 
 
     export class YouTubeVideos {
-        public constructor(); 
+        public constructor();
         private emitter: EventEmitter;
         public data: Set<string>;
         private interval: number;
@@ -100,9 +100,10 @@ declare module "@elara-services/youtube-videos" {
     }
 
     export class util extends null {
-        static fetchFeed(id: string): Promise<Feed|null>;
-        static fetchVideos(ids: string[], key: string): Promise<Video[]|null>;
+        static fetchFeed(id: string): Promise<Feed | null>;
+        static fetchVideos(ids: string[], key: string): Promise<Video[] | null>;
         static findVideo(data: Video[], id: string): Video | null;
+        static fetchUsers(ids: string[], key: string): Promise<object | null>;
         static isNew(video: Feed, minutes: number): boolean;
         static time(date: string | Date, format?: 'm' | string, parse?: boolean): number | string;
     }
