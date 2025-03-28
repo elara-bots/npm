@@ -5,3 +5,7 @@ export function createURL(data: RepoDataWithBranch, path?: string) {
         data.branch ? `/tree/${data.branch}` : ``
     }${path ? `/${path}` : ""}`;
 }
+
+export function makeErr(e: any): Error {
+    return new Error(e);
+}

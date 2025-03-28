@@ -27,6 +27,8 @@ export interface RepoDataWithBranch extends BaseRepoData {
 }
 
 export interface BaseFileCreate extends BaseOptions<RepoDataWithBranch> {
+    /** Only needed for updating the file's contents */
+    sha?: string;
     /** The full path to the file on the repo. (i.e: "examples/test.png") */
     path: string;
     /** The commit message */
