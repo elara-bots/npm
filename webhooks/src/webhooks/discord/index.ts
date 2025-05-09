@@ -1,10 +1,13 @@
-import { REST, makeURLSearchParams } from "@discordjs/rest";
-import { field, is, limits, resolveColor } from "@elara-services/utils";
-import type { APIActionRowComponent, APIEmbed, APIMessageActionRowComponent } from "discord-api-types/v10";
+import { REST, RawFile, makeURLSearchParams } from "@discordjs/rest";
+import { field, hasBit, is, limits, resolveColor, status } from "@elara-services/utils";
+import type { APIActionRowComponent, APIEmbed, APIMessage, APIMessageActionRowComponent } from "discord-api-types/v10";
 import type { DiscordWebhookData, DiscordWebhookOptions, sendOptions } from "../../interfaces";
-import { defaultOptions, error, status, url, validateURL } from "./utils";
+import { defaultOptions, error, url, validateURL } from "./utils";
 const rest = new REST();
 
+/**
+ * @description A Discord webhook message builder for webhook URLs 
+ */
 export class DiscordWebhook {
     private url: string;
     private data: DiscordWebhookData;
@@ -17,6 +20,7 @@ export class DiscordWebhook {
             options = defaultOptions;
         };
         this.data = {
+            flags: undefined,
             username: options.username || undefined,
             avatar_url: options.avatar_url || undefined,
             embeds: [],
@@ -24,7 +28,17 @@ export class DiscordWebhook {
             components: [],
             thread_id: options.threadId || undefined,
             allowed_mentions: undefined,
+            files: [],
         }
+    }
+
+    isEmpty(): boolean {
+        return !is.string(this.data.content) && !is.array(this.data.embeds) && !is.array(this.data.components) && !is.array(this.data.files)
+    }
+
+    public setFlags(bit: number) {
+        this.data.flags = bit;
+        return this;
     }
 
     setAllowedMentions(opt: sendOptions['allowed_mentions']) {
@@ -45,6 +59,17 @@ export class DiscordWebhook {
         };
         return this;
     };
+
+    file(data: RawFile) {
+        this.data.files.push(data);
+        return this;
+    }
+    files(data: RawFile[]) {
+        for (const d of data) {
+            this.file(d);
+        }
+        return this;
+    }
 
     mention(text: string = "") {
         if (is.string(text) && text.match(/<@(!|&)?/gi)) {
@@ -96,24 +121,47 @@ export class DiscordWebhook {
         return this;
     };
 
-    async send(force: boolean = false, token: string = "") {
-        if (token) {
-            rest.setToken(token);
+    /** Why is the 'arr' type unknown? because this is for components_v2 and that doesn't have any types yet. */
+    public components(arr: unknown[]) {
+        for (const c of arr) {
+            this.component(c);
         }
-        if (!this.data.content && !this.data.embeds.length && !this.data.components.length) return error(`You didn't add anything to be sent.`)
+        return this;
+    }
+    /** Why is the 'arr' type unknown? because this is for components_v2 and that doesn't have any types yet. */
+    public component(arr: unknown) {
+        const flag = this.data.flags || 0;
+        if (!hasBit(flag, 1 << 15)) {
+            if (is.number(flag, false)) {
+                this.data.flags = flag | 1 << 15;
+            } else {
+                this.data.flags = 1 << 15;
+            }
+        }
+        this.data.components.push(arr as any);
+        return this;
+    }
+
+    async send() {
+        if (this.isEmpty()) return error(`You didn't add anything to be sent.`)
         const Url = url(this.url);
         if (!Url) {
-            return;
+            return null;
         }
-        let r = await rest.post(`/${Url.path}`, { 
-            auth: false, 
-            body: this.data, 
-            query: makeURLSearchParams({ 
-                wait: true, 
-                thread_id: this.data.thread_id || Url.thread_id 
-            }) 
+        if (hasBit((this.data.flags || 0), 1 << 15) && (is.string(this.data.content) || is.array(this.data.embeds))) {
+            return error(`You included the 'components_v2' flag but you have 'content' or 'embeds' in the request (this fields isn't supported for components_v2)`);
+        }
+        let r = await rest.post(`/${Url.path}`, {
+            auth: false,
+            body: this.data,
+            files: this.data.files || undefined,
+            query: makeURLSearchParams({
+                wait: true,
+                with_components: true,
+                thread_id: this.data.thread_id || Url.thread_id,
+            })
         })
-            .then(r => status(true, r))
+            .then(r => status.data<APIMessage>(r as APIMessage))
             .catch(e => error(e))
         if (!r?.status) {
             error(r?.data || "Unknown Issue while sending");
@@ -126,21 +174,23 @@ export class DiscordWebhook {
             error(`You didn't provide a message ID.`);
             return;
         }
-        if (!this.data.content && !this.data.embeds.length && !this.data.components.length) return error(`You didn't add anything to be sent.`)
+        if (this.isEmpty()) return error(`You didn't add anything to be sent.`)
         const Url = url(this.url);
         if (!Url || !Url.path) {
             error(`You didn't provide a valid webhook?`);
             return;
         }
-        return await rest.patch(`/${Url.path}/messages/${messageId}`, { 
-            body: this.data, 
-            auth: false, 
-            query: makeURLSearchParams({ 
-                wait: true, 
-                thread_id: this.data.thread_id || Url.thread_id 
-            }) 
+        return await rest.patch(`/${Url.path}/messages/${messageId}`, {
+            body: this.data,
+            auth: false,
+            files: this.data.files || undefined,
+            query: makeURLSearchParams({
+                wait: true,
+                with_components: true,
+                thread_id: this.data.thread_id || Url.thread_id
+            })
         })
-        .then(r => status(true, r))
-        .catch(e => error(e));
+            .then(r => status.data(r as APIMessage))
+            .catch(e => error(e));
     }
 }

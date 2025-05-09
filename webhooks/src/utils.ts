@@ -1,11 +1,11 @@
+import { log as LOG, getPackageStart } from "@elara-services/utils";
 import { name, version } from "../package.json";
-const prefix = `[${name}, v${version}]: `;
 
 export function log(...args: unknown[]) {
-    return void console.log(prefix, ...args);
+    return void LOG(`${getPackageStart({ name, version })}: `, ...args);
 }
 export function throwError(str: string) {
-    throw new Error(`${prefix}${str}`)
+    throw new Error(`${getPackageStart({ name, version })}: ${str}`)
 }
 
 export const bannedUsernames = {

@@ -1,10 +1,10 @@
 {
     "name": "@elara-services/webhooks",
-    "version": "3.0.0",
+    "version": "4.0.12",
     "description": "To send/create webhooks",
     "main": "./dist/src/index.js",
     "scripts": {
-        "build": "rm -rf dist && tsc && npx typedoc src/index.ts",
+        "build": "rm -rf dist && rm -rf docs && tsc && npx typedoc src/index.ts",
         "pub": "npm run build && npm publish"
     },
     "files": [
@@ -21,8 +21,10 @@
     "dependencies": {
         "@discordjs/builders": "*",
         "@discordjs/rest": "*",
-        "@elara-services/utils": "^1.4.0",
-        "discord-api-types": "*"
+        "@elara-services/cache": "^1.0.2",
+        "@elara-services/utils": "^2.2.3",
+        "discord-api-types": "*",
+        "ts-xor": "^1.3.0"
     },
     "peerDependencies": {
         "discord.js": "*"

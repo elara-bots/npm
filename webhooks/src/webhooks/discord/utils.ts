@@ -1,4 +1,7 @@
+import { getPackageStart, is } from "@elara-services/utils";
 import { name, version } from "../../../package.json";
+
+export const validWebhookURL = /https?:\/\/(www.|canary.|ptb.)?discord(app)?.com\/api\/|https?:\/\/services.(superchiefyt|elara).workers.dev/gi;
 
 export const defaultOptions = {
     username: "",
@@ -7,21 +10,21 @@ export const defaultOptions = {
 }
 
 export function validateURL(url?: unknown) {
-    if (!url || typeof url !== "string") return false;
-    if (!url.match(/https?:\/\/(www.|canary.|ptb.)?discord(app)?.com\/api\/|https?:\/\/services.superchiefyt.workers.dev/gi)) return false;
+    if (!is.string(url) || !url.match(validWebhookURL)) {
+        return false;
+    }
     return true;
 };
 
 export function error(e: unknown) {
-    throw new Error(`[${name}, ${version}]: ${e}`);
-}
-export function status(status: boolean, data: unknown) {
-    return { status, data };
+    throw new Error(`${getPackageStart({ name, version })}: ${e}`);
 }
 
 export function split(url: string) {
-    let [id, token] = url.split("webhooks/")[1].split("/") || [null, null];
-    if (!id || !token) return null;
+    const [id, token] = url.split("webhooks/")[1].split("/") || [null, null];
+    if (!id || !token) {
+        return null;
+    }
     return { id, token };
 }
 
