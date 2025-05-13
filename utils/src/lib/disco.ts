@@ -1,7 +1,6 @@
+import { is, make, status } from "@elara-services/basic-utils";
 import { fetch } from "@elara-services/packages";
 import { APIEmbed } from "discord-api-types/v10";
-import { is, make } from "./is";
-import { status } from "./status";
 
 export type MessageData = {
     content: string;

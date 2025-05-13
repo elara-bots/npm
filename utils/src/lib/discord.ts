@@ -1,7 +1,7 @@
 import { Collection } from "@discordjs/collection";
 import { REST, makeURLSearchParams } from "@discordjs/rest";
 import { DiscordSnowflake } from "@sapphire/snowflake";
-import { APIButtonComponentWithCustomId, APIEmbed, APIRoleSelectComponent, Routes, SelectMenuDefaultValueType, type APIMessage } from "discord-api-types/v10";
+import { APIButtonComponentWithCustomId, APIEmbed, APIEmbedAuthor, APIRoleSelectComponent, Routes, SelectMenuDefaultValueType, type APIMessage } from "discord-api-types/v10";
 import {
     ActionRowBuilder,
     Application,
@@ -46,14 +46,11 @@ import {
     type StringSelectMenuInteraction,
     type UserSelectMenuInteraction,
 } from "discord.js";
-import { chunk, colors, getKeys, getRandom, shuffle, sleep } from "./extra";
-import { is, noop } from "./is";
-import { XOR } from "./jobs";
+
+import { XOR, chunk, colors, field, get, getKeys, getRandom, is, log, noop, shuffle, sleep, status, time, snowflakes } from "@elara-services/basic-utils";
 import { checkChannelPerms } from "./permissions";
-import { comment, getInteractionResponder, getInteractionResponders } from "./responders";
-import { get, status } from "./status";
-import { log, time } from "./times";
-import { field, snowflakes } from "./utils";
+import { getInteractionResponder, getInteractionResponders } from "./responders";
+
 export type errorHandler = (e: Error) => unknown;
 
 export function isV13() {
@@ -84,6 +81,23 @@ export function canTakeActionAgainstMember(mod: GuildMember, member: GuildMember
         return false;
     }
     return true;
+}
+
+export function getDiscordEmbedAuthor(u: User | Message | GuildMember, url?: string): APIEmbedAuthor {
+    let user: User | null = null;
+    if (u instanceof User) {
+        user = u;
+    } else if (u instanceof Message) {
+        user = u.author;
+    } else if (u instanceof GuildMember) {
+        user = u.user;
+    }
+
+    return {
+        name: user ? (user.username === user.displayName ? `@${user.username}` : `${user.displayName} (@${user.username})`) : `@unknown`,
+        icon_url: user ? user.displayAvatarURL() : `https://cdn.elara.workers.dev/d/icons/notFound.png`,
+        url,
+    };
 }
 
 export async function fetchMessages(botTokenOrREST: string | REST, channelId: string, limit = 50, before?: string, after?: string) {
@@ -210,7 +224,7 @@ export const discord = {
         if (!matches) {
             return guild.roles.cache.find((c) => c.name.toLowerCase() === id.toLowerCase() || c.name.toLowerCase().includes(id.toLowerCase())) || null;
         }
-        return guild.roles.fetch(matches[1], { cache: true }).catch(() => null);
+        return guild.roles.fetch(matches[1], { cache: true }).catch(noop);
     },
     channel: async <D extends Channel>(client: Client, id: string, guildToSearch: Guild | null = null, options?: FetchChannelOptions): Promise<D | null> => {
         if (!client || !is.string(id)) {
@@ -229,7 +243,7 @@ export const discord = {
         if (client.channels.cache.has(hm[1])) {
             return client.channels.resolve(hm[1]) as D;
         }
-        const c = await client.channels.fetch(hm[1], options).catch(() => null);
+        const c = await client.channels.fetch(hm[1], options).catch(noop);
         if (!c) {
             return null;
         }
@@ -251,7 +265,7 @@ export const discord = {
                         user: matches[1],
                         withPresences,
                     })
-                    .catch(() => null);
+                    .catch(noop);
                 if (m instanceof Collection) {
                     return m.first() ?? null;
                 } else if (m) {
@@ -401,9 +415,9 @@ export function lazyField(embed: EmbedBuilder, name = "\u200b", value = "\u200b"
 
 export async function deleteMessage(message: Message, timeout = 5000) {
     if (timeout <= 0) {
-        return message.delete().catch(() => null);
+        return message.delete().catch(noop);
     }
-    return sleep(timeout).then(() => message.delete().catch(() => null));
+    return sleep(timeout).then(() => message.delete().catch(noop));
 }
 
 export async function react(message: Message, emojis: string[] | string) {
@@ -412,7 +426,7 @@ export async function react(message: Message, emojis: string[] | string) {
     }
     if (is.array(emojis)) {
         for (const e of emojis.reverse()) {
-            message.react(e).catch(() => null);
+            message.react(e).catch(noop);
         }
         return true;
     }
@@ -468,7 +482,7 @@ export const Invites = {
             Invites.cache.set(guild.id, invs.map(f));
             return null;
         };
-        const invites = await guild.invites.fetch().catch(() => null);
+        const invites = await guild.invites.fetch().catch(noop);
         if (!invites) {
             return null;
         }
@@ -479,7 +493,7 @@ export const Invites = {
         }
         if (CachedInvites.join(" ") === currentInvites.join(" ")) {
             if (guild.features.includes("VANITY_URL") && guild.vanityURLCode) {
-                const owner = guild.members.resolve(guild.ownerId) || (await guild.members.fetch({ user: guild.ownerId }).catch(() => null)) || null;
+                const owner = guild.members.resolve(guild.ownerId) || (await guild.members.fetch({ user: guild.ownerId }).catch(noop)) || null;
                 return {
                     code: guild.vanityURLCode,
                     uses: `♾`,
@@ -572,7 +586,7 @@ export const Invites = {
                 });
             }
             if (fetchUses === true && guild.members.me?.permissions.has(48n)) {
-                const invs = guildInvites ?? (await guild.invites.fetch({ cache: false }).catch(() => null));
+                const invs = guildInvites ?? (await guild.invites.fetch({ cache: false }).catch(noop));
                 if (invs?.size) {
                     // @ts-ignore
                     data.members = data.members.map((c) => {
@@ -666,7 +680,7 @@ export const Invites = {
             const list = is.array(user) ? user : [user];
             let invites = new Collection<string, Invite>();
             if (guild.members.me?.permissions.has(48n) && onlyValidInvites === true) {
-                const invs = await guild.invites.fetch({ cache: false }).catch(() => null);
+                const invs = await guild.invites.fetch({ cache: false }).catch(noop);
                 if (invs && invs.size) {
                     invites = invs;
                 }
@@ -918,18 +932,18 @@ export async function getConfirmPrompt(channelOrInteraction: TextBasedChannel | 
     };
     if ("deferred" in channelOrInteraction) {
         if (channelOrInteraction.deferred) {
-            msg = await channelOrInteraction.editReply(options).catch(() => null);
+            msg = await channelOrInteraction.editReply(options).catch(noop);
         } else {
             msg = await channelOrInteraction
                 .reply({
                     fetchReply: true,
                     ...options,
                 })
-                .catch(() => null);
+                .catch(noop);
         }
     } else {
         if ("send" in channelOrInteraction) {
-            msg = await channelOrInteraction.send(options).catch(() => null);
+            msg = await channelOrInteraction.send(options).catch(noop);
         }
     }
     if (!msg) {
@@ -940,24 +954,22 @@ export async function getConfirmPrompt(channelOrInteraction: TextBasedChannel | 
             filter: (i) => i.user.id === user.id && i.customId.startsWith("prompt:") && i.isButton(),
             time: timer,
         })
-        .catch(() => null);
+        .catch(noop);
     if (!col) {
         await msg
-            .edit({
-                embeds: [comment(`Cancelled`, colors.red, true)],
-            })
-            .catch(() => null);
+            // @ts-ignore
+            .edit(embedComment(`Cancelled`, colors.red))
+            .catch(noop);
         return null;
     }
     if (!col.customId.includes("confirm")) {
         await col
-            .update({
-                embeds: [comment(`Cancelled`, colors.red, true)],
-            })
-            .catch(() => null);
+            // @ts-ignore
+            .update(embedComment(`Cancelled`, colors.red))
+            .catch(noop);
         return null;
     }
-    await col.deferUpdate().catch(() => null);
+    await col.deferUpdate().catch(noop);
     return col;
 }
 
@@ -1047,7 +1059,7 @@ export async function awaitMessage(
             max: 1,
             errors: ["time"],
         })
-        .catch(() => null);
+        .catch(noop);
     if (!f?.size) {
         return null;
     }
@@ -1072,7 +1084,7 @@ export async function awaitMessages(
             max: options.max || 1,
             errors: ["time"],
         })
-        .catch(() => null);
+        .catch(noop);
     if (!f?.size) {
         return null;
     }
@@ -1422,4 +1434,43 @@ export function isOriginalInteractionUser(i: MessageComponentInteraction) {
         return false;
     }
     return true;
+}
+
+export async function getUsersFromString(
+    client: Client<true>,
+    str: string,
+    options?: {
+        allowBots?: boolean;
+        filter?: (user: User) => boolean;
+    },
+) {
+    const users = new Collection<string, User>();
+    for await (const id of str.split(/ |></g).map((c) => c.replace(/<|@|>/g, ""))) {
+        if (users.has(id)) {
+            continue;
+        }
+        const u = await discord.user(client, id, {
+            fetch: true,
+            mock: false,
+        });
+        if (!u || users.has(u.id)) {
+            continue;
+        }
+        let allowBots = false;
+        if (is.object(options)) {
+            if (options.allowBots === true) {
+                allowBots = true;
+            }
+            if (is.func(options.filter)) {
+                if (!options.filter(u)) {
+                    continue;
+                }
+            }
+        }
+        if (u.bot && !allowBots) {
+            continue;
+        }
+        users.set(u.id, u);
+    }
+    return users;
 }

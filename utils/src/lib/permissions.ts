@@ -1,4 +1,4 @@
-import { is } from "./is";
+import { is } from "@elara-services/basic-utils";
 
 export const v13Permissions = {
     basic: ["EMBED_LINKS", "SEND_MESSAGES", "VIEW_CHANNEL", "READ_MESSAGE_HISTORY"],

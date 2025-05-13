@@ -1,5 +1,6 @@
 import { EmbedBuilder } from "@discordjs/builders";
 import {
+    APIEmbed,
     APIModalInteractionResponseCallbackData,
     Collection,
     InteractionDeferUpdateOptions,
@@ -22,7 +23,7 @@ import {
     type MessageReaction,
     type MessageReplyOptions,
 } from "discord.js";
-import { DefaultColors, colors, emitPackageMessage, error, getFilesList, getPackageStart, resolveColor, sleep } from ".";
+import { colors, embedComment, emitPackageMessage, error, getFilesList, getPackageStart, resolveColor, sleep } from ".";
 import pack from "../../package.json";
 
 export type TextBasedChannelSendOption = string | MessagePayload | MessageCreateOptions;
@@ -41,7 +42,9 @@ export function embed(): EmbedBuilder {
     return new EmbedBuilder();
 }
 
-export function comment(description: string, color: keyof typeof DefaultColors | string | number, toJSON = false) {
+export function comment(description: string, color: string | number, toJSON: true): APIEmbed;
+export function comment(description: string, color: string | number, toJSON: false): EmbedBuilder;
+export function comment(description: string, color: string | number, toJSON = false) {
     const em = embed()
         .setDescription(description)
         .setColor(resolveColor(color) || colors.red);
@@ -119,12 +122,15 @@ export function getInteractionResponder(interaction: RepliableInteraction, handl
 export function getMessageResponder(message: Message) {
     return {
         loading: async (str?: string) => {
-            return message
-                .reply({
-                    embeds: [comment(str || `Loading, one moment...`, colors.orange, true)],
-                    failIfNotExists: false,
-                })
-                .catch(error);
+            return (
+                message
+                    // @ts-ignore
+                    .reply({
+                        ...embedComment(str || `Loading, one moment...`, colors.orange),
+                        failIfNotExists: false,
+                    })
+                    .catch(error)
+            );
         },
 
         delete: async (timeout = 0): Promise<void | Message> => {
@@ -174,8 +180,9 @@ export function handleSubCommands<T extends ChatInputCommandInteraction, F>(inte
     }
     const command = files.get(subCommandArg);
     if (!command) {
+        // @ts-ignore
         return responder.reply({
-            embeds: [comment(`I was unable to find that sub command`, "#FF0000", true)],
+            ...embedComment(`I was unable to find that sub command`, colors.red),
             ephemeral: true,
         });
     }
