@@ -1,0 +1,49 @@
+{
+  "name": "@elara-services/roblox.js",
+  "version": "5.0.0",
+  "description": "Roblox Verification package",
+  "main": "./dist/src/index.js",
+  "author": "SUPERCHIEFYT (Elara-Discord-Bots, Elara-Services)",
+  "license": "ISC",
+  "scripts": {
+    "build": "rm -rf dist && rm -rf docs && tsc && npx typedoc src/index.ts",
+    "pub": "npm run build && npm publish",
+    "firstpub": "npm run build && npm publish --access=public",
+    "lint": "eslint .",
+    "pf": "prettier --write src/**/*.ts",
+    "pc": "prettier --check src/**/*.ts",
+    "clean": "rm -rf .git"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/elara-bots/npm/tree/main/roblox"
+  },
+  "files": [
+    "dist",
+    "docs",
+    "bin"
+  ],
+  "devDependencies": {
+    "@types/lodash": "^4.17.16",
+    "@types/node": "20.3.0",
+    "@types/yargs": "^17.0.33",
+    "@typescript-eslint/eslint-plugin": "5.59.9",
+    "@typescript-eslint/parser": "5.59.9",
+    "dotenv": "^16.4.7",
+    "eslint": "8.42.0",
+    "prettier": "2.8.8",
+    "ts-node": "10.9.2",
+    "tslib": "2.6.0",
+    "typedoc": "0.27.9",
+    "typescript": "5.8.2"
+  },
+  "dependencies": {
+    "@elara-services/basic-utils": "^1.1.2",
+    "@elara-services/fetch": "^2.0.3",
+    "lodash": "^4.17.21",
+    "yargs": "^17.7.2"
+  },
+  "bin": {
+    "roblox": "bin/roblox.js"
+  }
+}
