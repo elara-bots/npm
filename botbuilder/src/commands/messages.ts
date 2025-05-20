@@ -10,6 +10,10 @@ export const m = {
         users: `You don't have access to this command.`,
     },
     only: {
+        guilds: (ids: string[]) =>
+            `This command can only be used in ${ids
+                .map((c) => `\`${c}\``)
+                .join(", ")} servers.`,
         guild: `This command can only be used in a server.`,
         dms: `This command can only be used in Direct Messages (DM)`,
         text: `This command can only be used in a text-based channel.`,

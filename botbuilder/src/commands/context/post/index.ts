@@ -1,4 +1,4 @@
-import { embedComment, error, is } from "@elara-services/utils";
+import { embedComment, getRandom, is, noop } from "@elara-services/utils";
 import {
     ApplicationCommandType,
     ComponentType,
@@ -46,10 +46,12 @@ export async function handlePostInteraction(i: Interaction) {
     }
     if (valid.includes(shouldEmbed)) {
         delete data.content;
+        // @ts-ignore
         data["embeds"] = embedComment(content, "DarkButNotBlack").embeds;
     }
     if (is.string(data.content) && data.content.length > 2000) {
         delete data.content;
+        // @ts-ignore
         data["embeds"] = embedComment(content, "DarkButNotBlack").embeds;
     }
     if ("send" in i.channel) {
@@ -58,33 +60,60 @@ export async function handlePostInteraction(i: Interaction) {
     return i.deleteReply().catch(() => null);
 }
 
+function createTextInput(options: {
+    label: string;
+    id: string;
+    min?: number;
+    max?: number;
+    required?: boolean;
+    value?: string;
+    style?: TextInputStyle;
+    placeholder?: string;
+}) {
+    return {
+        type: ComponentType.ActionRow,
+        components: [
+            new TextInputBuilder()
+                .setCustomId(options.id)
+                .setLabel(options.label)
+                .setMinLength(is.number(options.min) ? options.min : 1)
+                .setMaxLength(is.number(options.max) ? options.max : 3)
+                .setRequired(
+                    is.boolean(options.required) ? options.required : true,
+                )
+                .setPlaceholder(options.placeholder || "")
+                .setValue(options.value || "")
+                .setStyle(options.style || TextInputStyle.Short),
+        ],
+    };
+}
+
 export function buildPostCommand(
     name = "RickRoll?",
-    locked?: {
+    locked?: Partial<{
         roles?: string[];
         users?: string[];
         permissions?: PermissionResolvable[];
-    },
+    }>,
     images: string[] = defImages,
 ) {
+    const command = new ContextMenuCommandBuilder()
+        .setName(name)
+        .setType(ApplicationCommandType.Message);
+    if ("setContexts" in command) {
+        command.setContexts([0]); // Sets the context to only `GUILD` (NO DMS/GROUP_DM)
+    }
+    if ("setDMPermission" in command) {
+        command.setDMPermission(false);
+    }
     return buildCommand<MessageContextMenuCommand>({
-        command: new ContextMenuCommandBuilder()
-            .setName(name)
-            .setDMPermission(false)
-            .setType(ApplicationCommandType.Message),
+        command,
         async execute(i, r) {
             if (!i.inCachedGuild()) {
                 return;
             }
-            const denied = () =>
-                r.reply({
-                    content:
-                        images[Math.floor(Math.random() * images.length)] ||
-                        "You don't have access to this command.",
-                    ephemeral: true,
-                });
             let canUse = false;
-            if (is.object(locked)) {
+            if (is.object(locked, true)) {
                 if (
                     is.array(locked.roles) &&
                     i.member.roles.cache.hasAny(...locked.roles)
@@ -105,67 +134,42 @@ export function buildPostCommand(
                 }
             }
             if (!canUse) {
-                return denied();
+                return r.reply({
+                    content:
+                        getRandom(images) ||
+                        "You don't have access to this command.",
+                    ephemeral: true,
+                });
             }
             return i
                 .showModal({
                     customId: `bot_post:${i.targetId}`,
                     title: "Send Message",
                     components: [
-                        {
-                            type: ComponentType.ActionRow,
-                            components: [
-                                new TextInputBuilder()
-                                    .setCustomId("content")
-                                    .setLabel("Content")
-                                    .setMinLength(1)
-                                    .setMaxLength(4000)
-                                    .setRequired(true)
-                                    .setStyle(TextInputStyle.Paragraph),
-                            ],
-                        },
-                        {
-                            type: ComponentType.ActionRow,
-                            components: [
-                                new TextInputBuilder()
-                                    .setCustomId("should")
-                                    .setLabel(`Should reply? (y/n)`)
-                                    .setMinLength(1)
-                                    .setMaxLength(3)
-                                    .setRequired(true)
-                                    .setValue("y")
-                                    .setStyle(TextInputStyle.Short),
-                            ],
-                        },
-                        {
-                            type: ComponentType.ActionRow,
-                            components: [
-                                new TextInputBuilder()
-                                    .setCustomId("should_ping")
-                                    .setLabel(`Ping User? (y/n)`)
-                                    .setMinLength(1)
-                                    .setMaxLength(3)
-                                    .setRequired(true)
-                                    .setValue("y")
-                                    .setStyle(TextInputStyle.Short),
-                            ],
-                        },
-                        {
-                            type: ComponentType.ActionRow,
-                            components: [
-                                new TextInputBuilder()
-                                    .setCustomId("embed")
-                                    .setLabel(`Should be an embed? (y/n)`)
-                                    .setMinLength(1)
-                                    .setMaxLength(3)
-                                    .setRequired(true)
-                                    .setValue("n")
-                                    .setStyle(TextInputStyle.Short),
-                            ],
-                        },
+                        createTextInput({
+                            id: "content",
+                            label: "Content",
+                            max: 4000,
+                            style: TextInputStyle.Paragraph,
+                        }),
+                        createTextInput({
+                            id: "should",
+                            label: "Should reply? (y/n)",
+                            value: "y",
+                        }),
+                        createTextInput({
+                            id: `should_ping`,
+                            label: "Ping User? (y/n)",
+                            value: "y",
+                        }),
+                        createTextInput({
+                            id: `embed`,
+                            label: `Should be an embed? (y/n)`,
+                            value: "n",
+                        }),
                     ],
                 })
-                .catch(error);
+                .catch(noop);
         },
     });
 }

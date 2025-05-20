@@ -10,6 +10,7 @@ import type {
     AutocompleteInteraction,
     ChatInputCommandInteraction,
     ContextMenuCommandBuilder,
+    GuildMember,
     Message,
     MessageContextMenuCommandInteraction,
     SlashCommandBuilder as SBuild,
@@ -19,6 +20,15 @@ import type {
 export type CachedInt = ChatInputCommandInteraction;
 export type AnyBuilder = XOR<SlashCommandOptionsOnlyBuilder, SBuild>;
 
+export type Defer<I> = XOR<
+    {
+        silent: boolean;
+    },
+    {
+        filter: (i: I) => boolean;
+    }
+>;
+
 export type Status = { status: true } | { status: false; message: string };
 
 export type Pre = Promise<Status | boolean> | Status | boolean;
@@ -27,6 +37,7 @@ export type IntOptions = {
     roles?: string[];
     users?: string[];
     channels?: string[];
+    permissions?: (member: GuildMember) => Status;
 };
 
 export type OnlyOptions = {
@@ -35,13 +46,13 @@ export type OnlyOptions = {
     text?: boolean;
     voice?: boolean;
     dms?: boolean;
+    /** Guild ids to register the commands in only. */
+    guilds?: string[];
 };
 
 export interface Common<T> {
     enabled?: boolean;
-    defer?: {
-        silent: boolean;
-    };
+    defer?: Defer<T>;
     aliases?: string[];
     locked?: IntOptions;
     disabled?: IntOptions;

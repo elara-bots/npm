@@ -27,6 +27,7 @@ import {
     SlashCommandUserOption,
 } from "discord.js";
 import {
+    Defer,
     MessageContextMenuCommand,
     Pre,
     PrefixCommand,
@@ -36,6 +37,7 @@ import {
 } from "./interfaces";
 import { m } from "./messages";
 
+export * from "./components";
 export * from "./context";
 export * from "./deploy";
 export * from "./interfaces";
@@ -223,7 +225,7 @@ export async function handleInteractionCommand<
     i: I,
     cmds: Collection<string, C>,
     pre?: (i: I, cmd: C) => Pre,
-    alwaysDefer?: { silent: boolean },
+    alwaysDefer?: Defer<I>,
 ) {
     if (!i.isRepliable()) {
         return;
@@ -361,7 +363,7 @@ export async function handleCommands<
     i: I,
     cmd: C | undefined,
     pre?: (i: I, cmd: C) => Pre,
-    alwaysDefer?: { silent: boolean },
+    alwaysDefer?: Defer<I>,
 ) {
     if (!i.isRepliable() || !i.channel) {
         return;
@@ -390,13 +392,24 @@ export async function handleCommands<
         return reply(m.required.commands.execute(i.commandName));
     }
     if (is.object(alwaysDefer)) {
-        await i
-            .deferReply({ ephemeral: alwaysDefer.silent || false })
-            .catch(() => null);
+        if (alwaysDefer.filter) {
+            await i
+                .deferReply({ ephemeral: alwaysDefer.filter(i) })
+                .catch(noop);
+        } else {
+            await i
+                .deferReply({ ephemeral: alwaysDefer.silent || false })
+                .catch(noop);
+        }
     } else if (is.object(cmd.defer)) {
-        await i
-            .deferReply({ ephemeral: cmd.defer.silent || false })
-            .catch(() => null);
+        if (cmd.defer.filter) {
+            // @ts-ignore
+            await i.deferReply({ ephemeral: cmd.defer.filter(i) }).catch(noop);
+        } else {
+            await i
+                .deferReply({ ephemeral: cmd.defer.silent || false })
+                .catch(noop);
+        }
     }
     if (pre) {
         const p = await pre(i, cmd);
@@ -417,7 +430,13 @@ export async function handleCommands<
             return reply(p.message);
         }
     }
-    if (is.object(cmd.only)) {
+    if (is.object(cmd.only, true)) {
+        if (
+            is.array(cmd.only.guilds) &&
+            !cmd.only.guilds.includes(i.guildId || "")
+        ) {
+            return reply(m.only.guilds(cmd.only.guilds));
+        }
         if (is.boolean(cmd.only.guild)) {
             if (cmd.only.guild === true && !i.guild) {
                 return reply(m.only.guild);
@@ -466,7 +485,16 @@ export async function handleCommands<
     if ("parentId" in i.channel && i.channel.parentId) {
         cs.push(i.channel.parentId);
     }
-    if (is.object(cmd.locked)) {
+    if (is.object(cmd.locked, true)) {
+        if (cmd.locked.permissions && is.func(cmd.locked.permissions)) {
+            if (!i.member || !(i.member instanceof GuildMember)) {
+                return reply(m.not.guild);
+            }
+            const r = cmd.locked.permissions(i.member);
+            if (!r.status) {
+                return reply(r.message);
+            }
+        }
         if (
             is.array(cmd.locked.channels) &&
             !cmd.locked.channels.some((c) => cs.includes(c))
@@ -489,6 +517,15 @@ export async function handleCommands<
         }
     }
     if (is.object(cmd.disabled)) {
+        if (cmd.disabled.permissions && is.func(cmd.disabled.permissions)) {
+            if (!i.member || !(i.member instanceof GuildMember)) {
+                return reply(m.not.guild);
+            }
+            const r = cmd.disabled.permissions(i.member);
+            if (!r.status) {
+                return reply(r.message);
+            }
+        }
         if (
             is.array(cmd.disabled.channels) &&
             cmd.disabled.channels.some((c) => cs.includes(c))
@@ -518,7 +555,7 @@ export function handleSubCommands<T extends ChatInputCommandInteraction, F>(
     interaction: T,
     files: F,
     pre?: (i: Interaction, cmd: SubCommand) => Pre,
-    alwaysDefer?: { silent: boolean },
+    alwaysDefer?: Defer<T>,
 ) {
     const name = interaction.options.getSubcommand();
     if (!(files instanceof Collection)) {
@@ -546,6 +583,7 @@ export function buildSubCommand<T extends SubCommand>(
             command.addSubcommand(subCommand.subCommand);
         }
     }
+
     return command;
 }
 
@@ -593,10 +631,15 @@ export function getUser(
         );
 }
 
-export function getReason(o: SlashCommandStringOption, required = true) {
+export function getReason(
+    o: SlashCommandStringOption,
+    required = true,
+    autocomplete = false,
+) {
     return o
         .setName(`reason`)
         .setDescription(`What's the reason?`)
+        .setAutocomplete(autocomplete)
         .setRequired(required);
 }
 
@@ -626,6 +669,7 @@ export function getStr(
         name: string;
         description: string;
         required?: boolean;
+        autocomplete?: boolean;
         min?: number;
         max?: number;
         choices?: APIApplicationCommandOptionChoice<string>[];
@@ -639,6 +683,9 @@ export function getStr(
     }
     if (is.array(options.choices)) {
         o.addChoices(...options.choices);
+    }
+    if (is.boolean(options.autocomplete)) {
+        o.setAutocomplete(options.autocomplete);
     }
     return o
         .setName(options.name)
@@ -662,6 +709,7 @@ export function getInt(
         name: string;
         description?: string;
         required?: boolean;
+        autocomplete?: boolean;
         min?: number;
         max?: number;
         choices?: SlashCommandIntegerOption["choices"];
@@ -675,6 +723,9 @@ export function getInt(
     }
     if (is.array(options.choices)) {
         o.addChoices(...options.choices);
+    }
+    if (is.boolean(options.autocomplete)) {
+        o.setAutocomplete(options.autocomplete);
     }
     return o
         .setName(options.name)
@@ -700,19 +751,21 @@ export function handleInteractions(
     i: Interaction,
     commands: object,
     pre?: (i: Interaction, cmd: any) => Pre,
+    alwaysDefer?: Defer<Interaction>,
 ) {
     return handleInteractionCommand(
         i,
         getFilesList<any>(commands),
-        (ii, cmd) => {
+        async (ii, cmd) => {
             if (!ii.isCommand()) {
                 return false;
             }
             if (pre) {
-                return pre(ii, cmd);
+                return await pre(ii, cmd);
             }
             return true;
         },
+        alwaysDefer,
     );
 }
 

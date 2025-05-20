@@ -1,6 +1,6 @@
 {
   "name": "@elara-services/botbuilder",
-  "version": "4.1.3",
+  "version": "4.3.2",
   "description": "A package to help you build a discord.js bot better, mainly used for github.com/elara-bots/TS-Bot",
   "main": "./dist/index.js",
   "author": "SUPERCHIEFYT (Elara-Discord-Bots, Elara-Services)",
@@ -10,7 +10,8 @@
     "pub": "npm run build && npm publish",
     "lint": "eslint .",
     "pf": "prettier --write src/**/*.ts",
-    "pc": "prettier --check src/**/*.ts"
+    "pc": "prettier --check src/**/*.ts",
+    "djs": "npm i discord.js@14.16.1 --no-save"
   },
   "repository": {
     "type": "git",
@@ -32,6 +33,7 @@
     "typescript": "^5.2.2"
   },
   "dependencies": {
-    "@elara-services/utils": "^1.7.0"
+    "@discordjs/builders": "^1.9.0",
+    "@elara-services/utils": "^3.0.4"
   }
 }
