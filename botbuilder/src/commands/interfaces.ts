@@ -40,6 +40,16 @@ export type IntOptions = {
     permissions?: (member: GuildMember) => Status;
 };
 
+export interface PageData {
+    id: string;
+    data: unknown;
+}
+
+export interface AddPageData {
+    id?: string;
+    data: unknown;
+}
+
 export type OnlyOptions = {
     guild?: boolean;
     threads?: boolean;

@@ -1,6 +1,6 @@
 {
   "name": "@elara-services/botbuilder",
-  "version": "4.3.2",
+  "version": "4.3.6",
   "description": "A package to help you build a discord.js bot better, mainly used for github.com/elara-bots/TS-Bot",
   "main": "./dist/index.js",
   "author": "SUPERCHIEFYT (Elara-Discord-Bots, Elara-Services)",

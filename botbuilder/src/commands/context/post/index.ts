@@ -70,21 +70,22 @@ function createTextInput(options: {
     style?: TextInputStyle;
     placeholder?: string;
 }) {
+    const text = new TextInputBuilder()
+        .setCustomId(options.id)
+        .setLabel(options.label)
+        .setMinLength(is.number(options.min) ? options.min : 1)
+        .setMaxLength(is.number(options.max) ? options.max : 3)
+        .setRequired(is.boolean(options.required) ? options.required : true)
+        .setStyle(options.style || TextInputStyle.Short);
+    if (is.string(options.placeholder)) {
+        text.setPlaceholder(options.placeholder);
+    }
+    if (is.string(options.value)) {
+        text.setValue(options.value);
+    }
     return {
         type: ComponentType.ActionRow,
-        components: [
-            new TextInputBuilder()
-                .setCustomId(options.id)
-                .setLabel(options.label)
-                .setMinLength(is.number(options.min) ? options.min : 1)
-                .setMaxLength(is.number(options.max) ? options.max : 3)
-                .setRequired(
-                    is.boolean(options.required) ? options.required : true,
-                )
-                .setPlaceholder(options.placeholder || "")
-                .setValue(options.value || "")
-                .setStyle(options.style || TextInputStyle.Short),
-        ],
+        components: [text],
     };
 }
 

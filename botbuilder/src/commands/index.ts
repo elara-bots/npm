@@ -41,6 +41,9 @@ export * from "./components";
 export * from "./context";
 export * from "./deploy";
 export * from "./interfaces";
+export * from "./pager";
+export * from "./utils";
+export * from "./process";
 
 export async function handleMessageCommand<
     M extends Message,

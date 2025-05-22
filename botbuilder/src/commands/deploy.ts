@@ -26,6 +26,9 @@ export async function deployCommands<
     const servers = make.map<string, T[]>();
 
     const addServer = (cmd: T) => {
+        if (!cmd || !cmd.command || !("toJSON" in cmd.command)) {
+            return false;
+        }
         if (is.object(cmd.only, true)) {
             if (is.array(cmd.only.guilds)) {
                 for (const id of cmd.only.guilds) {
@@ -55,19 +58,22 @@ export async function deployCommands<
         }
         if (is.array(cmd.aliases)) {
             for (const alias of cmd.aliases) {
+                if (!cmd.command || !("toJSON" in cmd.command)) {
+                    continue;
+                }
                 // @ts-ignore
                 const clone = cmd.command.toJSON();
                 clone.name = alias;
                 // @ts-ignore
                 const d = addServer(clone);
                 if (d) {
-                    body.push(d);
+                    body.push(d as any);
                 }
             }
         }
         const data = addServer(cmd);
         if (data) {
-            body.push(data);
+            body.push(data as any);
         }
     }
     if (subCommands && subCommands.size) {
@@ -81,6 +87,9 @@ export async function deployCommands<
             }
             if (is.array(cmd.aliases)) {
                 for (const alias of cmd.aliases) {
+                    if (!cmd.command || !("toJSON" in cmd.command)) {
+                        continue;
+                    }
                     // @ts-ignore
                     const clone = cmd.command.toJSON();
                     clone.name = alias;
