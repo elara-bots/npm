@@ -1,4 +1,5 @@
-import { is } from "@elara-services/utils";
+import { is } from "@elara-services/basic-utils";
+
 
 export async function fetch<B extends object, T>(
     url: string,
@@ -7,9 +8,10 @@ export async function fetch<B extends object, T>(
     postRequest = false,
     returnRaw = false,
     addHeaders?: Record<string, string | number>,
+    errors?: (e: Error) => Promise<unknown> | unknown,
 ): Promise<T | null> {
     try {
-        const client = await import("@elara-services/fetch").catch(() => {});
+        const client = await import("@elara-services/fetch").catch(() => { });
         if (!client) {
             throw new Error(`NPM package (@elara-services/fetch) not found`);
         }
@@ -32,15 +34,27 @@ export async function fetch<B extends object, T>(
             .header(headers)
             .body(body, "json")
             .send()
-            .catch(() => ({ statusCode: 500, body: "", json: () => "" }));
+            .catch((e) => new Error(e));
+        if (res instanceof Error) {
+            if (errors) {
+                errors(res);
+            }
+            return null;
+        }
         if (res.statusCode !== 200) {
+            if (errors) {
+                errors(new Error(`Got (${res.statusCode}) status while trying to fetch ${url}`));
+            }
             return null;
         }
         if (returnRaw) {
             return res.body as T;
         }
         return res.json() as T;
-    } catch {
+    } catch (err) {
+        if (errors) {
+            errors(err instanceof Error ? err : new Error(err as string));
+        }
         return null;
     }
 }

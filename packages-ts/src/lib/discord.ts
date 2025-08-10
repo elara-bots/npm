@@ -1,4 +1,4 @@
-import { is } from "@elara-services/utils";
+import { get, is } from "@elara-services/basic-utils";
 import { ComponentType } from "discord-api-types/v10";
 import type {
     ButtonNumberStyles,
@@ -240,40 +240,40 @@ export const Duration = {
             case "s":
             case "second":
             case "seconds":
-                return 1000;
+                return get.secs(1);
 
             case "m":
             case "min":
             case "mins":
             case "minute":
             case "minutes":
-                return 60 * 1000;
+                return get.mins(1);
 
             case "h":
             case "hr":
             case "hour":
             case "hours":
-                return 60 * 60 * 1000;
+                return get.hrs(1);
 
             case "d":
             case "day":
             case "days":
-                return 24 * 60 * 60 * 1000;
+                return get.days(1);
 
             case "w":
             case "week":
             case "weeks":
-                return 7 * 24 * 60 * 60 * 1000;
+                return get.days(7);
 
             case "mo":
             case "month":
             case "months":
-                return 30 * 24 * 60 * 60 * 1000;
+                return 30 * 24 * 60 * 60000;
 
             case "y":
             case "year":
             case "years":
-                return 365 * 24 * 60 * 60 * 1000;
+                return 365 * 24 * 60 * 60000;
 
             default:
                 return 1;

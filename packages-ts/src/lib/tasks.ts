@@ -1,40 +1,70 @@
-import { is } from "@elara-services/utils";
+import { is, PossiblePromise, snowflakes } from "@elara-services/basic-utils";
+import { cancelJob, scheduledJobs, scheduleJob, type Job } from "node-schedule";
 
-export class Tasks extends null {
-    async create(
-        { id, time, shouldCancel }: TaskCreate = {
-            id: "",
-            time: "",
-            shouldCancel: true,
-        },
-        run: (...args: unknown[]) => Promise<unknown> | unknown,
-    ) {
-        const sc = await import("node-schedule").catch(() => {});
-        if (!sc) {
-            return `Unable to find the "node-schedule" package.`;
-        }
+export type TaskCreateRun = (...args: unknown[]) => PossiblePromise<unknown>;
+
+export const Tasks = {
+    create: ({ id, time, shouldCancel }: TaskCreate = {
+        id: "",
+        time: "",
+        shouldCancel: true,
+    }, run: TaskCreateRun) => {
         if (!is.string(id) || !is.string(time) || !is.boolean(shouldCancel)) {
             return `You failed to provide one of the following options: 'id', 'time' or 'shouldCancel'`;
         }
-        if (sc.scheduledJobs[id]) {
+        if (scheduledJobs[id]) {
             return `Found (${id}) in the scheduled jobs, ignoring.`;
         }
-        return sc.scheduleJob(id, time, () => {
+        return scheduleJob(id, time, () => {
             run();
             if (shouldCancel) {
-                return void sc.cancelJob(id);
+                return void cancelJob(id);
             }
         });
-    }
+    },
 
-    static async delete(id: string) {
-        const sc = await import("node-schedule").catch(() => {});
-        if (!sc) {
-            return null;
+    has: (id: string) => scheduledJobs[id] ? true : false,
+
+    delete: (id: string) => cancelJob(id),
+
+    cancelAll: () => {
+        for (const v of Object.values(scheduledJobs)) {
+            v.cancel();
         }
-        return sc.cancelJob(id);
-    }
-}
+    },
+
+    list: () => {
+        const list = new Map<string, Job>();
+        for (const v of Object.keys(scheduledJobs)) {
+            if (!scheduledJobs[v]) {
+                continue;
+            }
+            list.set(v, scheduledJobs[v]);
+        }
+        return list;
+    },
+
+    dateFrom: (ms: number) => new Date(Date.now() + ms).toISOString(),
+    repeat: (
+        id: string,
+        ms: number,
+        run: TaskCreateRun,
+    ) => {
+        if (!id.startsWith("repeat-")) {
+            id = `repeat-${id}-${snowflakes.generate()}`;
+        }
+        const schedule = () => Tasks.create({
+            id,
+            time: Tasks.dateFrom(ms),
+            shouldCancel: true,
+        }, () => {
+            Tasks.repeat(`${id.split("-").slice(0, 2).join("-")}-${snowflakes.generate()}`, ms, run);
+            run();
+        });
+
+        schedule();
+    },
+};
 
 export interface TaskCreate {
     id: string;

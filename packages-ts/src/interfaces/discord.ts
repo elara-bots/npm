@@ -1,7 +1,7 @@
 import {
-    APIModalActionRowComponent,
     APISelectMenuOption,
     ComponentType,
+    ModalSubmitActionRowComponent
 } from "discord-api-types/v10";
 
 export type ButtonStyles =
@@ -54,7 +54,7 @@ export interface ModalOptions {
     id?: string;
     components: {
         type: 1 | ComponentType.ActionRow;
-        components: APIModalActionRowComponent[];
+        components: ModalSubmitActionRowComponent[];
     }[];
 }
 

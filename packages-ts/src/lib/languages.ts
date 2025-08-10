@@ -1,4 +1,4 @@
-import { getKeys } from "@elara-services/utils";
+import { getKeys } from "@elara-services/basic-utils";
 
 const langs = {
     en: "English",

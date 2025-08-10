@@ -1,6 +1,6 @@
 {
   "name": "@elara-services/packages",
-  "version": "6.0.8",
+  "version": "6.1.2",
   "description": "",
   "main": "./dist/src/index.js",
   "author": "SUPERCHIEFYT (Elara-Discord-Bots, Elara-Services)",
@@ -9,8 +9,8 @@
     "build": "rm -rf dist && rm -rf docs && tsc && npx typedoc src/index.ts",
     "pub": "npm run build && npm publish",
     "lint": "eslint .",
-    "prettier:format": "prettier --write src/**/*.ts",
-    "prettier:check": "prettier --check src/**/*.ts"
+    "pf": "prettier --write src/**/*.ts",
+    "pc": "prettier --check src/**/*.ts"
   },
   "repository": {
     "type": "git",
@@ -34,11 +34,12 @@
     "typescript": "5.1.3"
   },
   "optionalDependencies": {
-    "@elara-services/fetch": "2.0.1",
-    "node-schedule": "2.1.1"
+    "@elara-services/fetch": "2.0.1"
   },
   "dependencies": {
-    "@elara-services/utils": "^1.2.31",
-    "discord-api-types": "0.37.48"
+    "@elara-services/basic-utils": "^1.1.5",
+    "discord-api-types": "^0.38.18",
+    "eventemitter3": "^5.0.1",
+    "node-schedule": "^2.1.1"
   }
 }

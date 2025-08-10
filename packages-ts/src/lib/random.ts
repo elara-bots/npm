@@ -1,4 +1,4 @@
-import { is } from "@elara-services/utils";
+import { is } from "@elara-services/basic-utils";
 
 export function randomWeight<T>(
     objects: (T & { weight: number })[],
@@ -2067,8 +2067,8 @@ function getDefaultsForRandomNumber(options?: RandomNumberOptions) {
     if (!is.object(options)) {
         options = {};
     }
-    let min: number = options.min || 0;
-    let max: number = options.max || 1;
+    let min = options.min || 0;
+    let max = options.max || 1;
     const integer = options.integer || false;
     if (!is.number(min, false)) {
         min = max - 1;
