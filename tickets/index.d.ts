@@ -55,6 +55,7 @@ declare module "@elara-services/tickets" {
             category?: string;
             closeReason?: boolean;
             supportCommentThread?: boolean;
+            supportCommentThreadMentionSupport?: boolean;
             limitOnePerUser?: boolean;
             open?: Pick<MessageOptions, "content" | "embeds">
             close?: {

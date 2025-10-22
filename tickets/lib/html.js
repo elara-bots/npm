@@ -1,18 +1,22 @@
+const { make } = require("@elara-services/utils");
+
 exports.discordView = function (messages) {
     return `<!DOCTYPE html>
 <head>
     <title>Discord Viewer</title>
-    <link href="https://cdn.discordapp.com/emojis/880708306761564220.png" rel="icon" />
+    <link href="${make.emojiURL("880708306761564220")}" rel="icon" />
     <script>
         window.onload = _ => {
             let doc = document.getElementById("messages");
-            if (doc.innerHTML.includes('new_timestamp="')) {
-                let matches = doc.innerHTML.match(new RegExp(\`new_timestamp=".*?"\`, "gi"))
+            let text = doc.innerHTML;
+            if (text.includes('new_timestamp="')) {
+                let matches = text.match(new RegExp(\`new_timestamp=".*?"\`, "gi"))
                 if (matches) {
                     for (const match of matches) {
-                        document.getElementById("messages").innerHTML = doc.innerHTML.replace(match, \`timestamp="\${new Date(match.split("new_timestamp=\\"")[1].replace('"', "")).toLocaleString()}"\`)
+                        text = text.replace(match, \`timestamp="\${new Date(match.split("new_timestamp=\\"")[1].replace('"', "")).toLocaleString()}"\`)
                     }
                 }
+                document.getElementById("messages").innerHTML = text;
             }
             setTimeout(_ => hidePreloader(), 1000)
         }
@@ -45,7 +49,7 @@ exports.discordView = function (messages) {
             background-color: transparent;
             left: 50%;
             top: 50%;
-            background-image: url(https://cdn.discordapp.com/emojis/634127148696862753.gif?v=1);
+            background-image: url(${make.emojiURL("634127148696862753", "gif")});
             background-repeat: no-repeat;
             background-position: center;
             margin: -100px 0 0 -100px;

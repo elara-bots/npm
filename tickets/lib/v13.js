@@ -4,8 +4,8 @@ const {
         MessageComponentInteraction,
     } = require("discord.js"),
     base = require("./base"),
-    { de, code, fetchMessages, hasTicket, embed, webhook, getAppealServer, perms, defs } = require("./util"),
-    { generate, parser, discord, is } = require("@elara-services/utils"),
+    { de, code, fetchMessages, hasTicket, embed, webhook, getAppealServer, perms, defs, emojis } = require("./util"),
+    { generate, parser, discord, is, make } = require("@elara-services/utils"),
     {
         Interactions: { button },
     } = require("@elara-services/packages");
@@ -105,7 +105,7 @@ module.exports = class Tickets extends base {
                                         {
                                             author: {
                                                 name: this.str("ONLY_SUPPORT"),
-                                                iconURL: "https://cdn.discordapp.com/emojis/781955502035697745.gif",
+                                                iconURL: make.emojiURL(emojis.xmark),
                                             },
                                             color: 0xff0000,
                                         },
@@ -159,7 +159,7 @@ module.exports = class Tickets extends base {
                                     button({
                                         title: this.str("TICKET_CLOSE_CONFIRM_BUTTON"),
                                         style: 3,
-                                        emoji: { id: "807031399563264030" },
+                                        emoji: { id: emojis.warning },
                                         id: `${this.prefix}:close:confirm:${code(channel.topic?.split?.("ID: ")?.[1], "d", this.options.encryptToken)}${this.options?.ticket?.closeReason ? `:modal_submit` : ""}`,
                                     }),
                                 ],
@@ -339,7 +339,7 @@ module.exports = class Tickets extends base {
                                                 style: 3,
                                                 id: "_ _",
                                                 disabled: true,
-                                                emoji: { id: `476629550797684736` },
+                                                emoji: { id: emojis.success },
                                             }),
                                         ],
                                     },
@@ -525,7 +525,7 @@ module.exports = class Tickets extends base {
                     type: 12,
                 })
                 .catch((e) => this._debug(e));
-            if (thread && !this.getSupportIds.empty) {
+            if (thread && !this.getSupportIds.empty && this.options.ticket?.supportCommentThreadMentionSupport === true) {
                 await thread
                     .send({
                         content: `${this.getSupportIds.roles.length ? this.getSupportIds.roles.map((c) => `<@&${c}>`).join(" ") : ""}${this.getSupportIds.users.length ? `${this.getSupportIds.roles.length ? ` | ` : ""}${this.getSupportIds.users.map((c) => `<@${c}>`).join(" ")}` : ""}`,

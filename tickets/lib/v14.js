@@ -530,7 +530,7 @@ module.exports = class Tickets extends base {
                     type: 12,
                 })
                 .catch((e) => this._debug(e));
-            if (thread && !this.getSupportIds.empty) {
+            if (thread && !this.getSupportIds.empty && this.options.ticket?.supportCommentThreadMentionSupport === true) {
                 await thread
                     .send({
                         content: `${this.getSupportIds.roles.length ? this.getSupportIds.roles.map((c) => `<@&${c}>`).join(" ") : ""}${this.getSupportIds.users.length ? `${this.getSupportIds.roles.length ? ` | ` : ""}${this.getSupportIds.users.map((c) => `<@${c}>`).join(" ")}` : ""}`,

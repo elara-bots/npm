@@ -3,10 +3,12 @@ const {
     Interactions: { button },
     ButtonStyle,
 } = require("@elara-services/packages");
-const { is, status, isV13, embedComment, log, emitPackageMessage } = require("@elara-services/utils");
+const { is, status, isV13, embedComment, log, emitPackageMessage, hasBit } = require("@elara-services/utils");
 const { WebhookClient } = require("discord.js");
 const { name, version, funding } = require("../package.json");
 const { inspect } = require("util");
+const { REST } = require("@discordjs/rest");
+const { Routes } = require("discord-api-types/v10");
 const required = ["client", "prefix", "encryptToken"];
 const moment = require("moment");
 
@@ -24,6 +26,7 @@ module.exports = class Tickets {
             }
         }
         this.options = options;
+        this.rest = new REST(options.client.token);
         if (options.suppressPatreon !== true) {
             emitPackageMessage(`${name} - thanks`, () => {
                 log(`[${name}, v${version}]: Thanks for using the package!`, `Please support the packages via ${funding.map((c) => c.url).join(" OR ")}`);
@@ -298,19 +301,43 @@ module.exports = class Tickets {
 
     /**
      * @param {string} channelId
-     * @param {import("discord.js").MessageOptions} options
+     * @param {import("discord.js").MessageCreateOptions} options
      */
     async starterMessage(channelId, options) {
         let channel = this.options.client.channels.resolve(channelId);
         if (!channel) {
             return Promise.reject(this.str("NO_CHANNEL_FOUND")(channelId));
         }
+        if (!options) {
+            throw new Error(`No options provided`);
+        }
+
+        if (hasBit(options.flags, 1 << 15)) {
+            return await this.rest
+                .post(Routes.channelMessages(channelId), {
+                    body: {
+                        flags: options.flags,
+                        components: options.components || [{ type: 1, components: [this.button()] }],
+                        allowed_mentions: options.allowedMentions
+                            ? {
+                                  parse: options.allowedMentions.parse,
+                                  users: options.allowedMentions.users,
+                                  roles: options.allowedMentions.roles,
+                                  replied_user: options.allowedMentions.repliedUser ?? undefined,
+                              }
+                            : undefined,
+                    },
+                })
+                .catch(() => null);
+        }
+
         return channel
             .send({
-                content: options?.content,
-                files: options?.attachments,
-                embeds: options?.embeds,
-                components: options?.components || [{ type: 1, components: [this.button()] }],
+                flags: options.flags,
+                content: options.content,
+                files: options.attachments,
+                embeds: options.embeds,
+                components: options.components || [{ type: 1, components: [this.button()] }],
             })
             .then(() => console.log(`✅`));
     }

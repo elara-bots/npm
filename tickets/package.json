@@ -1,6 +1,6 @@
 {
   "name": "@elara-services/tickets",
-  "version": "4.3.5",
+  "version": "4.4.0",
   "description": "Helper for tickets",
   "main": "index.js",
   "types": "index.d.ts",
@@ -27,9 +27,11 @@
     "pc": "prettier --check **/**/*.js"
   },
   "dependencies": {
-    "@elara-services/packages": "^6.0.9",
-    "@elara-services/utils": "^1.4.0",
-    "@elara-services/webhooks": "^2.1.18"
+    "@discordjs/rest": "^2.5.0",
+    "@elara-services/packages": "^7.0.6",
+    "@elara-services/utils": "^3.0.7",
+    "@elara-services/webhooks": "^4.1.0",
+    "discord-api-types": "^0.38.8"
   },
   "devDependencies": {
     "eslint": "8.20.0",

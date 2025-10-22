@@ -7,6 +7,15 @@ const {
     defLang = require("../languages/en-US"),
     pack = require("../package.json");
 const { discordView } = require("./html");
+const { make } = require("@elara-services/utils");
+
+exports.emojis = {
+    tickets: "1374908572982448208",
+    info: "847397714677334066",
+    success: "476629550797684736",
+    xmark: "781955502035697745",
+    warning: "807031399563264030",
+};
 
 exports.getString = (name, lang = "en-US") => {
     if (!lang) {
@@ -116,7 +125,7 @@ exports.displayMessages = (channel, messages = [], ticketID, type, str) => {
     }
     return [
         `<discord-messages>`,
-        `<discord-message author="${type} ${str("TICKET")}: ${ticketID}" bot="true" verified avatar="https://cdn.discordapp.com/emojis/847397714677334066.png?v=1" role-color="#1da1f2">${str("TOTAL_MESSAGES")}: ${users
+        `<discord-message author="${type} ${str("TICKET")}: ${ticketID}" bot="true" verified avatar="${make.emojiURL(exports.emojis.info)}" role-color="#1da1f2">${str("TOTAL_MESSAGES")}: ${users
             .map((c) => c.count)
             .reduce((a, b) => a + b, 0)
             .toLocaleString()}<br>${users.map((c) => `<discord-mention type="role" color="${channel.guild?.members?.resolve?.(c.user.id)?.displayColor ? channel.guild?.members?.resolve?.(c.user.id)?.displayHexColor : `#ffffff`}">${c.user.tag}</discord-mention> (${c.user.id})`).join("<br>")}</discord-message></discord-messages><discord-messages>`,
@@ -331,13 +340,13 @@ exports.embed = (content, { color, title, guild, footer, author, str, descriptio
     footer,
     author: author || {
         name: guild?.name ?? str("TICKETS"),
-        icon_url: guild?.iconURL?.({ dynamic: true }) ?? "https://cdn.discordapp.com/emojis/818757771310792704.png?v=1",
+        icon_url: guild?.iconURL?.({ dynamic: true }) ?? make.emojiURL(exports.emojis.tickets),
     },
 });
 
 exports.webhook = (options) => {
     const { id, token, username, avatar, threadId } = options;
-    return new Webhook(`https://discord.com/api/webhooks/${id}/${token}`, {
+    return new Webhook(`https://discord.com/api/v10/webhooks/${id}/${token}`, {
         username,
         avatar_url: avatar,
         threadId,
@@ -365,7 +374,7 @@ exports.getWebhookInfo = async (options, username = "Tickets") => {
         token: options.webhook?.token,
         threadId: options.webhook?.threadId,
         username: options.webhook?.username || username,
-        avatar: options.webhook?.avatar || "https://cdn.discordapp.com/emojis/818757771310792704.png?v=1",
+        avatar: options.webhook?.avatar || make.emojiURL(exports.emojis.tickets),
     };
 };
 
