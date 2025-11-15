@@ -10,12 +10,17 @@ import { bannedUsernames } from "../utils";
  * @description A Manager for webhooks with only a Discord bot token.
  */
 export class Webhook {
-    public rest = new REST();
+    public rest = new REST({
+        hashSweepInterval: 0,
+        handlerSweepInterval: 0,
+    });
     public defaultOptions = { ...defaultWebhookOptions };
     private defs = {
         flags: undefined as number | undefined,
     }
-    public constructor(private token: string) {
+    public constructor(
+        private token: string,
+    ) {
         if (!is.string(token)) {
             throw new Error(`${getPackageStart(pack)}: No Discord bot 'token' provided when constructing ${this.constructor.name}`);
         }

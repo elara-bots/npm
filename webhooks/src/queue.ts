@@ -1,7 +1,7 @@
 import { ActionRowBuilder, EmbedBuilder, embedLength } from "@discordjs/builders";
 import { makeURLSearchParams, type RawFile } from "@discordjs/rest";
 import { chunk, get, is, make } from "@elara-services/utils";
-import { APIEmbed, Routes, type APIMessage } from "discord-api-types/v10";
+import { APIEmbed, ComponentType, Routes, type APIMessage } from "discord-api-types/v10";
 import { _debug, caching, getComponents, rest, sendOptions, throwError } from ".";
 export const queue = make.array<QueueOptions>();
 export const disabled = make.array<string>();
@@ -132,6 +132,19 @@ export async function run() {
 
 
 export async function sendQueue(id: string, token: string, { embeds, content, username, avatarURL, threadId, components, files, channelId, allowed_mentions, flags }: QueueSendOptions, shouldTransformComponents = true) {
+    if (is.array(components)) {
+        components = components.map((c: any) => {
+            if ("components" in c && "type" in c && c.type === ComponentType.ActionRow) {
+                c.components = c.components.map((r: any) => {
+                    if ("type" in r && r.type === ComponentType.Button && "style" in r && r.style === 5) {
+                        delete r['custom_id'];
+                    }
+                    return r;
+                })
+            }
+            return c;
+        })
+    }
     const data = {
         query: makeURLSearchParams({
             thread_id: threadId,

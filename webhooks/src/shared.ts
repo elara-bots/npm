@@ -4,7 +4,6 @@ import { Collection, get, getPackageStart, is, make, snowflakes } from "@elara-s
 import { APIChannel, APIGuild, APIUser, RESTGetAPIChannelWebhooksResult, Routes, type APIWebhook } from "discord-api-types/v10";
 import { ButtionIdsFunc, CachedChannel, CachedClient, CachedGuild, CachedOptionType, CachedWebhook, FetchWebhookInfoOption, log } from ".";
 import { name, version } from "../package.json";
-import { User } from "discord.js";
 
 export let defaultWebhookOptions = {
     username: "Webhook",
@@ -16,7 +15,10 @@ export let disabledLogging = make.array<string>();
 export let buttonIds: ButtionIdsFunc | null = null;
 export const caching = new Caching();
 export let debugLogging = false;
-export const rest = new REST();
+export const rest = new REST({
+    hashSweepInterval: 0,
+    handlerSweepInterval: 0,
+});
 
 export async function createWebhook(client: REST, id = "", name: string) {
     if (!id) {

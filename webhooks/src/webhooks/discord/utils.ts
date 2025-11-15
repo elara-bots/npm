@@ -32,7 +32,7 @@ export function url(url: string) {
     try {
         let Url = new URL(url);
         return {
-            path: Url.pathname.split("api/")[1],
+            path: Url.pathname.split("api/")?.[1].replace(/v[0-9]+\//gmi, ""),
             query: Url.search,
             thread_id: Url.searchParams.get("thread_id") || undefined
         }

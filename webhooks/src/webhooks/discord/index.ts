@@ -1,9 +1,9 @@
-import { REST, RawFile, makeURLSearchParams } from "@discordjs/rest";
+import { RawFile, makeURLSearchParams } from "@discordjs/rest";
 import { field, hasBit, is, limits, resolveColor, status } from "@elara-services/utils";
 import type { APIActionRowComponent, APIEmbed, APIMessage, APIMessageActionRowComponent } from "discord-api-types/v10";
 import type { DiscordWebhookData, DiscordWebhookOptions, sendOptions } from "../../interfaces";
+import { rest } from "../../shared";
 import { defaultOptions, error, url, validateURL } from "./utils";
-const rest = new REST();
 
 /**
  * @description A Discord webhook message builder for webhook URLs 
