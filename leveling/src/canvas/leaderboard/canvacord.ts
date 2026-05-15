@@ -1,4 +1,4 @@
-import { is, status } from "@elara-services/utils";
+import { is, noop, status } from "@elara-services/utils";
 import type {
     CanvasResponseWithQuery,
     LeaderboardCanvasHeader,
@@ -13,14 +13,15 @@ export async function canvacord(
     header?: LeaderboardCanvasHeader,
     options?: LeaderboardCanvasOptions,
 ): CanvasResponseWithQuery {
-    players = players.slice(0, 10);
-    const canvas = await import("canvacord").catch(() => null);
+    const canvas = await import(`canvacord`).catch(() => void 0);
     if (!canvas) {
-        return status.error(
-            `Unable to find the (canvacord) npm package, make sure to install it.`,
-        );
+        return status.error(`I couldn't find 'canvacord' package.`);
     }
-    canvas.Font.loadDefault();
+    players = players.slice(0, 10);
+    if ("Font" in canvas && "loadDefault" in canvas.Font) {
+        canvas.Font.loadDefault();
+    }
+    
 
     const lb = new canvas.LeaderboardBuilder().setPlayers(players);
     if ([1, 2, 3].includes(players.length)) {

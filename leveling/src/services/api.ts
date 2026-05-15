@@ -2049,7 +2049,7 @@ export class API {
                 background:
                     details?.backgroundUrl ||
                     db.data.background.url ||
-                    "https://i.imgur.com/Y5m4ntt.jpeg",
+                    "https://cdn.elara.workers.dev/api/bot/leaderboard.jpeg",
             },
         );
     }

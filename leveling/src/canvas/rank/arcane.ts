@@ -1,4 +1,4 @@
-import { is } from "@elara-services/utils";
+import { is, make } from "@elara-services/utils";
 import type { User } from "discord.js";
 import * as Canvas from "skia-canvas";
 import type {
@@ -106,8 +106,7 @@ async function createArcaneRankProfile(user: ArcaneUser): CanvasResponse {
         120,
         120,
         70,
-        user.avatar ||
-            "https://cdn.discordapp.com/emojis/1081469562106691655.png",
+        user.avatar || make.emojiURL("1081469562106691655"),
     );
     ctx.lineWidth = 7;
     ctx.strokeStyle = "#36393f";

@@ -3,6 +3,7 @@ import { GuildWebhook, sendOptions } from "@elara-services/webhooks";
 import {
     Client,
     Message,
+    MessageType,
     TextBasedChannel,
     VoiceState,
     type Guild,
@@ -11,7 +12,7 @@ import {
     type MessageCreateOptions,
     type PartialGuildMember,
 } from "discord.js";
-import { EventEmitter } from "events";
+import { EventEmitter } from "eventemitter3";
 import type {
     CachedOptions,
     Options,
@@ -28,6 +29,7 @@ import {
     parser,
     random,
 } from "./utils";
+export * from "./canvas/leaderboard/custom";
 export type * from "./interfaces";
 export type * from "./services";
 export type * from "./services/api";
@@ -263,6 +265,24 @@ export class Leveling extends Database {
         if (!message.inGuild() || !message.guild.available) {
             return;
         }
+        if ([
+            MessageType.AutoModerationAction,
+            MessageType.ChannelFollowAdd,
+            MessageType.ChannelNameChange,
+            MessageType.ChannelPinnedMessage,
+            MessageType.GuildApplicationPremiumSubscription,
+            MessageType.GuildBoost,
+            MessageType.GuildBoostTier1,
+            MessageType.GuildBoostTier2,
+            MessageType.GuildBoostTier3,
+            MessageType.RecipientAdd,
+            MessageType.RecipientRemove,
+            MessageType.UserJoin,
+            MessageType.ThreadStarterMessage,
+            MessageType.ThreadCreated
+        ].includes(message.type)) {
+            return;
+        }
         let member = message.member;
         let author = message.author;
         // @ts-ignore
@@ -416,7 +436,7 @@ export class Leveling extends Database {
      * This is only for internal use!
      *
      */
-    private async handleLevelups(
+    public async handleLevelups(
         member: GuildMember,
         currentChannel: TextBasedChannel | null,
         xp: number,
@@ -540,8 +560,8 @@ export class Leveling extends Database {
                         allowedMentions:
                             profile.data.toggles.pings === true
                                 ? {
-                                      parse: [],
-                                  }
+                                    parse: [],
+                                }
                                 : undefined,
                     })
                     .catch(() => null);

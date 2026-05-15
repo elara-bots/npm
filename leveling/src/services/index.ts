@@ -1,8 +1,11 @@
 import {
     discord,
+    get,
     getEntries,
     is,
     log,
+    make,
+    noop,
     snowflakes,
 } from "@elara-services/utils";
 import { Client } from "discord.js";
@@ -13,6 +16,8 @@ import { name, version } from "../../package.json";
 import type { Weekly, WeeklyData } from "../interfaces";
 import { isThisWeek } from "../utils";
 import * as schemas from "./schema";
+
+const weekly = new Set();
 
 let connected = false;
 export class Database {
@@ -37,11 +42,12 @@ export class Database {
                 if (id) {
                     return await this.dbs.weekly
                         .findOne({ guildId, id })
-                        .catch(() => null);
+                        .catch(noop);
                 }
-                const data = await this.dbs.weekly
-                    .find({ guildId })
-                    .catch(() => []);
+                const data = await this.deDupeWeekly(guildId);
+                // const data = await this.dbs.weekly
+                //     .find({ guildId })
+                //     .catch(() => []);
                 const create = async () => {
                     return await new this.dbs.weekly({
                         guildId,
@@ -49,7 +55,7 @@ export class Database {
                         endOfWeek: moment().endOf("week").toISOString(),
                     })
                         .save()
-                        .catch(() => null);
+                        .catch(noop);
                 };
                 if (is.array(data)) {
                     if (data.length) {
@@ -63,7 +69,7 @@ export class Database {
                         );
                         if (f) {
                             f.announced = true;
-                            await f.save().catch(() => null);
+                            await f.save().catch(noop);
                             this.handleWeeklyAnnounce(f);
                         }
                     }
@@ -131,7 +137,7 @@ export class Database {
                         }
                     }
                 }
-                return await db.save().catch(() => null);
+                return await db.save().catch(noop);
             },
         };
     }
@@ -139,11 +145,11 @@ export class Database {
     private async getUser(userId: string, guildId: string) {
         let data = await this.dbs.users
             .findOne({ userId, guildId })
-            .catch(() => null);
+            .catch(noop);
         if (!data) {
             data = await new this.dbs.users({ userId, guildId })
                 .save()
-                .catch(() => null);
+                .catch(noop);
         }
         if (!data) {
             return null;
@@ -154,11 +160,11 @@ export class Database {
     private async getSettings(guildId: string) {
         let settings = await this.dbs.settings
             .findOne({ guildId })
-            .catch(() => null);
+            .catch(noop);
         if (!settings) {
             settings = await new this.dbs.settings({ guildId })
                 .save()
-                .catch(() => null);
+                .catch(noop);
         }
         if (!settings) {
             return null;
@@ -177,17 +183,52 @@ export class Database {
             retryWrites: true,
         }).then(() => {
             log(
-                `[${name}, v${version}]: [MONGODB]: Connected to ${
-                    this.dbName || "Leveling"
+                `[${name}, v${version}]: [MONGODB]: Connected to ${this.dbName || "Leveling"
                 }`,
             );
         });
+    }
+
+    private async deDupeWeekly(guildId: string) {
+        const data = await this.dbs.weekly
+            .find({ guildId })
+            .catch(() => []);
+        if (!is.array(data)) {
+            return [];
+        }
+        const res = new Map<string, typeof data[0]>();
+        const remove = make.array<string>();
+        for (const r of data) {
+            const f = res.get(r.endOfWeek);
+            const isOlder = new Date(r.endOfWeek).getTime();
+            if (Date.now() - isOlder >= get.days(16)) {
+                remove.push(r.id);
+                continue;
+            }
+            if (f) {
+                remove.push(r.id);
+                res.set(r.endOfWeek, Object.assign(f, r));
+            } else {
+                res.set(r.endOfWeek, r);
+            }
+        }
+        if (is.array(remove)) {
+            await this.dbs.weekly.deleteMany({ id: { $in: remove } }).catch(noop);
+        }
+        const list = [...res.values()];
+        await Promise.all(list.map((c) => this.dbs.weekly.updateOne({ id: c.id }, { $set: c }).catch(noop)));
+        return list;
     }
 
     private async handleWeeklyAnnounce(data: Weekly) {
         if (!data) {
             return;
         }
+        if (weekly.has(data.guildId)) {
+            return;
+        }
+        weekly.add(data.guildId);
+        setTimeout(() => weekly.delete(data.guildId), get.mins(2));
         const db = await this.getSettings(data.guildId);
         if (
             !db ||
@@ -229,8 +270,8 @@ export class Database {
                 .send({
                     content: db.announce.weekly.roles.length
                         ? db.announce.weekly.roles
-                              .map((c) => `<@&${c}>`)
-                              .join(", ")
+                            .map((c) => `<@&${c}>`)
+                            .join(", ")
                         : "",
                     files: [
                         {
